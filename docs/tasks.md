@@ -34,27 +34,36 @@
 - [ ] `src/connectors/graph_api.py` — MSAL認証・未読メール取得・Teams文字起こし取得
 - [ ] `src/services/state.py` — SQLite処理済みID管理（aiosqlite）
 
-### 1-3. LangGraph エージェント
-- [ ] `src/services/classifier.py` — 機密度分類ロジック
+### 1-3. LLMプロバイダー抽象化
+- [ ] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol定義
+- [ ] `src/providers/ollama.py` — Ollamaプロバイダー実装
+- [ ] `src/providers/claude.py` — Claude APIプロバイダー実装
+- [ ] `src/providers/gemini.py` — Gemini APIプロバイダー実装
+- [ ] `src/providers/azure_openai.py` — Azure OpenAIプロバイダー実装
+- [ ] `src/providers/factory.py` — 設定値からプロバイダーを生成するファクトリー
+- [ ] プロバイダー切り替えテスト（各プロバイダーのモック）
+
+### 1-4. LangGraph エージェント
+- [ ] `src/services/classifier.py` — 機密度分類ロジック（機密時はollama強制）
 - [ ] `src/agents/task_extractor.py` — タスク抽出ノード実装
 - [ ] `src/agents/graph.py` — LangGraph グラフ定義・状態マシン
 
-### 1-4. 起票・承認フロー
+### 1-5. 起票・承認フロー
 - [ ] `src/connectors/planner.py` — Microsoft Planner タスク起票（Graph API）
 - [ ] `src/services/approval.py` — 信頼スコア→承認フロー分岐
 - [ ] Teams承認通知（Adaptive Card）実装
 
-### 1-5. FastAPI エントリーポイント
+### 1-6. FastAPI エントリーポイント
 - [ ] `src/api/main.py` — FastAPI アプリ・ポーリングスケジューラー起動
 - [ ] `src/api/routers/tasks.py` — タスク手動起票エンドポイント
 - [ ] `src/api/routers/health.py` — ヘルスチェックエンドポイント
 
-### 1-6. テスト
+### 1-7. テスト
 - [ ] `tests/unit/test_task_extractor.py` — タスク抽出ユニットテスト（モックLLM）
 - [ ] `tests/unit/test_classifier.py` — 機密度分類ユニットテスト
 - [ ] `tests/integration/test_graph_api.py` — Graph API統合テスト（申請後）
 
-### 1-7. インフラ
+### 1-8. インフラ
 - [ ] `docker/docker-compose.yml` — Langfuse・n8n設定
 - [ ] `docker/Dockerfile` — FastAPIアプリコンテナ
 - [ ] Langfuse 動作確認

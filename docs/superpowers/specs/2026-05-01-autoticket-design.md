@@ -1,7 +1,7 @@
 # AutoTicket 設計ドキュメント
 
 **作成日**: 2026-05-01  
-**最終更新**: 2026-05-01（Teamsボット入力ルート追加）  
+**最終更新**: 2026-05-01（LLMプロバイダー抽象化レイヤー追加）  
 **フェーズ**: Phase 0〜1（ハーネス設定 + Pattern A基盤）  
 **ステータス**: 承認済み
 
@@ -60,6 +60,13 @@ AutoTicket/
 │   ├── agents/                      # LangGraph エージェント
 │   ├── connectors/                  # Graph API・Planner連携
 │   ├── models/                      # Pydantic モデル
+│   ├── providers/                   # LLMプロバイダー抽象化レイヤー
+│   │   ├── base.py                  # LLMProvider Protocol（インターフェース定義）
+│   │   ├── ollama.py                # Ollama（ローカル・デフォルト）
+│   │   ├── claude.py                # Anthropic Claude API
+│   │   ├── gemini.py                # Google Gemini API
+│   │   ├── azure_openai.py          # Azure OpenAI
+│   │   └── factory.py               # 設定値からプロバイダーを生成
 │   └── services/                   # ビジネスロジック
 ├── tests/unit/
 ├── tests/integration/               # Graph API申請後に有効化
@@ -172,7 +179,7 @@ class ExtractedTask(BaseModel):
 
 ---
 
-## 5. フェーズロードマップ
+## 5. フェーズロードマップ（更新済み）
 
 | フェーズ | 内容 | 前提条件 |
 |---------|------|---------|
@@ -184,7 +191,57 @@ class ExtractedTask(BaseModel):
 
 ---
 
-## 6. Phase 3: Teamsボット（スクショ＋コメント）アーキテクチャ
+## 6. LLMプロバイダー抽象化レイヤー
+
+### 設計方針
+LLM処理をプロバイダー抽象化することで、`.env` の設定変更だけでバックエンドを切り替え可能にする。コードの変更は不要。
+
+### プロバイダー一覧
+
+| プロバイダー | テキスト処理 | 画像処理（Vision） | データ所在 | 推奨用途 |
+|------------|------------|-----------------|----------|---------|
+| `ollama` | ✅ qwen2.5:14b | ✅ llama3.2-vision | ローカル | 機密データ・コスト重視 |
+| `claude` | ✅ claude-sonnet-4-6 | ✅ claude-sonnet-4-6 | Anthropicクラウド | 高精度・非機密データ |
+| `gemini` | ✅ gemini-1.5-pro | ✅ gemini-1.5-pro | Googleクラウド | 高精度・非機密データ |
+| `azure_openai` | ✅ GPT-4o | ✅ GPT-4o | Azureクラウド | 社内Azure環境がある場合 |
+
+### セキュリティルール（機密度と連動）
+```
+classify_sensitivity の結果
+    ├→ CONFIDENTIAL → 強制的に ollama（外部送信禁止）
+    └→ NON_CONFIDENTIAL → .env の LLM_PROVIDER 設定に従う
+```
+
+外部APIを使う場合でも、機密データは必ずローカルOllamaで処理される。
+
+### プロバイダー インターフェース（`src/providers/base.py`）
+```python
+from typing import Protocol, runtime_checkable
+
+@runtime_checkable
+class LLMProvider(Protocol):
+    async def extract_tasks(self, text: str) -> list[ExtractedTask]: ...
+
+@runtime_checkable
+class VisionLLMProvider(Protocol):
+    async def analyze_image(self, image: bytes, comment: str) -> str: ...
+```
+
+### 設定（`.env`）
+```bash
+# テキスト処理プロバイダー（ollama | claude | gemini | azure_openai）
+LLM_PROVIDER=ollama
+
+# 画像処理プロバイダー（ollama | claude | gemini | azure_openai）
+LLM_VISION_PROVIDER=ollama
+```
+
+### ファクトリー（`src/providers/factory.py`）
+設定値を読んで適切なプロバイダーインスタンスを返す。LangGraphエージェントはプロバイダーの実装を知らず、インターフェースだけに依存する。
+
+---
+
+## 7. Phase 3: Teamsボット（スクショ＋コメント）アーキテクチャ
 
 ### データフロー
 ```
