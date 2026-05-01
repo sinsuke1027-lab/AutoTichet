@@ -1,6 +1,6 @@
 # AutoTicket タスク一覧
 
-最終更新: 2026-05-01
+最終更新: 2026-05-01（Teamsボット入力ルート追加）
 
 ---
 
@@ -65,10 +65,18 @@
 - [ ] （Phase 1完了後に詳細化）
 - [ ] Graph API スコープ追加申請（ChannelMessage.Read.All / Notes.Read.All）
 
-## Phase 3: ローカルLLM基盤（Pattern B）
+## Phase 3: ローカルLLM基盤（Pattern B）+ Teamsボット
 - [ ] （Phase 1完了後に詳細化）
 - [ ] Ollama + qwen2.5:14b セットアップ
+- [ ] Ollama + llama3.2-vision セットアップ（スクショ処理用）
 - [ ] 機密度振り分けロジック実装
+### Teamsボット（スクショ＋コメント起票）
+- [ ] Bot Framework 登録（Teams Developer Portal）
+- [ ] FastAPI `/bot` エンドポイント実装（Bot Framework Webhook受信）
+- [ ] 画像バイナリ抽出 + Ollama vision 呼び出し実装
+- [ ] 画像説明 + コメント統合 → LangGraph エージェントへ渡す実装
+- [ ] ボット返信メッセージ実装（起票成功・承認依頼・低信頼スコア）
+- [ ] チャンネル投稿・DM 両対応テスト
 
 ## Phase 4: 通話録音（Whisper）
 - [ ] （Phase 3完了後に詳細化）

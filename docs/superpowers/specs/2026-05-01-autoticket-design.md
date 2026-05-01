@@ -1,6 +1,7 @@
 # AutoTicket 設計ドキュメント
 
 **作成日**: 2026-05-01  
+**最終更新**: 2026-05-01（Teamsボット入力ルート追加）  
 **フェーズ**: Phase 0〜1（ハーネス設定 + Pattern A基盤）  
 **ステータス**: 承認済み
 
@@ -9,7 +10,18 @@
 ## 1. プロジェクト概要
 
 ### 目的
-社内で発生するタスクをOutlookメール・Teams会議議事録からAIが自動抽出し、Microsoft Plannerへ自動起票することで、起票漏れ・手作業負担を解消する。
+社内で発生するタスクを各種情報ソースからAIが自動抽出し、Microsoft Plannerへ自動起票することで、起票漏れ・手作業負担を解消する。
+
+### インプットソース一覧
+
+| # | インプット | 取得方法 | フェーズ |
+|---|-----------|---------|---------|
+| 1 | Outlookメール | Graph API ポーリング | Phase 1 |
+| 2 | Teams会議 議事録 | Graph API ポーリング | Phase 1 |
+| 3 | Teamsチャット | Graph API ポーリング | Phase 2 |
+| 4 | OneNote メモ | Graph API ポーリング | Phase 2 |
+| 5 | **Teamsボット（スクショ＋コメント）** | **Bot Framework Webhook** | **Phase 3** |
+| 6 | 通話録音（電話等） | 音声ファイル → Whisper | Phase 4 |
 
 ### 制約条件
 | 項目 | 内容 |
@@ -132,8 +144,8 @@ class ExtractedTask(BaseModel):
     priority: Literal["high", "medium", "low"]
     category: Literal["HR", "IT", "総務", "その他"]
     confidence_score: float                 # 0.0〜1.0
-    source_type: Literal["email", "meeting"]
-    source_id: str                          # Graph API メッセージID
+    source_type: Literal["email", "meeting", "chat", "onenote", "teams_bot"]
+    source_id: str                          # Graph API メッセージID or Bot activity ID
 ```
 
 ### 書き込み先
@@ -165,15 +177,56 @@ class ExtractedTask(BaseModel):
 | フェーズ | 内容 | 前提条件 |
 |---------|------|---------|
 | Phase 0 | ハーネス設定 | ✅ 完了 |
-| Phase 1 | Outlook・Teams → Planner起票 | Graph API申請承認 |
+| Phase 1 | Outlook・Teams議事録 → Planner起票 | Graph API申請承認 |
 | Phase 2 | Teamsチャット・OneNote対応 | Phase 1完了 |
-| Phase 3 | ローカルLLM基盤（Pattern B）+ 機密度振り分け | Docker環境 |
+| Phase 3 | ローカルLLM基盤（Pattern B）+ 機密度振り分け + **Teamsボット（スクショ＋コメント）** | Docker環境・Ollama vision |
 | Phase 4 | 通話録音対応（Whisper） | Phase 3完了 |
 
 ---
 
-## 6. 未解決事項
+## 6. Phase 3: Teamsボット（スクショ＋コメント）アーキテクチャ
+
+### データフロー
+```
+[Teams チャンネル (#タスク起票) または Bot へのDM]
+  ユーザー：スクショ画像 + コメント（例：「田中さんに来週までお願い」）
+      ↓ Bot Framework Webhook（HTTPS POST）
+[FastAPI /bot エンドポイント]
+      ↓ 画像バイナリ + コメントテキストを抽出
+[Ollama Vision LLM（llama3.2-vision）]  ← ローカル処理、外部送信なし
+      ↓ 画像内容の説明文を生成
+[LangGraph タスク抽出エージェント]
+      ↓ 画像説明 + コメントを統合してタスク抽出
+      ↓ 通常の承認フローへ（信頼スコア分岐）
+[Microsoft Planner 起票]
+      ↓ Teamsボットが起票結果をユーザーへ返信
+```
+
+### ボットの動作仕様
+| 入力パターン | 処理 |
+|------------|------|
+| 画像 + コメントあり | 画像解析 + コメントを統合してタスク抽出（最高精度） |
+| 画像のみ | 画像解析のみでタスク抽出（コメントなし） |
+| テキストのみ | 通常テキスト処理（スクショなし） |
+
+### ボット返信例
+- 自動起票成功：「✅ タスク『田中さんへのA社資料作成依頼』を起票しました（期限：来週金曜）」
+- 承認依頼：「📋 確認が必要です。以下のタスクを起票してよいですか？[承認] [却下]」
+- 低信頼スコア：「⚠️ タスクを特定できませんでした。コメントで詳細を追加してください」
+
+### 技術要件（Phase 3追加分）
+- **Bot Framework 登録**: Teams Developer Portal（Azure ADアプリ登録）
+- **Vision LLM**: Ollama + `llama3.2-vision`（ローカル処理）
+- **公開エンドポイント**: 社内サーバーのHTTPS + Bot Framework向けFWルール
+- **追加Graph APIスコープ**: 不要（Bot Framework経由で受信するため）
+
+---
+
+## 7. 未解決事項
 - [ ] Graph APIアプリ登録（IT管理者申請待ち）
 - [ ] Docker Desktopインストール可否（社内PC）
 - [ ] Microsoft Plannerのグループ・プランID確認
 - [ ] 担当者名マッピングリストの管理方法（Graph APIのユーザーリストと照合）
+- [ ] Teamsボット用の公開HTTPSエンドポイント確保（Phase 3）
+- [ ] Bot Framework登録の社内ポリシー確認（Phase 3）
+- [ ] Ollama vision対応GPU/CPUスペック確認（llama3.2-vision動作要件）
