@@ -31,8 +31,11 @@
 - [ ] `src/models/config.py` — Settings（pydantic-settings）
 
 ### 1-2. Graph API クライアント
-- [ ] `src/connectors/graph_api.py` — MSAL認証・未読メール取得・Teams文字起こし取得
+- [ ] `src/connectors/graph_api.py` — MSAL認証・未読メール取得・Teams文字起こし取得・ユーザー一覧・M365 Group一覧取得
+- [ ] `src/connectors/todo.py` — Microsoft To Do プライベートタスク起票（Graph API）
 - [ ] `src/services/state.py` — SQLite処理済みID管理（aiosqlite）
+- [ ] `src/services/routing.py` — visibility に応じた起票先ルーティング（To Do / 部署Planner / 全社Planner）
+- [ ] 部署テーブル初期設定（M365 Group ID → Planner Plan ID マッピング）
 
 ### 1-3. LLMプロバイダー抽象化
 - [ ] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol定義

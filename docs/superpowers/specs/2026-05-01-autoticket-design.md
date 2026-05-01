@@ -1,7 +1,7 @@
 # AutoTicket 設計ドキュメント
 
 **作成日**: 2026-05-01  
-**最終更新**: 2026-05-01（LLMプロバイダー抽象化レイヤー追加）  
+**最終更新**: 2026-05-01（マルチユーザー・部署別アクセス制御設計追加）  
 **フェーズ**: Phase 0〜1（ハーネス設定 + Pattern A基盤）  
 **ステータス**: 承認済み
 
@@ -279,11 +279,133 @@ LLM_VISION_PROVIDER=ollama
 
 ---
 
-## 7. 未解決事項
-- [ ] Graph APIアプリ登録（IT管理者申請待ち）
+## 7. マルチユーザー・部署別アクセス制御設計
+
+### 基本方針
+**Phase 1-2はM365のグループ権限モデルをそのまま活用する。** アクセス制御をゼロから実装せず、M365 Groupのメンバーシップ＝部署の権限として扱う。Phase 3以降でカスタムWeb UIを作る際に FastAPI 側でロール制御を追加する。
+
+---
+
+### ロールモデル
+
+| ロール | 対象 | 見えるタスク |
+|--------|------|------------|
+| `admin` | システム管理者 | 全部署・全メンバーの全タスク |
+| `manager` | 部署責任者 | 自部署のチームタスク全件 + 自分のプライベートタスク |
+| `member` | 一般メンバー | 自分のプライベートタスク + 所属部署のチームタスク |
+
+---
+
+### タスク可視性（visibility）と起票先
+
+```
+ExtractedTask.visibility
+    ├→ "private"  → Microsoft To Do（本人の個人リスト）
+    ├→ "team"     → 部署別 Planner プラン（M365 Group に紐づく）
+    └→ "all"      → 全社共通 Planner プラン
+```
+
+#### M365テナント構造
+
+```
+M365テナント
+  ├── M365 Group: 営業部  → Planner Plan: 営業部タスク  （営業部メンバーのみ閲覧可）
+  ├── M365 Group: IT部   → Planner Plan: IT部タスク    （IT部メンバーのみ閲覧可）
+  ├── M365 Group: 総務部  → Planner Plan: 総務部タスク  （総務部メンバーのみ閲覧可）
+  └── M365 Group: 全社共通 → Planner Plan: 全社タスク   （全員閲覧可）
+
+各ユーザーの Microsoft To Do → private タスク（本人のみ）
+```
+
+PlannerはM365 Groupのメンバーシップを自動的に引き継ぐため、部署の追加・メンバー変更はM365管理者側で完結する。
+
+---
+
+### 可視性の自動判定ロジック
+
+LangGraphエージェントがテキストから可視性を推定する：
+
+| 判定条件 | visibility |
+|---------|-----------|
+| 特定の個人宛（「〇〇さんお願いします」） | `private` |
+| 部署・チーム宛（「営業チームで対応」「皆さんへ」） | `team` |
+| 全社・会社全体（「全部署共有」「社内周知」） | `all` |
+| 判定不能 | `team`（保守的デフォルト） |
+
+---
+
+### 拡張データモデル
+
+```python
+class ExtractedTask(BaseModel):
+    is_task: bool
+    title: str
+    assignee_user_id: str | None      # Azure AD Object ID
+    assignee_name: str | None         # 表示名（照合失敗時のフォールバック）
+    department_id: str | None         # M365 Group ID（部署）
+    deadline: date | None
+    priority: Literal["high", "medium", "low"]
+    category: Literal["HR", "IT", "総務", "その他"]
+    visibility: Literal["private", "team", "all"]  # 追加
+    confidence_score: float
+    source_type: Literal["email", "meeting", "chat", "onenote", "teams_bot"]
+    source_id: str
+```
+
+---
+
+### 起票先ルーティング（`src/services/routing.py`）
+
+```
+visibility = "private"
+    → Graph API: POST /users/{assignee_id}/todo/lists/{listId}/tasks
+    → 本人のTo Doに作成（Tasks.ReadWrite.All 権限が必要）
+
+visibility = "team"
+    → Graph API: POST /planner/tasks
+    → planId = departments[department_id].planner_plan_id
+    → 部署のPlannerプランに作成
+
+visibility = "all"
+    → Graph API: POST /planner/tasks
+    → planId = COMPANY_WIDE_PLAN_ID（全社共通プラン）
+```
+
+---
+
+### 追加Graph API スコープ（Phase 1に追加申請）
+
+| スコープ | 用途 |
+|---------|------|
+| `Tasks.ReadWrite.All` | To Doプライベートタスク作成（全ユーザー分） |
+| `Group.Read.All` | 部署一覧（M365 Group）の取得 |
+
+---
+
+### Phase 3以降：カスタムWeb UI 対応時の追加設計
+
+FastAPI に以下を追加する：
+
+```
+GET /api/tasks
+  → 呼び出しユーザーのAzure ADトークンを検証
+  → ロールに応じてフィルタリング:
+     admin   → Planner全プラン + 全To Doをaggregateして返す
+     manager → 自部署Planner + 自分のTo Do
+     member  → 自部署Planner（自分担当分） + 自分のTo Do
+
+認証: Azure AD MSAL (Authorization Code Flow)
+```
+
+---
+
+## 8. 未解決事項
+- [ ] Graph APIアプリ登録（IT管理者申請待ち）→ `docs/graph-api-setup.md` 提出
 - [ ] Docker Desktopインストール可否（社内PC）
-- [ ] Microsoft Plannerのグループ・プランID確認
-- [ ] 担当者名マッピングリストの管理方法（Graph APIのユーザーリストと照合）
+- [ ] 部署ごとのM365 Group・Planner プランID確認（IT管理者に確認）
+- [ ] 全社共通Plannerプランの作成・プランID確認
+- [ ] 担当者名マッピング：Graph API `User.Read.All` で自動取得
+- [ ] To Doのデフォルトリスト取得方法確認（`GET /users/{id}/todo/lists`）
 - [ ] Teamsボット用の公開HTTPSエンドポイント確保（Phase 3）
 - [ ] Bot Framework登録の社内ポリシー確認（Phase 3）
 - [ ] Ollama vision対応GPU/CPUスペック確認（llama3.2-vision動作要件）

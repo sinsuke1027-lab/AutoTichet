@@ -12,12 +12,13 @@
 |---------|---------|------|------|
 | Phase 1 | `Mail.Read` | Outlookメール読み取り | Application |
 | Phase 1 | `OnlineMeetings.Read.All` | Teams会議文字起こし取得 | Application |
-| Phase 1 | `Tasks.ReadWrite.All` | Microsoft Plannerへのタスク起票 | Application |
+| Phase 1 | `Tasks.ReadWrite.All` | Planner起票 + To Doプライベートタスク作成 | Application |
 | Phase 1 | `User.Read.All` | ユーザー情報・担当者照合 | Application |
+| Phase 1 | `Group.Read.All` | 部署（M365 Group）一覧取得 | Application |
 | Phase 2（将来） | `ChannelMessage.Read.All` | Teamsチャット読み取り | Application |
 | Phase 2（将来） | `Notes.Read.All` | OneNote取得 | Application |
 
-※ Phase 1 の4スコープのみ最初に申請をお願いします。
+※ Phase 1 の5スコープをまとめて申請をお願いします。
 
 ---
 
