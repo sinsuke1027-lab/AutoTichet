@@ -1,0 +1,35 @@
+# 環境変数・シークレット（絶対にコミット禁止）
+.env
+*.env
+
+# データベース
+data/*.db
+*.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+*.egg-info/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker/volumes/
+
+# ログ
+*.log
