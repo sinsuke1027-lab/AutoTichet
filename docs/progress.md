@@ -5,7 +5,7 @@
 ステータス: ✅ ハーネス設定完了 / ⏳ Graph API申請待ち
 
 ## 最終更新
-- **日付**: 2026-05-02（Task 7完了）
+- **日付**: 2026-05-02（Task 10完了）
 - **完了した作業**:
   - プロジェクト設計ドキュメント作成（docs/superpowers/specs/）
   - CLAUDE.md 作成
@@ -40,6 +40,10 @@
   - **[Task 7完了]** `tests/unit/test_providers.py` 拡張（3つのファクトリーテスト、全8件パス）
   - **[Task 7完了]** ruff チェック完了（全ファイルパス）
   - **[Task 7完了]** git commit: feat: LLMプロバイダーファクトリーを追加（設定値で切り替え）
+  - **[Task 10完了]** `tests/unit/test_routing.py` 作成（3つのルーティングテスト、TDD方式）
+  - **[Task 10完了]** `src/services/routing.py` 実装（visibility→起票先ルーティング）
+  - **[Task 10完了]** ruff / mypy チェック完了
+  - **[Task 10完了]** git commit: feat: visibility→起票先ルーティングサービスを追加
 
 - **次のアクション**:
   1. Task 4 実装: `src/services/state.py`（SQLite処理済みID管理、aiosqlite）
