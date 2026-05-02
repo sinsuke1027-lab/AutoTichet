@@ -43,7 +43,7 @@
 - [x] `src/providers/claude.py` — Claude APIプロバイダー実装 ✅ 2026-05-02
 - [x] `src/providers/gemini.py` — Gemini APIプロバイダー実装 ✅ 2026-05-02
 - [x] `src/providers/azure_openai.py` — Azure OpenAIプロバイダー実装 ✅ 2026-05-02
-- [ ] `src/providers/factory.py` — 設定値からプロバイダーを生成するファクトリー
+- [x] `src/providers/factory.py` — 設定値からプロバイダーを生成するファクトリー ✅ 2026-05-02
 - [ ] プロバイダー切り替えテスト（各プロバイダーのモック）
 
 ### 1-4. LangGraph エージェント

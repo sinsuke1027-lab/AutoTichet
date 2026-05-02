@@ -5,7 +5,7 @@
 ステータス: ✅ ハーネス設定完了 / ⏳ Graph API申請待ち
 
 ## 最終更新
-- **日付**: 2026-05-02（Task 6完了）
+- **日付**: 2026-05-02（Task 7完了）
 - **完了した作業**:
   - プロジェクト設計ドキュメント作成（docs/superpowers/specs/）
   - CLAUDE.md 作成
@@ -36,6 +36,10 @@
   - **[Task 6完了]** mypy 型チェック完了（azure_openai.py の型アサーション修正）
   - **[Task 6完了]** ruff チェック完了（全ファイルパス）
   - **[Task 6完了]** git commit: feat: Claude/Gemini/AzureOpenAIプロバイダーを追加
+  - **[Task 7完了]** `src/providers/factory.py` 実装（create_llm_provider / create_vision_provider）
+  - **[Task 7完了]** `tests/unit/test_providers.py` 拡張（3つのファクトリーテスト、全8件パス）
+  - **[Task 7完了]** ruff チェック完了（全ファイルパス）
+  - **[Task 7完了]** git commit: feat: LLMプロバイダーファクトリーを追加（設定値で切り替え）
 
 - **次のアクション**:
   1. Task 4 実装: `src/services/state.py`（SQLite処理済みID管理、aiosqlite）
