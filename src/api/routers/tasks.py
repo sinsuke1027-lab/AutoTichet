@@ -1,7 +1,10 @@
+from contextlib import nullcontext
+
 from fastapi import APIRouter, Depends
 
 from src.models.config import Settings, get_settings
 from src.services.classifier import classify_sensitivity
+from src.services.langfuse_client import get_langfuse_client
 
 router = APIRouter(prefix="/tasks")
 
@@ -12,12 +15,47 @@ async def extract_from_text(
     source_type: str = "email",
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> dict[str, object]:
-    sensitivity = classify_sensitivity(text)
-    if sensitivity.label == "pattern_b":
-        return {"tasks": [], "skipped_reason": "機密データ（Pattern B）"}
+    langfuse = get_langfuse_client(settings)
+    ctx = (
+        langfuse.start_as_current_observation(
+            name="extract_from_text",
+            as_type="chain",
+            input={"text": text, "source_type": source_type},
+        )
+        if langfuse
+        else nullcontext()
+    )
 
-    from src.providers.factory import create_llm_provider
+    async with ctx:  # type: ignore[union-attr]
+        sensitivity = classify_sensitivity(text)
 
-    provider = create_llm_provider(settings)
-    tasks = await provider.extract_tasks(text, source_type)
-    return {"tasks": [t.model_dump() for t in tasks]}
+        if langfuse:
+            langfuse.start_observation(
+                name="classify_sensitivity",
+                as_type="span",
+                input={"text": text},
+                output=sensitivity.model_dump(),
+            )
+
+        if sensitivity.label == "pattern_b":
+            result: dict[str, object] = {"tasks": [], "skipped_reason": "機密データ（Pattern B）"}
+            if langfuse:
+                langfuse.set_current_trace_io(
+                    input={"text": text, "source_type": source_type},
+                    output=result,
+                )
+            return result
+
+        from src.providers.factory import create_llm_provider
+
+        provider = create_llm_provider(settings)
+        tasks = await provider.extract_tasks(text, source_type)
+        result = {"tasks": [t.model_dump() for t in tasks]}
+
+        if langfuse:
+            langfuse.set_current_trace_io(
+                input={"text": text, "source_type": source_type},
+                output=result,
+            )
+
+        return result
