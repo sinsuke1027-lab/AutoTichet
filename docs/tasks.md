@@ -40,9 +40,9 @@
 ### 1-3. LLMプロバイダー抽象化
 - [x] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol定義 ✅ 2026-05-02
 - [x] `src/providers/ollama.py` — Ollamaプロバイダー実装 ✅ 2026-05-02
-- [ ] `src/providers/claude.py` — Claude APIプロバイダー実装
-- [ ] `src/providers/gemini.py` — Gemini APIプロバイダー実装
-- [ ] `src/providers/azure_openai.py` — Azure OpenAIプロバイダー実装
+- [x] `src/providers/claude.py` — Claude APIプロバイダー実装 ✅ 2026-05-02
+- [x] `src/providers/gemini.py` — Gemini APIプロバイダー実装 ✅ 2026-05-02
+- [x] `src/providers/azure_openai.py` — Azure OpenAIプロバイダー実装 ✅ 2026-05-02
 - [ ] `src/providers/factory.py` — 設定値からプロバイダーを生成するファクトリー
 - [ ] プロバイダー切り替えテスト（各プロバイダーのモック）
 
