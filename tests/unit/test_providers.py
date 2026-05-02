@@ -1,7 +1,9 @@
 
+from src.models.config import Settings
 from src.providers.azure_openai import AzureOpenAIProvider
 from src.providers.base import LLMProvider, VisionLLMProvider
 from src.providers.claude import ClaudeProvider
+from src.providers.factory import create_llm_provider, create_vision_provider
 from src.providers.gemini import GeminiProvider
 from src.providers.ollama import OllamaProvider, OllamaVisionProvider
 
@@ -36,3 +38,23 @@ def test_azure_openai_provider_implements_protocol() -> None:
     )
     assert isinstance(provider, LLMProvider)
     assert isinstance(provider, VisionLLMProvider)
+
+
+def test_factory_returns_ollama_by_default() -> None:
+    settings = Settings(llm_provider="ollama")
+    provider = create_llm_provider(settings)
+    assert isinstance(provider, LLMProvider)
+    assert isinstance(provider, OllamaProvider)
+
+
+def test_factory_returns_claude_when_configured() -> None:
+    settings = Settings(llm_provider="claude", anthropic_api_key="sk-ant-test")
+    provider = create_llm_provider(settings)
+    assert isinstance(provider, ClaudeProvider)
+
+
+def test_vision_factory_returns_ollama_by_default() -> None:
+    settings = Settings(llm_vision_provider="ollama")
+    provider = create_vision_provider(settings)
+    assert isinstance(provider, VisionLLMProvider)
+    assert isinstance(provider, OllamaVisionProvider)
