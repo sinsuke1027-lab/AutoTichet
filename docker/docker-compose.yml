@@ -1,4 +1,23 @@
 services:
+  autoticket-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      # コンテナ内ではサービス名で解決する
+      LANGFUSE_HOST: http://langfuse-server:3000
+      OLLAMA_HOST: http://host.docker.internal:11434
+    volumes:
+      - autoticket_data:/app/data
+    depends_on:
+      langfuse-server:
+        condition: service_started
+    restart: unless-stopped
+
   langfuse-server:
     image: langfuse/langfuse:2
     depends_on:
@@ -30,4 +49,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  autoticket_data:
   langfuse_db:
