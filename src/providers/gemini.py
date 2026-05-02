@@ -1,6 +1,6 @@
 import json
 
-import google.generativeai as genai  # type: ignore[import-untyped]
+import google.generativeai as genai
 
 from src.models.task import ExtractedTask
 from src.providers.ollama import _EXTRACT_SYSTEM
@@ -8,8 +8,8 @@ from src.providers.ollama import _EXTRACT_SYSTEM
 
 class GeminiProvider:
     def __init__(self, api_key: str, model: str = "gemini-1.5-pro") -> None:
-        genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(
+        genai.configure(api_key=api_key)  # type: ignore[attr-defined]
+        self._model = genai.GenerativeModel(  # type: ignore[attr-defined]
             model_name=model,
             system_instruction=_EXTRACT_SYSTEM,
         )
@@ -29,7 +29,7 @@ class GeminiProvider:
     async def analyze_image(self, image: bytes, comment: str) -> str:
         import io
 
-        import PIL.Image  # type: ignore[import-untyped]
+        import PIL.Image
 
         img = PIL.Image.open(io.BytesIO(image))
         resp = await self._model.generate_content_async(
