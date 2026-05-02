@@ -1,4 +1,3 @@
-
 from src.models.config import Settings
 from src.providers.azure_openai import AzureOpenAIProvider
 from src.providers.base import LLMProvider, VisionLLMProvider
@@ -14,9 +13,7 @@ def test_ollama_provider_implements_protocol() -> None:
 
 
 def test_ollama_vision_provider_implements_protocol() -> None:
-    provider = OllamaVisionProvider(
-        host="http://localhost:11434", vision_model="llama3.2-vision"
-    )
+    provider = OllamaVisionProvider(host="http://localhost:11434", vision_model="llama3.2-vision")
     assert isinstance(provider, VisionLLMProvider)
 
 

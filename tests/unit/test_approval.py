@@ -21,11 +21,17 @@ def test_boundary_auto_create() -> None:
 
 
 def test_mid_score_is_request_approval() -> None:
-    assert decide_action(_make_task(0.65), auto_threshold=0.8, review_threshold=0.5) == "request_approval"
+    assert (
+        decide_action(_make_task(0.65), auto_threshold=0.8, review_threshold=0.5)
+        == "request_approval"
+    )
 
 
 def test_boundary_review() -> None:
-    assert decide_action(_make_task(0.5), auto_threshold=0.8, review_threshold=0.5) == "request_approval"
+    assert (
+        decide_action(_make_task(0.5), auto_threshold=0.8, review_threshold=0.5)
+        == "request_approval"
+    )
 
 
 def test_low_score_is_log_only() -> None:

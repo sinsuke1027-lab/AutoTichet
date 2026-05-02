@@ -6,9 +6,7 @@ from src.models.task import ExtractedTask
 from src.services.routing import route_task
 
 
-def _make_task(
-    visibility: str, assignee_user_id: str | None = "user-001"
-) -> ExtractedTask:
+def _make_task(visibility: str, assignee_user_id: str | None = "user-001") -> ExtractedTask:
     return ExtractedTask(
         is_task=True,
         title="テストタスク",
@@ -47,9 +45,7 @@ async def test_team_task_goes_to_dept_planner() -> None:
         company_plan_id="plan-all",
         dept_plan_map={"group-sales": "plan-sales"},
     )
-    planner_mock.create_task.assert_awaited_once_with(
-        task=_make_task("team"), plan_id="plan-sales"
-    )
+    planner_mock.create_task.assert_awaited_once_with(task=_make_task("team"), plan_id="plan-sales")
 
 
 @pytest.mark.asyncio
@@ -63,6 +59,4 @@ async def test_all_task_goes_to_company_planner() -> None:
         company_plan_id="plan-all",
         dept_plan_map={"group-sales": "plan-sales"},
     )
-    planner_mock.create_task.assert_awaited_once_with(
-        task=_make_task("all"), plan_id="plan-all"
-    )
+    planner_mock.create_task.assert_awaited_once_with(task=_make_task("all"), plan_id="plan-all")
