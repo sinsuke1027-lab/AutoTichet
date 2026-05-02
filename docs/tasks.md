@@ -27,7 +27,7 @@
 - [ ] Docker Desktop インストール確認
 
 ### 1-1. データモデル定義
-- [ ] `src/models/task.py` — ExtractedTask・SensitivityResult モデル
+- [x] `src/models/task.py` — ExtractedTask・SensitivityResult モデル ✅ 2026-05-02
 - [ ] `src/models/config.py` — Settings（pydantic-settings）
 
 ### 1-2. Graph API クライアント
@@ -38,8 +38,8 @@
 - [ ] 部署テーブル初期設定（M365 Group ID → Planner Plan ID マッピング）
 
 ### 1-3. LLMプロバイダー抽象化
-- [ ] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol定義
-- [ ] `src/providers/ollama.py` — Ollamaプロバイダー実装
+- [x] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol定義 ✅ 2026-05-02
+- [x] `src/providers/ollama.py` — Ollamaプロバイダー実装 ✅ 2026-05-02
 - [ ] `src/providers/claude.py` — Claude APIプロバイダー実装
 - [ ] `src/providers/gemini.py` — Gemini APIプロバイダー実装
 - [ ] `src/providers/azure_openai.py` — Azure OpenAIプロバイダー実装
