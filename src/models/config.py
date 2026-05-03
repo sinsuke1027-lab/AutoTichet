@@ -1,6 +1,8 @@
+import json
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -14,6 +16,7 @@ class Settings(BaseSettings):
     planner_group_id: str = ""
     planner_plan_id: str = ""
     company_wide_plan_id: str = ""
+    dept_plan_map: str = "{}"
 
     # Langfuse
     langfuse_secret_key: str = ""
@@ -47,6 +50,23 @@ class Settings(BaseSettings):
     azure_openai_deployment: str = "gpt-4o"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @field_validator("dept_plan_map")
+    @classmethod
+    def validate_dept_plan_map(cls, value: str) -> str:
+        """Validate that dept_plan_map is valid JSON and contains a dict."""
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"dept_plan_map must be valid JSON: {e}") from e
+        if not isinstance(parsed, dict):
+            raise ValueError("dept_plan_map must be a JSON object (dict)")
+        return value
+
+    def get_dept_plan_map(self) -> dict[str, str]:
+        """Parse and return dept_plan_map as a dictionary."""
+        parsed = json.loads(self.dept_plan_map)
+        return parsed if isinstance(parsed, dict) else {}
 
 
 @lru_cache

@@ -1,5 +1,6 @@
 import pytest
 
+from src.models.config import Settings
 from src.models.task import ExtractedTask, SensitivityResult
 
 
@@ -44,3 +45,13 @@ def test_sensitivity_result_pattern_b() -> None:
         detected_keywords=["給与"],
     )
     assert result.detected_keywords == ["給与"]
+
+
+def test_dept_plan_map_defaults_to_empty() -> None:
+    s = Settings()
+    assert s.get_dept_plan_map() == {}
+
+
+def test_dept_plan_map_parsed_from_json() -> None:
+    s = Settings(dept_plan_map='{"g1": "p1", "g2": "p2"}')
+    assert s.get_dept_plan_map() == {"g1": "p1", "g2": "p2"}
