@@ -26,11 +26,13 @@
   - **[Connectors]** src/connectors/graph_api.py / planner.py / todo.py（モックテスト済み）
   - **[Docker]** docker/Dockerfile + docker-compose.yml（autoticket-app サービス追加）
   - **[計画]** docs/superpowers/plans/2026-05-03-autoticket-phase1b-onwards.md 作成
+  - **[Task 14]** src/models/config.py に dept_plan_map（JSON環境変数）追加
+  - **[Task 15]** src/api/main.py polling_job() 完全実装（TDD・3テスト追加）— メールポーリング→LangGraph→起票ルーティング
 
 ## テスト状況
 | テストファイル | 件数 |
 |-------------|------|
-| test_models.py | 4 |
+| test_models.py | 6 |
 | test_state.py | 4 |
 | test_classifier.py | 6 |
 | test_approval.py | 5 |
@@ -39,7 +41,8 @@
 | test_agent.py | 2 |
 | test_langfuse_client.py | 3 |
 | test_connectors.py | 10 |
-| **合計** | **45** |
+| test_polling_job.py | 3 |
+| **合計** | **50** |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
@@ -56,7 +59,7 @@
 1. `docs/progress.md`（このファイル）と `docs/superpowers/plans/2026-05-03-autoticket-phase1b-onwards.md` を確認
 2. Graph API 承認状況を確認
 3. 承認済み → Task 16（統合テスト基盤）から開始
-4. 未承認 → Task 14（dept_plan_map 追加）→ Task 15（polling_job 実装）から開始
+4. 未承認 → Task 16（統合テスト基盤スキャフォルド）または Phase 2 Task 19（Teamsチャットコネクター）から開始
 
 ## 実装計画ファイル
 - `docs/superpowers/plans/2026-05-03-autoticket-phase1b-onwards.md`
