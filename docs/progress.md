@@ -1,51 +1,74 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: 1 Part A 完了**
-ステータス: ✅ Part A（Graph API非依存）実装完了 / ⏳ Graph API申請待ち（Part B待機中）
+**Phase: 1B 準備中**
+ステータス: ✅ Phase 1A 完了・Langfuse/Docker 設定済み / ⏳ Graph API 申請中（承認待ち）
 
 ## 最終更新
-- **日付**: 2026-05-02（Part A 全タスク完了）
+- **日付**: 2026-05-03
 - **完了した作業**:
-  - Phase 0 ハーネス設定（前セッション）
-  - **[ドキュメント]** docs/requirements.md（要件定義書）作成
-  - **[ドキュメント]** docs/db-schema.md（DB定義書）作成
-  - **[ドキュメント]** docs/design.md（基本設計書）作成
-  - **[Task 1]** requirements.txt / requirements-dev.txt / 全 __init__.py 作成、.venv セットアップ
-  - **[Task 2]** src/models/task.py（ExtractedTask・SensitivityResult）+ テスト4件
+  - Phase 0 ハーネス設定
+  - **[ドキュメント]** docs/requirements.md / db-schema.md / design.md 作成
+  - **[Task 1]** requirements.txt / requirements-dev.txt / 全 __init__.py / .venv セットアップ
+  - **[Task 2]** src/models/task.py（ExtractedTask・SensitivityResult）
   - **[Task 3]** src/models/config.py（Settings pydantic-settings）
-  - **[Task 4]** src/services/state.py（SQLite処理済みID管理）+ テスト4件
-  - **[Task 5]** src/providers/base.py（LLMProvider Protocol）+ src/providers/ollama.py
-  - **[Task 6]** src/providers/claude.py / gemini.py / azure_openai.py（外部LLMプロバイダー）
-  - **[Task 7]** src/providers/factory.py（LLMプロバイダーファクトリー）
-  - **[Task 8]** src/services/classifier.py（機密度分類器）+ テスト6件
-  - **[Task 9]** src/services/approval.py（承認フロー分岐）+ テスト5件
-  - **[Task 10]** src/services/routing.py（visibility→起票先ルーティング）+ テスト3件
-  - **[Task 11]** src/agents/nodes.py + src/agents/graph.py（LangGraphエージェント）+ テスト2件
-  - **[Task 12]** src/api/main.py + src/api/routers/health.py + tasks.py（FastAPI + APScheduler）
-  - **[Task 13]** Part A 全テスト 32/32 パス・ruff・mypy 全クリーン
+  - **[Task 4]** src/services/state.py（SQLite 処理済み ID 管理）
+  - **[Task 5]** src/providers/base.py + src/providers/ollama.py
+  - **[Task 6]** src/providers/claude.py / gemini.py / azure_openai.py
+  - **[Task 7]** src/providers/factory.py
+  - **[Task 8]** src/services/classifier.py（機密度分類器）
+  - **[Task 9]** src/services/approval.py（承認フロー分岐）
+  - **[Task 10]** src/services/routing.py（visibility→起票先ルーティング）
+  - **[Task 11]** src/agents/nodes.py + graph.py（LangGraph エージェント）
+  - **[Task 12]** src/api/main.py + routers/health.py + tasks.py（FastAPI）
+  - **[Task 13]** 全テスト 45/45 パス・ruff・mypy 全クリーン
+  - **[Langfuse]** src/services/langfuse_client.py + /extract エンドポイントにトレーシング追加
+  - **[Connectors]** src/connectors/graph_api.py / planner.py / todo.py（モックテスト済み）
+  - **[Docker]** docker/Dockerfile + docker-compose.yml（autoticket-app サービス追加）
+  - **[計画]** docs/superpowers/plans/2026-05-03-autoticket-phase1b-onwards.md 作成
 
-- **次のアクション（Part B: Graph API申請後）**:
-  1. `docs/graph-api-setup.md` をIT管理者に提出してGraph API申請を開始する
-  2. 申請承認後: `src/connectors/graph_api.py`（MSAL認証・メール・会議取得）
-  3. 申請承認後: `src/connectors/planner.py`（Planner起票）
-  4. 申請承認後: `src/connectors/todo.py`（To Do起票）
-  5. 申請承認後: `src/api/main.py` の `polling_job()` を完全実装
-  6. 申請承認後: `docker/docker-compose.yml`（Langfuse）
-  7. 申請承認後: E2E動作確認（Outlook→Planner全フロー）
+## テスト状況
+| テストファイル | 件数 |
+|-------------|------|
+| test_models.py | 4 |
+| test_state.py | 4 |
+| test_classifier.py | 6 |
+| test_approval.py | 5 |
+| test_routing.py | 3 |
+| test_providers.py | 8 |
+| test_agent.py | 2 |
+| test_langfuse_client.py | 3 |
+| test_connectors.py | 10 |
+| **合計** | **45** |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
 |------|----------|------|
-| Graph API アプリ登録 | ⏳ 未申請 | graph-api-setup.md をIT管理者に提出要 |
-| Docker Desktop | ⏳ 未確認 | Langfuse実行用 |
+| Graph API アプリ登録 | ⏳ 申請中 | IT管理者承認待ち |
+| Docker Desktop | ✅ 確認済み v28.5.1 | Langfuse コンテナ起動済み |
+| Langfuse | ✅ 設定済み | http://localhost:3000、APIキー .env 登録済み |
 | Python 3.13.7 | ✅ 確認済み | .venv で動作 |
 
 ## ブロッカー
-- **Graph API アプリ登録**: IT管理者への申請が前提。承認後に Part B（統合テスト含む）を実装可能
+- **Graph API アプリ登録**: IT管理者への申請中。承認後に Task 16〜18（統合・E2E テスト）を実施可能
 
 ## 次セッションの開始手順
-1. このファイルと `docs/tasks.md` を確認する
-2. Graph API申請ステータスを更新する
-3. 承認済みなら Part B（Task 14〜19）を進める
-4. 未承認なら Part B を待機しつつ、docker-compose.yml の準備を先行できる
+1. `docs/progress.md`（このファイル）と `docs/superpowers/plans/2026-05-03-autoticket-phase1b-onwards.md` を確認
+2. Graph API 承認状況を確認
+3. 承認済み → Task 16（統合テスト基盤）から開始
+4. 未承認 → Task 14（dept_plan_map 追加）→ Task 15（polling_job 実装）から開始
+
+## 実装計画ファイル
+- `docs/superpowers/plans/2026-05-03-autoticket-phase1b-onwards.md`
+  - Task 14: dept_plan_map を Settings に追加（credentials 不要）
+  - Task 15: polling_job() 完全実装（credentials 不要）
+  - Task 16: 統合テスト基盤（credentials 必要）
+  - Task 17: Graph API 疎通確認テスト（credentials 必要）
+  - Task 18: E2E テスト（credentials 必要）
+  - Task 19: Teams チャットコネクター（Phase 2）
+  - Task 20: OneNote コネクター（Phase 2）
+  - Task 21: polling_job() Teams/OneNote 追加（Phase 2）
+  - Task 22: Pattern B → Ollama 強制（Phase 3）
+  - Task 23: Ollama docker-compose 追加（Phase 3）
+  - Task 24: Teams Bot エンドポイント（Phase 3）
+  - Task 25: Ollama vision 画像処理（Phase 3）
