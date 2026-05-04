@@ -1,127 +1,220 @@
 # AutoTicket タスク一覧
 
-最終更新: 2026-05-01（Teamsボット入力ルート追加）
+最終更新: 2026-05-04
+
+凡例: `[x]` 完了 / `[ ]` 未着手 / `[-]` 承認待ちでブロック中
 
 ---
 
-## Phase 0: ハーネス設定
+## Phase 0: ハーネス設定 ✅ 完了
+
 - [x] プロジェクトフォルダ・ディレクトリ構造作成
 - [x] CLAUDE.md 作成
 - [x] .claude/settings.json 作成（hooks・権限設定）
 - [x] カスタムスキル作成（resume-session / extract-task / sensitivity-check）
-- [x] pyproject.toml 作成
+- [x] pyproject.toml 作成（ruff / mypy / pytest 設定）
 - [x] .env.example 作成
 - [x] .gitignore 作成
-- [x] 設計ドキュメント作成（docs/superpowers/specs/）
 - [x] docs/progress.md 作成
-- [x] docs/graph-api-setup.md 作成
+- [x] docs/graph-api-setup.md 作成（IT管理者向け申請手順書）
 
 ---
 
-## Phase 1: Graph API申請 + Pattern A実装
+## Phase 1A: 基盤実装（Graph API 不要）✅ 完了
 
-### 前提条件
-- [ ] docs/graph-api-setup.md をIT管理者に提出
-- [ ] アプリ登録完了・クレデンシャル受け取り（テナントID / クライアントID / シークレット）
-- [ ] .env に認証情報を設定して接続確認
-- [ ] Docker Desktop インストール確認
+### ドキュメント
+- [x] docs/requirements.md（機能要件・非機能要件）
+- [x] docs/db-schema.md（SQLite DDL・将来テーブル設計）
+- [x] docs/design.md（システム構成図・LangGraph 状態機械・API 仕様）
 
-### 1-1. データモデル定義
-- [x] `src/models/task.py` — ExtractedTask・SensitivityResult モデル ✅ 2026-05-02
-- [ ] `src/models/config.py` — Settings（pydantic-settings）
+### データモデル
+- [x] `src/models/task.py` — ExtractedTask・SensitivityResult（Pydantic v2）
+- [x] `src/models/config.py` — Settings（pydantic-settings + dept_plan_map）
 
-### 1-2. Graph API クライアント
-- [ ] `src/connectors/graph_api.py` — MSAL認証・未読メール取得・Teams文字起こし取得・ユーザー一覧・M365 Group一覧取得
-- [ ] `src/connectors/todo.py` — Microsoft To Do プライベートタスク起票（Graph API）
-- [ ] `src/services/state.py` — SQLite処理済みID管理（aiosqlite）
-- [ ] `src/services/routing.py` — visibility に応じた起票先ルーティング（To Do / 部署Planner / 全社Planner）
-- [ ] 部署テーブル初期設定（M365 Group ID → Planner Plan ID マッピング）
+### サービス
+- [x] `src/services/state.py` — SQLite 処理済み ID 管理（aiosqlite）
+- [x] `src/services/classifier.py` — 機密度分類器（キーワード31件）
+- [x] `src/services/approval.py` — 信頼スコア → 承認アクション分岐
+- [x] `src/services/routing.py` — visibility → 起票先ルーティング
+- [x] `src/services/langfuse_client.py` — Langfuse v4 SDK トレーシング
 
-### 1-3. LLMプロバイダー抽象化
-- [x] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol定義 ✅ 2026-05-02
-- [x] `src/providers/ollama.py` — Ollamaプロバイダー実装 ✅ 2026-05-02
-- [x] `src/providers/claude.py` — Claude APIプロバイダー実装 ✅ 2026-05-02
-- [x] `src/providers/gemini.py` — Gemini APIプロバイダー実装 ✅ 2026-05-02
-- [x] `src/providers/azure_openai.py` — Azure OpenAIプロバイダー実装 ✅ 2026-05-02
-- [x] `src/providers/factory.py` — 設定値からプロバイダーを生成するファクトリー ✅ 2026-05-02
-- [ ] プロバイダー切り替えテスト（各プロバイダーのモック）
+### LLMプロバイダー
+- [x] `src/providers/base.py` — LLMProvider / VisionLLMProvider Protocol
+- [x] `src/providers/ollama.py` — Ollama プロバイダー
+- [x] `src/providers/claude.py` — Claude API プロバイダー
+- [x] `src/providers/gemini.py` — Gemini API プロバイダー
+- [x] `src/providers/azure_openai.py` — Azure OpenAI プロバイダー
+- [x] `src/providers/factory.py` — プロバイダーファクトリー
 
-### 1-4. LangGraph エージェント
-- [ ] `src/services/classifier.py` — 機密度分類ロジック（機密時はollama強制）
-- [ ] `src/agents/task_extractor.py` — タスク抽出ノード実装
-- [ ] `src/agents/graph.py` — LangGraph グラフ定義・状態マシン
+### エージェント
+- [x] `src/agents/nodes.py` — classify / extract / route ノード
+- [x] `src/agents/graph.py` — LangGraph StateGraph 定義
 
-### 1-5. 起票・承認フロー
-- [ ] `src/connectors/planner.py` — Microsoft Planner タスク起票（Graph API）
-- [ ] `src/services/approval.py` — 信頼スコア→承認フロー分岐
-- [ ] Teams承認通知（Adaptive Card）実装
+### コネクター（モックテスト済み・実接続は Phase 1B）
+- [x] `src/connectors/graph_api.py` — MSAL + httpx（メール・会議・ユーザー・グループ）
+- [x] `src/connectors/planner.py` — Planner タスク起票・更新
+- [x] `src/connectors/todo.py` — To Do リスト自動作成 + タスク起票
 
-### 1-6. FastAPI エントリーポイント
-- [ ] `src/api/main.py` — FastAPI アプリ・ポーリングスケジューラー起動
-- [ ] `src/api/routers/tasks.py` — タスク手動起票エンドポイント
-- [ ] `src/api/routers/health.py` — ヘルスチェックエンドポイント
+### API
+- [x] `src/api/routers/health.py` — GET /health
+- [x] `src/api/routers/tasks.py` — POST /tasks/extract（Langfuse トレース付き）
+- [x] `src/api/main.py` — FastAPI + APScheduler + `polling_job()` 完全実装
 
-### 1-7. テスト
-- [ ] `tests/unit/test_task_extractor.py` — タスク抽出ユニットテスト（モックLLM）
-- [ ] `tests/unit/test_classifier.py` — 機密度分類ユニットテスト
-- [ ] `tests/integration/test_graph_api.py` — Graph API統合テスト（申請後）
+### インフラ
+- [x] `docker/Dockerfile` — python:3.13-slim + 非 root ユーザー
+- [x] `docker/docker-compose.yml` — autoticket-app + langfuse-server + langfuse-db
+- [x] `.dockerignore`
+- [x] Langfuse v2 Docker 起動・APIキー .env 登録済み
 
-### 1-8. インフラ
-- [ ] `docker/docker-compose.yml` — Langfuse・n8n設定
-- [ ] `docker/Dockerfile` — FastAPIアプリコンテナ
-- [ ] Langfuse 動作確認
+### テスト（50/50 パス）
+- [x] `tests/unit/test_models.py`（6件）
+- [x] `tests/unit/test_state.py`（4件）
+- [x] `tests/unit/test_classifier.py`（6件）
+- [x] `tests/unit/test_approval.py`（5件）
+- [x] `tests/unit/test_routing.py`（3件）
+- [x] `tests/unit/test_providers.py`（8件）
+- [x] `tests/unit/test_agent.py`（2件）
+- [x] `tests/unit/test_langfuse_client.py`（3件）
+- [x] `tests/unit/test_connectors.py`（10件）
+- [x] `tests/unit/test_polling_job.py`（3件）
 
 ---
 
-## Phase 2: Teamsチャット・OneNote対応
-- [ ] （Phase 1完了後に詳細化）
-- [ ] Graph API スコープ追加申請（ChannelMessage.Read.All / Notes.Read.All）
+## Phase 1B: Graph API 統合 🔒 承認待ち
 
-## Phase 3: ローカルLLM基盤（Pattern B）+ Teamsボット
-- [ ] （Phase 1完了後に詳細化）
-- [ ] Ollama + qwen2.5:14b セットアップ
-- [ ] Ollama + llama3.2-vision セットアップ（スクショ処理用）
-- [ ] 機密度振り分けロジック実装
-### Teamsボット（スクショ＋コメント起票）
-- [ ] Bot Framework 登録（Teams Developer Portal）
-- [ ] FastAPI `/bot` エンドポイント実装（Bot Framework Webhook受信）
-- [ ] 画像バイナリ抽出 + Ollama vision 呼び出し実装
-- [ ] 画像説明 + コメント統合 → LangGraph エージェントへ渡す実装
-- [ ] ボット返信メッセージ実装（起票成功・承認依頼・低信頼スコア）
-- [ ] チャンネル投稿・DM 両対応テスト
+**前提:** Azure AD アプリ登録承認 + `.env` に `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET` 設定
+
+### 統合テスト基盤
+- [ ] **Task 16**: `tests/integration/conftest.py` — `AZURE_TENANT_ID` 未設定時の自動 skip
+- [ ] **Task 16**: `pyproject.toml` — `integration` マーカー追加
+
+### Graph API 疎通確認
+- [ ] **Task 17**: `tests/integration/test_graph_api_live.py`
+  - [ ] トークン取得テスト
+  - [ ] `get_users()` — ユーザー一覧取得
+  - [ ] `get_groups()` — M365 グループ一覧取得
+  - [ ] `get_unread_emails(user_id)` — 未読メール取得
+
+### コネクター疎通確認
+- [ ] **Task 17**: テスト用 Planner タスク起票 → ID 返却確認
+- [ ] **Task 17**: テスト用 To Do タスク起票 → ID 返却確認
+
+### E2E テスト
+- [ ] **Task 18**: `tests/integration/test_e2e.py`
+  - [ ] メールテキスト → LangGraph → アクション決定の一気通貫テスト
+  - [ ] Planner 起票 → タスク ID 確認
+
+### 設定値確認
+- [ ] `.env` に `COMPANY_WIDE_PLAN_ID` 設定（全社 Planner プラン ID）
+- [ ] `.env` に `DEPT_PLAN_MAP` 設定（部署グループID → プランID の JSON マッピング）
+
+---
+
+## Phase 2: Teamsチャット・OneNote 対応
+
+**前提:** Phase 1B 完了 + Graph API スコープ追加申請（`ChannelMessage.Read.All` / `Notes.Read.All`）
+
+### Teamsチャットコネクター
+- [ ] **Task 19**: `src/connectors/teams_chat.py`
+  - [ ] `get_teams()` — 参加チーム一覧
+  - [ ] `get_channels(team_id)` — チャンネル一覧
+  - [ ] `get_channel_messages(team_id, channel_id)` — メッセージ取得
+- [ ] **Task 19**: `tests/unit/test_teams_chat.py`（respx モック）
+
+### OneNote コネクター
+- [ ] **Task 20**: `src/connectors/onenote.py`
+  - [ ] `get_notebooks()` — ノートブック一覧
+  - [ ] `get_recent_pages(count)` — 最近更新ページ一覧
+  - [ ] `get_page_content(page_id)` — HTML コンテンツ取得
+- [ ] **Task 20**: `tests/unit/test_onenote.py`（respx モック）
+
+### ポーリングジョブ更新
+- [ ] **Task 21**: `src/api/main.py` — `polling_job()` に Teams チャンネルメッセージ処理を追加
+- [ ] **Task 21**: `src/api/main.py` — `polling_job()` に OneNote 最近ページ処理を追加
+- [ ] **Task 21**: `tests/unit/test_polling_job.py` — Teams・OneNote 分岐テスト追加
+
+---
+
+## Phase 3: ローカルLLM + Teamsボット
+
+**前提:** Phase 2 完了 + Ollama インストール + Bot Framework 登録
+
+### 前提作業
+- [ ] Ollama インストール（または docker-compose 経由）
+- [ ] `ollama pull qwen2.5:14b` — テキスト処理モデル
+- [ ] `ollama pull llama3.2-vision` — 画像処理モデル
+- [ ] Teams Developer Portal でボット登録（Bot ID + Secret 取得）
+
+### Pattern B → Ollama 強制ルーティング
+- [ ] **Task 22**: `src/providers/factory.py` — `create_llm_provider_for_sensitivity(settings, is_confidential)` 追加
+- [ ] **Task 22**: `src/agents/nodes.py` — `node_extract` を機密度判定 + プロバイダー選択に更新
+- [ ] **Task 22**: `tests/unit/test_providers.py` — 機密フラグ時 Ollama 強制のテスト
+
+### Ollama Docker 対応
+- [ ] **Task 23**: `docker/docker-compose.yml` — `ollama` サービス追加（GPU 対応・モデルボリューム）
+- [ ] **Task 23**: `.env.example` 更新（Docker 内 OLLAMA_HOST）
+
+### Teams Bot エンドポイント
+- [ ] **Task 24**: `src/api/routers/bot.py` — POST `/bot` Webhook
+  - [ ] テキストメッセージ → `process_bot_message()` → LangGraph
+  - [ ] 画像添付 → バイナリ取得 → `describe_image()` → テキスト統合
+- [ ] **Task 24**: `tests/unit/test_bot.py`
+- [ ] **Task 24**: `src/api/main.py` — `/bot` router を登録
+
+### Ollama Vision 画像処理
+- [ ] **Task 25**: `src/services/image_processor.py` — `describe_image(image_bytes, comment, settings) -> str`
+  - [ ] Vision LLM プロバイダー呼び出し
+  - [ ] エラー時はコメントをフォールバック返却
+- [ ] **Task 25**: `tests/unit/test_image_processor.py`
+
+---
 
 ## Phase 4: 通話録音（Whisper）
-- [ ] （Phase 3完了後に詳細化）
+
+**前提:** Phase 3 完了 + Whisper モデル or OpenAI Whisper API キー
+
+### 前提作業
+- [ ] Whisper 方式の選定（ローカル `openai-whisper` / OpenAI API / Azure Speech）
+- [ ] `requirements.txt` に `openai-whisper` or `openai>=1.40.0`（音声エンドポイント）を確認
+
+### 文字起こしサービス
+- [ ] **Task 26**: `src/services/transcription.py` — `transcribe_audio(audio_bytes, language) -> str`
+  - [ ] ローカル Whisper モデル対応
+  - [ ] OpenAI Whisper API 対応（フォールバック）
+  - [ ] エラー時の空文字列 + ログ記録
+- [ ] **Task 26**: `tests/unit/test_transcription.py`（モック）
+
+### 音声受信エンドポイント
+- [ ] **Task 27**: `src/api/routers/audio.py` — POST `/audio/transcribe`
+  - [ ] multipart/form-data で音声ファイル受信
+  - [ ] `transcribe_audio()` → テキスト化 → LangGraph エージェントへ渡す
+  - [ ] 対応フォーマット: wav / mp3 / m4a / ogg
+- [ ] **Task 27**: `tests/unit/test_audio.py`
+- [ ] **Task 27**: `src/api/main.py` — `/audio` router 登録
+
+### LangGraph 統合
+- [ ] **Task 28**: `src/api/main.py` — `polling_job()` に Teams 会議録音ファイル処理を追加
+  - [ ] `graph_api.get_meeting_transcripts(meeting_id)` で文字起こし URL 取得
+  - [ ] 音声ファイルダウンロード → `transcribe_audio()` → `source_type="meeting"` で LangGraph 投入
+- [ ] **Task 28**: `tests/unit/test_polling_job.py` — 会議録音分岐テスト追加
+
+### E2E テスト
+- [ ] **Task 29**: `tests/integration/test_audio_e2e.py`
+  - [ ] テスト音声ファイル → `POST /audio/transcribe` → タスク抽出確認
+
+### Docker 対応
+- [ ] **Task 29**: `docker/docker-compose.yml` — Whisper モデルボリューム追加（ローカル使用時）
+- [ ] **Task 29**: `docker/Dockerfile` — `openai-whisper` インストール（ffmpeg 依存含む）
 
 ---
 
-## Phase 5: コア管理機能
-- [ ] Teams通知（#14）— タスク割り当て・期限変更時のAdaptive Card通知
-- [ ] 二重登録防止（#18）— Embeddingベクトル類似度検索（閾値0.85）
-- [ ] リスケジュール機能（#19）— Planner/To Do PATCH API
-- [ ] サブタスク自動作成（#20）— LangGraphサブタスク分解ノード
-- [ ] タスク要件明確化プロンプト（#7）— 不明確タスク検知→Teams補足依頼
+## 全体進捗サマリー
 
-## Phase 6: ビジュアライゼーション（カスタムUI必須）
-- [ ] カンバン/ガント/カレンダー相互切替（#9）
-- [ ] マイルストーン設定（#10）
-- [ ] 依存関係管理・可視化（#12）— task_dependenciesテーブル + ガント矢印
-- [ ] ダッシュボード・レポーティング（#11）— 完了率・負荷・期限超過・CSV/PDFエクスポート
-
-## Phase 7: AI高度化
-- [ ] 最適アサイン提案（#3）— スキルマッチング + 担当件数考慮
-- [ ] 遅延リスクAI予測（#4）— 過去タスク履歴→期限超過確率（3日前に警告）
-- [ ] 自動棚卸し提案（#6）— 週次スキャン→30日放置タスクをTeams通知
-- [ ] 引き継ぎドキュメント自動生成（#2）— 未完了タスク→AI整理→Teams/OneNote出力
-
-## Phase 8: リアルタイム・インプット拡張
-- [ ] 会議音声リアルタイム起票（#5）— WebSocket + Whisperストリーミング
-- [ ] チャットボット対話登録（#1）— Teamsボット自然文→即起票
-- [ ] 右クリック即タスク化（#17）— Outlookアドイン or Teamsメッセージ拡張
-
-## Phase 9: モバイルアプリ
-- [ ] PWA化（#15）— カスタムUIをPWAとして公開
-
-## 要検討（スコープ未確定）
-- [ ] ペアワークモード（#8）— リアルタイム同期基盤の要否を検討
-- [ ] タスク内コミュニケーション（#13）— Plannerコメントとの重複を評価してから判断
+| フェーズ | 完了 | 残り | ブロッカー |
+|---------|------|------|----------|
+| Phase 0 | ✅ 全完了 | — | — |
+| Phase 1A | ✅ 全完了 | — | — |
+| Phase 1B | 0 / 7 | 7 タスク | 🔒 Graph API 承認待ち |
+| Phase 2 | 0 / 9 | 9 タスク | Phase 1B 完了待ち |
+| Phase 3 | 0 / 13 | 13 タスク | Phase 2 完了 + Ollama + Bot 登録 |
+| Phase 4 | 0 / 12 | 12 タスク | Phase 3 完了 + Whisper 方式決定 |
