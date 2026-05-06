@@ -28,6 +28,8 @@ async def test_polling_job_skips_processed_email() -> None:
     with (
         patch("src.api.main.get_settings") as mock_settings,
         patch("src.api.main.GraphAPIClient") as mock_graph_cls,
+        patch("src.api.main.TeamsChatConnector") as mock_teams_cls,
+        patch("src.api.main.OneNoteConnector") as mock_onenote_cls,
         patch("src.api.main.is_processed", return_value=True) as mock_is_processed,
         patch("src.api.main.mark_processed") as mock_mark,
     ):
@@ -42,7 +44,16 @@ async def test_polling_job_skips_processed_email() -> None:
         graph_client.get_unread_emails.return_value = [{"id": "msg-already"}]
         mock_graph_cls.return_value = graph_client
 
+        teams_conn = AsyncMock()
+        teams_conn.get_teams.return_value = []
+        mock_teams_cls.return_value = teams_conn
+
+        onenote_conn = AsyncMock()
+        onenote_conn.get_recent_pages.return_value = []
+        mock_onenote_cls.return_value = onenote_conn
+
         from src.api.main import polling_job
+
         await polling_job()
 
         mock_is_processed.assert_called_once_with("msg-already")
@@ -62,6 +73,8 @@ async def test_polling_job_routes_high_confidence_task() -> None:
     with (
         patch("src.api.main.get_settings") as mock_settings,
         patch("src.api.main.GraphAPIClient") as mock_graph_cls,
+        patch("src.api.main.TeamsChatConnector") as mock_teams_cls,
+        patch("src.api.main.OneNoteConnector") as mock_onenote_cls,
         patch("src.api.main.PlannerConnector") as _,
         patch("src.api.main.TodoConnector"),
         patch("src.api.main.create_llm_provider"),
@@ -88,12 +101,101 @@ async def test_polling_job_routes_high_confidence_task() -> None:
         ]
         mock_graph_cls.return_value = graph_client
 
+        teams_conn = AsyncMock()
+        teams_conn.get_teams.return_value = []
+        mock_teams_cls.return_value = teams_conn
+
+        onenote_conn = AsyncMock()
+        onenote_conn.get_recent_pages.return_value = []
+        mock_onenote_cls.return_value = onenote_conn
+
         compiled_graph = AsyncMock()
         compiled_graph.ainvoke.return_value = agent_result
         mock_build.return_value = compiled_graph
 
         from src.api.main import polling_job
+
         await polling_job()
 
         mock_route.assert_called_once()
         graph_client.mark_email_read.assert_called_once_with("user-1", "msg-1")
+
+
+async def test_polling_job_processes_teams_messages() -> None:
+    """Teams チャンネルメッセージがポーリング対象になること"""
+    with (
+        patch("src.api.main.get_settings") as mock_settings,
+        patch("src.api.main.GraphAPIClient") as mock_graph_cls,
+        patch("src.api.main.TeamsChatConnector") as mock_teams_cls,
+        patch("src.api.main.OneNoteConnector") as mock_onenote_cls,
+        patch("src.api.main.PlannerConnector"),
+        patch("src.api.main.TodoConnector"),
+        patch("src.api.main.create_llm_provider"),
+        patch("src.api.main.build_graph"),
+        patch("src.api.main.is_processed", return_value=True),
+        patch("src.api.main.mark_processed"),
+    ):
+        settings = MagicMock(azure_tenant_id="t", azure_client_id="c", azure_client_secret="s")
+        mock_settings.return_value = settings
+
+        graph_client = AsyncMock()
+        graph_client.get_users.return_value = [{"id": "u1"}]
+        graph_client.get_unread_emails.return_value = []
+        mock_graph_cls.return_value = graph_client
+
+        teams_conn = AsyncMock()
+        teams_conn.get_teams.return_value = [{"id": "team-1"}]
+        teams_conn.get_channels.return_value = [{"id": "ch-1"}]
+        teams_conn.get_channel_messages.return_value = [
+            {"id": "msg-t1", "body": {"content": "Teamsメッセージ"}}
+        ]
+        mock_teams_cls.return_value = teams_conn
+
+        onenote_conn = AsyncMock()
+        onenote_conn.get_recent_pages.return_value = []
+        mock_onenote_cls.return_value = onenote_conn
+
+        from src.api.main import polling_job
+
+        await polling_job()
+
+        teams_conn.get_teams.assert_called_once()
+        teams_conn.get_channels.assert_called_once_with("team-1")
+        teams_conn.get_channel_messages.assert_called_once_with("team-1", "ch-1")
+
+
+async def test_polling_job_processes_onenote_pages() -> None:
+    """OneNote ページがポーリング対象になること"""
+    with (
+        patch("src.api.main.get_settings") as mock_settings,
+        patch("src.api.main.GraphAPIClient") as mock_graph_cls,
+        patch("src.api.main.TeamsChatConnector") as mock_teams_cls,
+        patch("src.api.main.OneNoteConnector") as mock_onenote_cls,
+        patch("src.api.main.PlannerConnector"),
+        patch("src.api.main.TodoConnector"),
+        patch("src.api.main.create_llm_provider"),
+        patch("src.api.main.build_graph"),
+        patch("src.api.main.is_processed", return_value=True),
+        patch("src.api.main.mark_processed"),
+    ):
+        settings = MagicMock(azure_tenant_id="t", azure_client_id="c", azure_client_secret="s")
+        mock_settings.return_value = settings
+
+        graph_client = AsyncMock()
+        graph_client.get_users.return_value = [{"id": "u1"}]
+        graph_client.get_unread_emails.return_value = []
+        mock_graph_cls.return_value = graph_client
+
+        teams_conn = AsyncMock()
+        teams_conn.get_teams.return_value = []
+        mock_teams_cls.return_value = teams_conn
+
+        onenote_conn = AsyncMock()
+        onenote_conn.get_recent_pages.return_value = [{"id": "pg-1", "title": "議事録"}]
+        mock_onenote_cls.return_value = onenote_conn
+
+        from src.api.main import polling_job
+
+        await polling_job()
+
+        onenote_conn.get_recent_pages.assert_called_once()
