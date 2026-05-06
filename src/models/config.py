@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     manual_review_threshold: float = 0.5
 
     # LLMプロバイダー
-    llm_provider: Literal["ollama", "claude", "gemini", "azure_openai"] = "ollama"
-    llm_vision_provider: Literal["ollama", "claude", "gemini", "azure_openai"] = "ollama"
+    llm_provider: Literal["ollama", "claude", "gemini", "azure_openai"] = "gemini"
+    llm_vision_provider: Literal["ollama", "claude", "gemini", "azure_openai"] = "gemini"
 
     # Ollama
     ollama_host: str = "http://localhost:11434"
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # Gemini
     google_api_key: str = ""
-    gemini_model: str = "gemini-1.5-pro"
+    gemini_model: str = "gemini-2.0-flash"
 
     # Azure OpenAI
     azure_openai_api_key: str = ""

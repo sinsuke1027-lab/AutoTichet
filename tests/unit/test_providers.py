@@ -37,7 +37,27 @@ def test_azure_openai_provider_implements_protocol() -> None:
     assert isinstance(provider, VisionLLMProvider)
 
 
-def test_factory_returns_ollama_by_default() -> None:
+def test_factory_returns_gemini_by_default() -> None:
+    # コード定義のデフォルトが gemini であることを確認（.env の影響を受けない）
+    assert Settings.model_fields["llm_provider"].default == "gemini"
+    settings = Settings(llm_provider="gemini")
+    provider = create_llm_provider(settings)
+    assert isinstance(provider, GeminiProvider)
+
+
+def test_vision_factory_returns_gemini_by_default() -> None:
+    assert Settings.model_fields["llm_vision_provider"].default == "gemini"
+    settings = Settings(llm_vision_provider="gemini")
+    provider = create_vision_provider(settings)
+    assert isinstance(provider, GeminiProvider)
+
+
+def test_gemini_model_default_is_flash() -> None:
+    # コード定義のデフォルトが gemini-2.0-flash であることを確認
+    assert Settings.model_fields["gemini_model"].default == "gemini-2.0-flash"
+
+
+def test_factory_returns_ollama_when_configured() -> None:
     settings = Settings(llm_provider="ollama")
     provider = create_llm_provider(settings)
     assert isinstance(provider, LLMProvider)
@@ -50,7 +70,7 @@ def test_factory_returns_claude_when_configured() -> None:
     assert isinstance(provider, ClaudeProvider)
 
 
-def test_vision_factory_returns_ollama_by_default() -> None:
+def test_vision_factory_returns_ollama_when_configured() -> None:
     settings = Settings(llm_vision_provider="ollama")
     provider = create_vision_provider(settings)
     assert isinstance(provider, VisionLLMProvider)
