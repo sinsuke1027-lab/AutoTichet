@@ -38,6 +38,7 @@ async def test_polling_job_skips_processed_email() -> None:
             azure_client_id="c",
             azure_client_secret="s",
         )
+        settings.get_allowed_user_ids.return_value = []
         mock_settings.return_value = settings
         graph_client = AsyncMock()
         graph_client.get_users.return_value = [{"id": "user-1"}]
@@ -92,6 +93,7 @@ async def test_polling_job_routes_high_confidence_task() -> None:
             company_wide_plan_id="plan-all",
         )
         settings.get_dept_plan_map.return_value = {}
+        settings.get_allowed_user_ids.return_value = []
         mock_settings.return_value = settings
 
         graph_client = AsyncMock()
@@ -199,3 +201,39 @@ async def test_polling_job_processes_onenote_pages() -> None:
         await polling_job()
 
         onenote_conn.get_recent_pages.assert_called_once()
+
+
+async def test_polling_job_uses_allowed_user_ids_directly() -> None:
+    """ALLOWED_USER_IDS 設定時は get_users() を呼ばず直接ユーザーIDを処理する"""
+    with (
+        patch("src.api.main.get_settings") as mock_settings,
+        patch("src.api.main.GraphAPIClient") as mock_graph_cls,
+        patch("src.api.main.TeamsChatConnector") as mock_teams_cls,
+        patch("src.api.main.OneNoteConnector") as mock_onenote_cls,
+        patch("src.api.main.PlannerConnector"),
+        patch("src.api.main.TodoConnector"),
+        patch("src.api.main.is_processed", return_value=True),
+        patch("src.api.main.mark_processed"),
+    ):
+        settings = MagicMock(azure_tenant_id="t", azure_client_id="c", azure_client_secret="s")
+        settings.get_allowed_user_ids.return_value = ["user-a", "user-b"]
+        mock_settings.return_value = settings
+
+        graph_client = AsyncMock()
+        graph_client.get_unread_emails.return_value = []
+        mock_graph_cls.return_value = graph_client
+
+        teams_conn = AsyncMock()
+        teams_conn.get_teams.return_value = []
+        mock_teams_cls.return_value = teams_conn
+
+        onenote_conn = AsyncMock()
+        onenote_conn.get_recent_pages.return_value = []
+        mock_onenote_cls.return_value = onenote_conn
+
+        from src.api.main import polling_job
+
+        await polling_job()
+
+        graph_client.get_users.assert_not_called()
+        assert graph_client.get_unread_emails.call_count == 2

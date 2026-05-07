@@ -70,7 +70,12 @@ async def polling_job() -> None:
     teams = TeamsChatConnector(graph_client)
     onenote = OneNoteConnector(graph_client)
 
-    users = await graph_client.get_users()
+    # ALLOWED_USER_IDS 設定時は get_users() を呼ばず直接使用（最小権限）
+    allowed_ids = settings.get_allowed_user_ids()
+    if allowed_ids:
+        users: list[dict[str, Any]] = [{"id": uid} for uid in allowed_ids]
+    else:
+        users = await graph_client.get_users()
 
     # LLM・graph は最初の未処理アイテム到達時に遅延初期化
     graph: Any = None

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     company_wide_plan_id: str = ""
     dept_plan_map: str = "{}"
 
+    # アクセス制限（空の場合は全ユーザーを処理）
+    # カンマ区切りの Azure AD ユーザーID または UPN（例: uid-1,uid-2）
+    allowed_user_ids: str = ""
+
     # Langfuse
     langfuse_secret_key: str = ""
     langfuse_public_key: str = ""
@@ -62,6 +66,12 @@ class Settings(BaseSettings):
         if not isinstance(parsed, dict):
             raise ValueError("dept_plan_map must be a JSON object (dict)")
         return value
+
+    def get_allowed_user_ids(self) -> list[str]:
+        """許可ユーザー ID のリストを返す。空の場合は空リスト（= 全ユーザー処理）。"""
+        if not self.allowed_user_ids.strip():
+            return []
+        return [uid.strip() for uid in self.allowed_user_ids.split(",") if uid.strip()]
 
     def get_dept_plan_map(self) -> dict[str, str]:
         """Parse and return dept_plan_map as a dictionary."""

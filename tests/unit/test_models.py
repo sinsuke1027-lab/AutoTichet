@@ -55,3 +55,18 @@ def test_dept_plan_map_defaults_to_empty() -> None:
 def test_dept_plan_map_parsed_from_json() -> None:
     s = Settings(dept_plan_map='{"g1": "p1", "g2": "p2"}')
     assert s.get_dept_plan_map() == {"g1": "p1", "g2": "p2"}
+
+
+def test_get_allowed_user_ids_returns_empty_when_not_set() -> None:
+    s = Settings(allowed_user_ids="")
+    assert s.get_allowed_user_ids() == []
+
+
+def test_get_allowed_user_ids_parses_comma_separated() -> None:
+    s = Settings(allowed_user_ids="uid-1, uid-2, uid-3")
+    assert s.get_allowed_user_ids() == ["uid-1", "uid-2", "uid-3"]
+
+
+def test_get_allowed_user_ids_trims_whitespace() -> None:
+    s = Settings(allowed_user_ids="  user-a  ,  user-b  ")
+    assert s.get_allowed_user_ids() == ["user-a", "user-b"]
