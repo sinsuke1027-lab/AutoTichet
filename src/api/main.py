@@ -74,9 +74,9 @@ async def polling_job() -> None:
     # ALLOWED_USER_IDS 設定時は get_users() を呼ばず直接使用（最小権限）
     allowed_ids = settings.get_allowed_user_ids()
     if allowed_ids:
-        users: list[dict[str, Any]] = [{"id": uid} for uid in allowed_ids]
+        target_users: list[dict[str, Any]] = [{"id": uid} for uid in allowed_ids]
     else:
-        users = await graph_client.get_users()
+        target_users = await graph_client.get_users()
 
     # LLM・graph は最初の未処理アイテム到達時に遅延初期化
     graph: Any = None
@@ -91,8 +91,10 @@ async def polling_job() -> None:
         return graph
 
     # ── Outlook メール処理 ──────────────────────────────────────────────
-    for user in users:
-        uid = str(user["id"])
+    for user in target_users:
+        uid = str(user.get("id", ""))
+        if not uid:
+            continue
         emails = await graph_client.get_unread_emails(uid)
         for email in emails:
             msg_id = str(email["id"])

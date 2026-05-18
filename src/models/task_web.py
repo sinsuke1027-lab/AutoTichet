@@ -210,3 +210,23 @@ class OverdueTaskItem(BaseModel):
 class TrendPoint(BaseModel):
     date: str
     completed: int
+
+
+# --- User ---
+
+
+class MeResponse(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    roles: list[str]
+
+
+class UserResponse(BaseModel):
+    user_id: str
+    display_name: str
+    email: str | None = None
+    role: str
+    capacity_hours_per_day: float
+
+    model_config = {"from_attributes": True}
