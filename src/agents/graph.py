@@ -16,6 +16,7 @@ class AgentState(TypedDict):
     sensitivity: SensitivityResult | None
     extracted_tasks: list[ExtractedTask]
     actions: list[tuple[str, str]]
+    ticket_ids: list[str]
     errors: Annotated[list[str], operator.add]
 
 
@@ -41,10 +42,12 @@ def build_graph(
             review_threshold=review_threshold,
         ),
     )
+    builder.add_node("auto_create", nodes.node_auto_create)  # type: ignore[type-var]
 
     builder.set_entry_point("classify")
     builder.add_edge("classify", "extract")
     builder.add_edge("extract", "route")
-    builder.add_edge("route", END)
+    builder.add_edge("route", "auto_create")
+    builder.add_edge("auto_create", END)
 
     return builder.compile()
