@@ -32,7 +32,6 @@ class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
     status: str = "active"
-    created_by: str
 
 
 class ProjectUpdate(BaseModel):
@@ -71,7 +70,6 @@ class TaskCreate(BaseModel):
     source_id: str | None = None
     confidence_score: float | None = None
     route: str | None = None
-    created_by: str
     tags: list[str] = Field(default_factory=list)
 
 

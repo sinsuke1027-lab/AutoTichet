@@ -69,3 +69,21 @@ def test_delete_nonexistent_task_returns_404() -> None:
     client = TestClient(app4, raise_server_exceptions=False)
     resp = client.delete(f"/api/v1/tasks/{uuid.uuid4()}")
     assert resp.status_code == 404
+
+
+def test_update_nonexistent_task_returns_404() -> None:
+    from src.db.engine import get_db
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = None
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    app5 = FastAPI()
+    app5.include_router(router)
+    app5.dependency_overrides[get_current_user] = lambda: _user
+    app5.dependency_overrides[get_db] = lambda: mock_db
+
+    client = TestClient(app5, raise_server_exceptions=False)
+    resp = client.put(f"/api/v1/tasks/{uuid.uuid4()}", json={"title": "new"})
+    assert resp.status_code == 404

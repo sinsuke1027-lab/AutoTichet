@@ -50,7 +50,7 @@ def _task_to_response(task: Task) -> TaskResponse:
 async def list_tasks(
     db: DbDep,
     current_user: CurrentUser,
-    status_filter: str | None = Query(default=None, alias="status"),
+    status_filter: TaskStatus | None = Query(default=None, alias="status"),  # noqa: B008
     assignee: str | None = None,
     project_id: uuid.UUID | None = None,
     tag: str | None = None,
@@ -59,13 +59,13 @@ async def list_tasks(
 ) -> TaskListResponse:
     q = select(Task).options(selectinload(Task.tags))
     if status_filter:
-        q = q.where(Task.status == status_filter)
+        q = q.where(Task.status == status_filter.value)
     if assignee:
         q = q.where(Task.assignee_id == assignee)
     if project_id:
         q = q.where(Task.project_id == project_id)
     if tag:
-        q = q.join(TaskTag).where(TaskTag.tag == tag)
+        q = q.where(Task.id.in_(select(TaskTag.task_id).where(TaskTag.tag == tag)))
 
     count_result = await db.execute(select(func.count()).select_from(q.subquery()))
     total = count_result.scalar_one()
@@ -113,11 +113,12 @@ async def update_task(
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
-    for field, value in body.model_dump(exclude_none=True, exclude={"tags"}).items():
+    for field, value in body.model_dump(exclude_unset=True, exclude={"tags"}).items():
         setattr(task, field, value)
     if body.tags is not None:
         for existing in list(task.tags):
             await db.delete(existing)
+        await db.flush()  # flush deletes before inserting new tags
         for tag in body.tags:
             db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
