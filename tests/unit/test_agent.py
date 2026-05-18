@@ -15,7 +15,7 @@ async def test_pattern_b_text_skips_external_llm() -> None:
         review_threshold=0.5,
     )
     with patch(
-        "src.services.routing._save_tasks_to_postgres",
+        "src.agents.nodes._save_tasks_to_postgres",
         new_callable=AsyncMock,
         return_value=[],
     ):
@@ -52,7 +52,7 @@ async def test_low_confidence_task_is_log_only() -> None:
         review_threshold=0.5,
     )
     with patch(
-        "src.services.routing._save_tasks_to_postgres",
+        "src.agents.nodes._save_tasks_to_postgres",
         new_callable=AsyncMock,
         return_value=[],
     ):
