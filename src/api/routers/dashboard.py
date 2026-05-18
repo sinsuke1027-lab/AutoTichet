@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import time as time_type
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -8,7 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.auth import CurrentUser
 from src.db.engine import get_db
 from src.db.models import Task, TaskWorkHour, UserProfile
-from src.models.task_web import DashboardSummary, WorkloadItem
+from src.models.task_web import (
+    DashboardSummary,
+    OverdueTaskItem,
+    TaskStatus,
+    TodayTaskItem,
+    TrendPoint,
+    WorkloadItem,
+)
 
 router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 DbDep = Annotated[AsyncSession, Depends(get_db)]
@@ -41,8 +49,8 @@ async def get_summary(db: DbDep, current_user: CurrentUser) -> DashboardSummary:
     )
 
 
-@router.get("/today", response_model=list[dict])
-async def get_today_tasks(db: DbDep, current_user: CurrentUser) -> list[dict]:
+@router.get("/today", response_model=list[TodayTaskItem])
+async def get_today_tasks(db: DbDep, current_user: CurrentUser) -> list[TodayTaskItem]:
     today = date.today()
     result = await db.execute(
         select(Task)
@@ -54,19 +62,19 @@ async def get_today_tasks(db: DbDep, current_user: CurrentUser) -> list[dict]:
     )
     tasks = result.scalars().all()
     return [
-        {
-            "id": str(t.id),
-            "title": t.title,
-            "status": t.status,
-            "priority": t.priority,
-            "assignee_id": t.assignee_id,
-        }
+        TodayTaskItem(
+            id=t.id,
+            title=t.title,
+            status=t.status,
+            priority=t.priority,
+            assignee_id=t.assignee_id,
+        )
         for t in tasks
     ]
 
 
-@router.get("/overdue", response_model=list[dict])
-async def get_overdue_tasks(db: DbDep, current_user: CurrentUser) -> list[dict]:
+@router.get("/overdue", response_model=list[OverdueTaskItem])
+async def get_overdue_tasks(db: DbDep, current_user: CurrentUser) -> list[OverdueTaskItem]:
     today = date.today()
     result = await db.execute(
         select(Task)
@@ -79,13 +87,13 @@ async def get_overdue_tasks(db: DbDep, current_user: CurrentUser) -> list[dict]:
     )
     tasks = result.scalars().all()
     return [
-        {
-            "id": str(t.id),
-            "title": t.title,
-            "status": t.status,
-            "due_date": t.due_date.isoformat() if t.due_date else None,
-            "assignee_id": t.assignee_id,
-        }
+        OverdueTaskItem(
+            id=t.id,
+            title=t.title,
+            status=t.status,
+            due_date=t.due_date.isoformat() if t.due_date else None,
+            assignee_id=t.assignee_id,
+        )
         for t in tasks
     ]
 
@@ -128,17 +136,30 @@ async def get_workload(db: DbDep, current_user: CurrentUser) -> list[WorkloadIte
     return items
 
 
-@router.get("/completion-trend", response_model=list[dict])
-async def get_completion_trend(db: DbDep, current_user: CurrentUser) -> list[dict]:
+@router.get("/completion-trend", response_model=list[TrendPoint])
+async def get_completion_trend(db: DbDep, current_user: CurrentUser) -> list[TrendPoint]:
     today = date.today()
-    result = []
-    for i in range(7, -1, -1):
-        day = today - timedelta(days=i)
-        count_result = await db.execute(
-            select(func.count(Task.id)).where(
-                func.date(Task.updated_at) == day,
-                Task.status == "completed",
-            )
+    start = today - timedelta(days=7)
+    start_dt = datetime.combine(start, time_type.min)
+    end_dt = datetime.combine(today + timedelta(days=1), time_type.min)
+
+    rows_result = await db.execute(
+        select(
+            func.date(Task.updated_at).label("day"),
+            func.count(Task.id).label("completed"),
         )
-        result.append({"date": day.isoformat(), "completed": count_result.scalar_one()})
-    return result
+        .where(
+            Task.updated_at >= start_dt,
+            Task.updated_at < end_dt,
+            Task.status == TaskStatus.COMPLETED.value,
+        )
+        .group_by(func.date(Task.updated_at))
+    )
+    counts_by_day: dict[str, int] = {str(row[0]): row[1] for row in rows_result.all()}
+    return [
+        TrendPoint(
+            date=(today - timedelta(days=i)).isoformat(),
+            completed=counts_by_day.get((today - timedelta(days=i)).isoformat(), 0),
+        )
+        for i in range(7, -1, -1)
+    ]

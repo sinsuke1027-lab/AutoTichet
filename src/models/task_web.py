@@ -189,3 +189,24 @@ class WorkloadItem(BaseModel):
     estimated_hours: float
     capacity_hours: float
     overload: bool
+
+
+class TodayTaskItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str
+    priority: str
+    assignee_id: str | None = None
+
+
+class OverdueTaskItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str
+    due_date: str | None = None
+    assignee_id: str | None = None
+
+
+class TrendPoint(BaseModel):
+    date: str
+    completed: int
