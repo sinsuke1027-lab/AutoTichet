@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:14b"
+    ollama_model: str = "qwen2.5:7b"
     ollama_vision_model: str = "llama3.2-vision"
 
     # Claude
@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     azure_openai_api_key: str = ""
     azure_openai_endpoint: str = ""
     azure_openai_deployment: str = "gpt-4o"
+
+    # PostgreSQL
+    database_url: str = "postgresql+asyncpg://autoticket:autoticket@localhost:5432/autoticket"
+    # フロントエンド
+    azure_client_id_frontend: str = ""
+    frontend_url: str = "http://localhost:5173"
+    # Forms / SharePoint
+    sharepoint_site_id: str = ""
+    forms_list_id: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
