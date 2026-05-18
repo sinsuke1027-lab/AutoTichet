@@ -11,11 +11,14 @@ services:
       # コンテナ内ではサービス名で解決する
       LANGFUSE_HOST: http://langfuse-server:3000
       OLLAMA_HOST: http://host.docker.internal:11434
+      DATABASE_URL: postgresql+asyncpg://autoticket:autoticket@autoticket-db:5432/autoticket
     volumes:
       - autoticket_data:/app/data
     depends_on:
       langfuse-server:
         condition: service_started
+      autoticket-db:
+        condition: service_healthy
     restart: unless-stopped
 
   langfuse-server:
@@ -48,6 +51,25 @@ services:
       retries: 5
     restart: unless-stopped
 
+  autoticket-db:
+    image: postgres:16-alpine
+    container_name: autoticket-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-autoticket}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autoticket}
+      POSTGRES_DB: ${POSTGRES_DB:-autoticket}
+    ports:
+      - "5432:5432"
+    volumes:
+      - autoticket_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autoticket"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   autoticket_data:
   langfuse_db:
+  autoticket_db:
