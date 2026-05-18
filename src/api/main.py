@@ -4,9 +4,10 @@ from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.graph import AgentState, build_graph
-from src.api.routers import health, tasks
+from src.api.routers import dashboard, health, projects, task_details, tasks, tasks_crud, users
 from src.connectors.graph_api import GraphAPIClient
 from src.connectors.onenote import OneNoteConnector
 from src.connectors.planner import PlannerConnector
@@ -171,5 +172,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(title="AutoTicket API", lifespan=lifespan)
+
+_settings = get_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[_settings.frontend_url, "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(health.router)
 app.include_router(tasks.router)
+app.include_router(projects.router)
+app.include_router(tasks_crud.router)
+app.include_router(task_details.router)
+app.include_router(dashboard.router)
+app.include_router(users.router)
