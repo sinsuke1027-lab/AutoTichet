@@ -17,12 +17,12 @@ from src.models.task_web import (
     TaskUpdate,
 )
 
-router = APIRouter(prefix="/api/v1/tasks", tags=["tasks-crud"])
+router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
-def _to_response(task: Task) -> TaskResponse:
+def _task_to_response(task: Task) -> TaskResponse:
     tags = [t.tag for t in task.tags] if task.tags else []
     return TaskResponse(
         id=task.id,
@@ -53,6 +53,7 @@ async def list_tasks(
     status_filter: str | None = Query(default=None, alias="status"),
     assignee: str | None = None,
     project_id: uuid.UUID | None = None,
+    tag: str | None = None,
     limit: int = Query(default=50, le=200),
     offset: int = 0,
 ) -> TaskListResponse:
@@ -63,6 +64,8 @@ async def list_tasks(
         q = q.where(Task.assignee_id == assignee)
     if project_id:
         q = q.where(Task.project_id == project_id)
+    if tag:
+        q = q.join(TaskTag).where(TaskTag.tag == tag)
 
     count_result = await db.execute(select(func.count()).select_from(q.subquery()))
     total = count_result.scalar_one()
@@ -70,7 +73,7 @@ async def list_tasks(
     result = await db.execute(
         q.order_by(Task.due_date.asc().nulls_last()).limit(limit).offset(offset)
     )
-    items = [_to_response(t) for t in result.scalars().all()]
+    items = [_task_to_response(t) for t in result.scalars().all()]
     return TaskListResponse(items=items, total=total)
 
 
@@ -86,7 +89,7 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
         db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
     await db.refresh(task, ["tags"])
-    return _to_response(task)
+    return _task_to_response(task)
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
@@ -97,7 +100,7 @@ async def get_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> 
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
-    return _to_response(task)
+    return _task_to_response(task)
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
@@ -119,7 +122,7 @@ async def update_task(
             db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
     await db.refresh(task, ["tags"])
-    return _to_response(task)
+    return _task_to_response(task)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -139,4 +142,4 @@ async def list_subtasks(
     result = await db.execute(
         select(Task).where(Task.parent_task_id == task_id).options(selectinload(Task.tags))
     )
-    return [_to_response(t) for t in result.scalars().all()]
+    return [_task_to_response(t) for t in result.scalars().all()]
