@@ -1,3 +1,4 @@
+import time
 from collections.abc import Callable, Coroutine
 from typing import Annotated, Any
 
@@ -18,6 +19,9 @@ _ROLE_HIERARCHY: dict[str, int] = {
     "admin": 3,
 }
 
+_JWKS_TTL = 3600.0
+_jwks_cache: dict[str, tuple[dict[str, Any], float]] = {}
+
 
 class TokenPayload(BaseModel):
     sub: str
@@ -28,11 +32,17 @@ class TokenPayload(BaseModel):
 
 
 async def _fetch_jwks(tenant_id: str) -> dict[str, Any]:
+    now = time.monotonic()
+    cached = _jwks_cache.get(tenant_id)
+    if cached is not None and now < cached[1]:
+        return cached[0]
     url = f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(url)
         resp.raise_for_status()
-        return resp.json()  # type: ignore[no-any-return]
+        data: dict[str, Any] = resp.json()
+    _jwks_cache[tenant_id] = (data, now + _JWKS_TTL)
+    return data
 
 
 async def get_current_user(
