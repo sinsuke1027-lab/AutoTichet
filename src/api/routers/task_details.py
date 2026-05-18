@@ -3,6 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import CurrentUser
@@ -11,6 +12,8 @@ from src.db.models import Task, TaskComment, TaskDependency, TaskWorkHour
 from src.models.task_web import (
     CommentCreate,
     CommentResponse,
+    DependencyCreate,
+    DependencyResponse,
     WorkHourCreate,
     WorkHourResponse,
 )
@@ -98,29 +101,32 @@ async def create_work_hour(
 # --- 依存関係 ---
 
 
-@router.get("/{task_id}/dependencies")
-async def list_dependencies(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> list[dict]:
-    result = await db.execute(select(TaskDependency).where(TaskDependency.task_id == task_id))
-    return [
-        {"id": str(d.id), "depends_on_task_id": str(d.depends_on_task_id)}
-        for d in result.scalars().all()
-    ]
-
-
-@router.post("/{task_id}/dependencies", status_code=201)
-async def create_dependency(
-    task_id: uuid.UUID,
-    depends_on_task_id: uuid.UUID,
-    db: DbDep,
-    current_user: CurrentUser,
-) -> dict:
+@router.get("/{task_id}/dependencies", response_model=list[DependencyResponse])
+async def list_dependencies(
+    task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
+) -> list[DependencyResponse]:
     await _get_task_or_404(task_id, db)
-    await _get_task_or_404(depends_on_task_id, db)
-    dep = TaskDependency(task_id=task_id, depends_on_task_id=depends_on_task_id)
+    result = await db.execute(select(TaskDependency).where(TaskDependency.task_id == task_id))
+    return [DependencyResponse.model_validate(d) for d in result.scalars().all()]
+
+
+@router.post("/{task_id}/dependencies", response_model=DependencyResponse, status_code=201)
+async def create_dependency(
+    task_id: uuid.UUID, body: DependencyCreate, db: DbDep, current_user: CurrentUser
+) -> DependencyResponse:
+    if task_id == body.depends_on_task_id:
+        raise HTTPException(status_code=422, detail="タスクは自分自身に依存できません")
+    await _get_task_or_404(task_id, db)
+    await _get_task_or_404(body.depends_on_task_id, db)
+    dep = TaskDependency(task_id=task_id, depends_on_task_id=body.depends_on_task_id)
     db.add(dep)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="この依存関係はすでに存在します") from exc
     await db.refresh(dep)
-    return {"id": str(dep.id), "depends_on_task_id": str(dep.depends_on_task_id)}
+    return DependencyResponse.model_validate(dep)
 
 
 @router.delete("/{task_id}/dependencies/{dep_id}", status_code=204)

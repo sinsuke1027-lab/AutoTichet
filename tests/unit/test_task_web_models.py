@@ -88,7 +88,7 @@ def test_project_response_from_attributes() -> None:
 
 
 def test_work_hour_create() -> None:
-    wh = WorkHourCreate(user_id="user-1", estimated_hours=2.5, actual_hours=3.0)
+    wh = WorkHourCreate(estimated_hours=2.5, actual_hours=3.0)
     assert wh.estimated_hours == 2.5
     assert wh.actual_hours == 3.0
     assert wh.notes is None

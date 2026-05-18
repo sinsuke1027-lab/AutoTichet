@@ -118,10 +118,9 @@ class TaskListResponse(BaseModel):
 
 
 class CommentCreate(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=10000)
     mentions: list[str] = Field(default_factory=list)
     sharepoint_links: list[str] = Field(default_factory=list)
-    author_id: str
 
 
 class CommentResponse(BaseModel):
@@ -141,7 +140,6 @@ class CommentResponse(BaseModel):
 
 
 class WorkHourCreate(BaseModel):
-    user_id: str
     estimated_hours: float | None = None
     actual_hours: float | None = None
     notes: str | None = None
@@ -155,6 +153,20 @@ class WorkHourResponse(BaseModel):
     actual_hours: float | None = None
     notes: str | None = None
     recorded_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# --- Dependency ---
+
+
+class DependencyCreate(BaseModel):
+    depends_on_task_id: uuid.UUID
+
+
+class DependencyResponse(BaseModel):
+    id: uuid.UUID
+    depends_on_task_id: uuid.UUID
 
     model_config = {"from_attributes": True}
 
