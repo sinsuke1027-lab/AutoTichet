@@ -11,7 +11,7 @@ services:
       # コンテナ内ではサービス名で解決する
       LANGFUSE_HOST: http://langfuse-server:3000
       OLLAMA_HOST: http://host.docker.internal:11434
-      DATABASE_URL: postgresql+asyncpg://autoticket:autoticket@autoticket-db:5432/autoticket
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-autoticket}:${POSTGRES_PASSWORD:-autoticket}@autoticket-db:5432/${POSTGRES_DB:-autoticket}
     volumes:
       - autoticket_data:/app/data
     depends_on:
@@ -63,8 +63,8 @@ services:
     volumes:
       - autoticket_db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U autoticket"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-autoticket}"]
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
