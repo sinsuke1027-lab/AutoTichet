@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
     JSON,
@@ -90,8 +91,8 @@ class TaskComment(Base):
     )
     author_id: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    mentions: Mapped[list] = mapped_column(JSON, default=list)
-    sharepoint_links: Mapped[list] = mapped_column(JSON, default=list)
+    mentions: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    sharepoint_links: Mapped[list[Any]] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -141,6 +142,9 @@ class TaskDependency(Base):
     task: Mapped["Task"] = relationship(
         "Task", foreign_keys=[task_id], back_populates="dependencies"
     )
+    depends_on_task: Mapped["Task"] = relationship(
+        "Task", foreign_keys=[depends_on_task_id], viewonly=True
+    )
 
 
 class Milestone(Base):
@@ -162,7 +166,7 @@ class TaskTemplate(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
-    template_data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    template_data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -174,8 +178,9 @@ class UserProfile(Base):
     display_name: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str | None] = mapped_column(Text)
     role: Mapped[str] = mapped_column(String(10), default="member")
-    skills: Mapped[list] = mapped_column(JSON, default=list)
+    skills: Mapped[list[Any]] = mapped_column(JSON, default=list)
     capacity_hours_per_day: Mapped[float] = mapped_column(Float, default=8.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
