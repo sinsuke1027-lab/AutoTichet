@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -39,6 +40,7 @@ class Project(Base):
     )
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="project")
     milestones: Mapped[list["Milestone"]] = relationship("Milestone", back_populates="project")
+    sections: Mapped[list["Section"]] = relationship("Section", back_populates="project")
 
 
 class Task(Base):
@@ -63,6 +65,12 @@ class Task(Base):
     source_id: Mapped[str | None] = mapped_column(Text)
     confidence_score: Mapped[float | None] = mapped_column(Float)
     route: Mapped[str | None] = mapped_column(String(20))
+    section_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sections.id", ondelete="SET NULL")
+    )
+    external_id: Mapped[str | None] = mapped_column(String(100))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    order_index: Mapped[int] = mapped_column(default=0)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -79,6 +87,10 @@ class Task(Base):
     tags: Mapped[list["TaskTag"]] = relationship("TaskTag", back_populates="task")
     dependencies: Mapped[list["TaskDependency"]] = relationship(
         "TaskDependency", foreign_keys="TaskDependency.task_id", back_populates="task"
+    )
+    section: Mapped["Section | None"] = relationship("Section", back_populates="tasks")
+    sub_assignees: Mapped[list["TaskAssignee"]] = relationship(
+        "TaskAssignee", back_populates="task"
     )
 
 
@@ -184,3 +196,34 @@ class UserProfile(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class Section(Base):
+    __tablename__ = "sections"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    order_index: Mapped[int] = mapped_column(Integer(), default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    project: Mapped["Project"] = relationship("Project", back_populates="sections")
+    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="section")
+
+
+class TaskAssignee(Base):
+    __tablename__ = "task_assignees"
+    __table_args__ = (UniqueConstraint("task_id", "user_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(10), nullable=False, default="sub")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    task: Mapped["Task"] = relationship("Task", back_populates="sub_assignees")
