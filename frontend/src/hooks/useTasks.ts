@@ -46,16 +46,20 @@ export function useCreateTask() {
   })
 }
 
-export function useUpdateTask() {
+export function useUpdateTask(taskId?: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, ...body }: Partial<Task> & { id: string }) => {
-      const { data } = await api.put(`/tasks/${id}`, body)
+    mutationFn: async (body: Partial<Task> & { id?: string }) => {
+      const id = taskId ?? body.id
+      if (!id) throw new Error('task id is required')
+      const { id: _id, ...rest } = body
+      const { data } = await api.put(`/tasks/${id}`, rest)
       return data
     },
-    onSuccess: (_, { id }) => {
+    onSuccess: (_, body) => {
+      const id = taskId ?? body.id
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['task', id] })
+      if (id) queryClient.invalidateQueries({ queryKey: ['task', id] })
     },
   })
 }

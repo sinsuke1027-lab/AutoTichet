@@ -1,79 +1,140 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Button,
-  Card,
   Descriptions,
+  message,
   Select,
   Space,
+  Spin,
+  Tabs,
   Tag,
   Typography,
-  message,
 } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import { CopyOutlined } from '@ant-design/icons'
 import { useTask, useUpdateTask } from '../../hooks/useTasks'
+import { useSections } from '../../hooks/useSections'
+import CommentsPanel from './components/CommentsPanel'
+import WorkHoursPanel from './components/WorkHoursPanel'
+import SubtasksPanel from './components/SubtasksPanel'
+import api from '../../lib/api'
+
+const STATUS_OPTIONS = [
+  { label: '未着手', value: 'not_started' },
+  { label: '進行中', value: 'in_progress' },
+  { label: '完了', value: 'completed' },
+  { label: 'キャンセル', value: 'cancelled' },
+]
+
+const PRIORITY_OPTIONS = [
+  { label: '低', value: 'low' },
+  { label: '中', value: 'medium' },
+  { label: '高', value: 'high' },
+  { label: '最高', value: 'urgent' },
+]
 
 export default function TaskDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data: task, isLoading } = useTask(id ?? '')
-  const updateTask = useUpdateTask()
+  const updateTask = useUpdateTask(id ?? '')
+  const { data: sections = [] } = useSections(task?.project_id ?? undefined)
+  const [duplicating, setDuplicating] = useState(false)
 
-  if (isLoading) return <div>読み込み中...</div>
-  if (!task) return <div>タスクが見つかりません</div>
+  if (isLoading) return <Spin />
+  if (!task) return <Typography.Text>タスクが見つかりません</Typography.Text>
 
-  const handleStatusChange = async (status: string) => {
+  const handleFieldChange = async (field: string, value: unknown) => {
     try {
-      await updateTask.mutateAsync({ id: task.id, status })
-      message.success('ステータスを更新しました')
+      await updateTask.mutateAsync({ [field]: value })
     } catch {
-      message.error('ステータスの更新に失敗しました')
+      void message.error('更新に失敗しました')
     }
   }
 
-  return (
-    <div>
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/tasks')}>
-          一覧へ
-        </Button>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          {task.title}
-        </Typography.Title>
-      </Space>
+  const handleDuplicate = async () => {
+    setDuplicating(true)
+    try {
+      const res = await api.post<{ id: string }>(`/tasks/${id}/duplicate`)
+      void message.success('タスクを複製しました')
+      navigate(`/tasks/${res.data.id}`)
+    } catch {
+      void message.error('複製に失敗しました')
+    } finally {
+      setDuplicating(false)
+    }
+  }
 
-      <Card>
-        <Descriptions column={2} bordered>
+  const tabItems = [
+    {
+      key: 'detail',
+      label: '詳細',
+      children: (
+        <Descriptions bordered column={1} size="small">
           <Descriptions.Item label="ステータス">
             <Select
               value={task.status}
-              onChange={handleStatusChange}
-              options={[
-                { value: 'not_started', label: '未着手' },
-                { value: 'in_progress', label: '進行中' },
-                { value: 'completed', label: '完了' },
-                { value: 'cancelled', label: 'キャンセル' },
-              ]}
-              style={{ width: 120 }}
+              options={STATUS_OPTIONS}
+              onChange={(v) => handleFieldChange('status', v)}
+              style={{ width: 140 }}
             />
           </Descriptions.Item>
           <Descriptions.Item label="優先度">
-            <Tag>{task.priority}</Tag>
+            <Select
+              value={task.priority}
+              options={PRIORITY_OPTIONS}
+              onChange={(v) => handleFieldChange('priority', v)}
+              style={{ width: 120 }}
+            />
           </Descriptions.Item>
-          <Descriptions.Item label="期限">
-            {task.due_date ? dayjs(task.due_date).format('YYYY/MM/DD') : '—'}
+          <Descriptions.Item label="セクション">
+            <Select
+              value={task.section_id ?? undefined}
+              allowClear
+              options={sections.map((s) => ({ label: s.name, value: s.id }))}
+              onChange={(v: string | undefined) => handleFieldChange('section_id', v ?? null)}
+              style={{ width: 200 }}
+            />
           </Descriptions.Item>
+          <Descriptions.Item label="期限">{task.due_date ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="公開範囲">{task.visibility}</Descriptions.Item>
-          <Descriptions.Item label="タグ" span={2}>
+          <Descriptions.Item label="タグ">
             {task.tags.map((t) => (
               <Tag key={t}>{t}</Tag>
             ))}
           </Descriptions.Item>
-          <Descriptions.Item label="詳細" span={2}>
-            {task.description ?? '—'}
-          </Descriptions.Item>
+          <Descriptions.Item label="説明">{task.description ?? '—'}</Descriptions.Item>
         </Descriptions>
-      </Card>
-    </div>
+      ),
+    },
+    {
+      key: 'comments',
+      label: 'コメント',
+      children: <CommentsPanel taskId={id ?? ''} />,
+    },
+    {
+      key: 'work-hours',
+      label: '工数',
+      children: <WorkHoursPanel taskId={id ?? ''} />,
+    },
+    {
+      key: 'subtasks',
+      label: 'サブタスク',
+      children: <SubtasksPanel taskId={id ?? ''} />,
+    },
+  ]
+
+  return (
+    <Space direction="vertical" style={{ width: '100%' }} size="large">
+      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          {task.title}
+        </Typography.Title>
+        <Button icon={<CopyOutlined />} onClick={handleDuplicate} loading={duplicating}>
+          複製
+        </Button>
+      </Space>
+      <Tabs items={tabItems} />
+    </Space>
   )
 }
