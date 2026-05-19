@@ -9,11 +9,13 @@ interface ViewFilters {
   assignee_ids?: string[]
   status?: string
   limit?: number
+  enabled?: boolean
 }
 
 export function useTasksForView(filters: ViewFilters) {
   return useQuery<Task[]>({
     queryKey: ['tasks-view', filters],
+    enabled: filters.enabled ?? true,
     queryFn: async () => {
       const params = new URLSearchParams()
       if (filters.due_date_gte) params.set('due_date_gte', filters.due_date_gte)

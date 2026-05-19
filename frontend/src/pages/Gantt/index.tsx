@@ -16,8 +16,10 @@ const { Title } = Typography
 function toGanttTask(task: Task, depMap: Record<string, string[]>): GanttTask {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const end = task.due_date ? new Date(task.due_date) : new Date(today.getTime() + 86400000)
+  const end = task.due_date ? new Date(task.due_date) : new Date(today)
   const start = task.start_date ? new Date(task.start_date) : end
+  // gantt-task-react は start > end のときクラッシュするので保護
+  const safeEnd = start > end ? start : end
   const progress =
     task.status === 'completed' ? 100
     : task.status === 'in_progress' ? 50
@@ -26,7 +28,7 @@ function toGanttTask(task: Task, depMap: Record<string, string[]>): GanttTask {
     id: task.id,
     name: task.title,
     start,
-    end,
+    end: safeEnd,
     progress,
     type: 'task',
     dependencies: depMap[task.id] ?? [],
@@ -38,7 +40,7 @@ export default function GanttView() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [projectId, setProjectId] = useState<string | undefined>()
-  const [addDepTarget, setAddDepTarget] = useState<string | null>(null)
+  const [addDepTarget, setAddDepTarget] = useState<string | undefined>()
   const [addDepModal, setAddDepModal] = useState(false)
   const [selectedDepId, setSelectedDepId] = useState<string | undefined>()
 
@@ -46,12 +48,13 @@ export default function GanttView() {
   const { data: tasks = [], isLoading } = useTasksForView({
     project_id: projectId,
     limit: 200,
+    enabled: !!projectId,
   })
   const reschedule = useReschedule()
 
   // 依存関係を並列取得
   const { data: depMap = {} } = useQuery<Record<string, string[]>>({
-    queryKey: ['gantt-deps', projectId, tasks.map((t) => t.id).join(',')],
+    queryKey: ['gantt-deps', projectId, [...tasks.map((t) => t.id)].sort().join(',')],
     enabled: tasks.length > 0 && !!projectId,
     queryFn: async () => {
       const results = await Promise.all(
@@ -144,10 +147,8 @@ export default function GanttView() {
           <Space wrap>
             <Button
               onClick={() => {
-                if (ganttTasks[0]) {
-                  setAddDepTarget(ganttTasks[0].id)
-                  setAddDepModal(true)
-                }
+                setAddDepTarget(undefined)
+                setAddDepModal(true)
               }}
               disabled={ganttTasks.length === 0}
             >
@@ -178,7 +179,7 @@ export default function GanttView() {
             placeholder="依存元タスク（このタスクが完了後に開始）"
             style={{ width: '100%' }}
             options={tasks.map((t) => ({ value: t.id, label: t.title }))}
-            value={addDepTarget ?? undefined}
+            value={addDepTarget}
             onChange={setAddDepTarget}
           />
           <Select
