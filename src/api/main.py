@@ -11,6 +11,7 @@ from src.agents.graph import AgentState, build_graph
 from src.api.routers import (
     dashboard,
     health,
+    import_router,
     projects,
     sections,
     task_details,
@@ -231,3 +232,4 @@ app.include_router(task_details.router)
 app.include_router(sections.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
+app.include_router(import_router.router)
