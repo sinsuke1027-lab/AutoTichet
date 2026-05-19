@@ -237,12 +237,13 @@ async def _cascade_reschedule(db: AsyncSession, root_id: uuid.UUID, delta: timed
                 .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
             )
             task = task_result.scalar_one_or_none()
-            if task and task.due_date:
-                if task.start_date:
-                    task.start_date = task.start_date + delta
-                task.due_date = task.due_date + delta
-                updated.append(task)
-                queue.append(dep.task_id)
+            if task:
+                if task.due_date:
+                    if task.start_date:
+                        task.start_date = task.start_date + delta
+                    task.due_date = task.due_date + delta
+                    updated.append(task)
+                queue.append(dep.task_id)  # due_date の有無に関わらず BFS を継続
     return updated
 
 
@@ -260,12 +261,13 @@ async def reschedule_task(
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
 
     old_due = task.due_date
-    task.start_date = body.new_start_date
+    if body.new_start_date is not None:
+        task.start_date = body.new_start_date
     task.due_date = body.new_due_date
 
     dependent_tasks: list[Task] = []
     if old_due and body.new_due_date and old_due != body.new_due_date:
-        delta = timedelta(days=(body.new_due_date - old_due).days)
+        delta = body.new_due_date - old_due
         dependent_tasks = await _cascade_reschedule(db, task_id, delta)
 
     await db.commit()

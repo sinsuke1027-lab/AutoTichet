@@ -13,12 +13,18 @@ from src.db.engine import get_db
 _user = TokenPayload(sub="user-1", name="Test", email="t@t.com", roles=["member"], tid="tid")
 
 
-def _make_client(mock_db: AsyncMock) -> TestClient:
-    app = FastAPI()
-    app.include_router(router)
-    app.dependency_overrides[get_current_user] = lambda: _user
-    app.dependency_overrides[get_db] = lambda: mock_db
-    return TestClient(app, raise_server_exceptions=False)
+@pytest.fixture()
+def mock_db() -> AsyncMock:
+    return AsyncMock()
+
+
+@pytest.fixture()
+def client(mock_db: AsyncMock) -> TestClient:
+    app_f = FastAPI()
+    app_f.include_router(router)
+    app_f.dependency_overrides[get_current_user] = lambda: _user
+    app_f.dependency_overrides[get_db] = lambda: mock_db
+    return TestClient(app_f, raise_server_exceptions=False)
 
 
 def test_reschedule_route_exists() -> None:
@@ -28,12 +34,10 @@ def test_reschedule_route_exists() -> None:
     assert "/api/v1/tasks/{task_id}/reschedule" in routes
 
 
-def test_reschedule_returns_404_for_missing_task() -> None:
-    mock_db = AsyncMock()
+def test_reschedule_returns_404_for_missing_task(client: TestClient, mock_db: AsyncMock) -> None:
     result_mock = MagicMock()
     result_mock.scalar_one_or_none.return_value = None
     mock_db.execute = AsyncMock(return_value=result_mock)
-    client = _make_client(mock_db)
     resp = client.post(
         f"/api/v1/tasks/{uuid.uuid4()}/reschedule",
         json={"new_due_date": "2026-06-01"},
@@ -41,27 +45,23 @@ def test_reschedule_returns_404_for_missing_task() -> None:
     assert resp.status_code == 404
 
 
-def test_list_tasks_accepts_due_date_gte() -> None:
-    mock_db = AsyncMock()
+def test_list_tasks_accepts_due_date_gte(client: TestClient, mock_db: AsyncMock) -> None:
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 0
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
     mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
-    client = _make_client(mock_db)
     resp = client.get("/api/v1/tasks?due_date_gte=2026-06-01")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
 
 
-def test_list_tasks_accepts_assignee_ids() -> None:
-    mock_db = AsyncMock()
+def test_list_tasks_accepts_assignee_ids(client: TestClient, mock_db: AsyncMock) -> None:
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 0
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
     mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
-    client = _make_client(mock_db)
     resp = client.get("/api/v1/tasks?assignee_ids=user-1&assignee_ids=user-2")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
