@@ -5,6 +5,8 @@ interface TaskFilters {
   status?: string
   assignee?: string
   project_id?: string
+  section_id?: string
+  q?: string
   tag?: string
   limit?: number
   offset?: number

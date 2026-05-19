@@ -34,6 +34,8 @@ export interface Task {
   due_date: string | null
   visibility: string
   tags: string[]
+  project_id?: string | null
+  section_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -83,4 +85,18 @@ export interface OverdueTaskItem {
   status: string
   due_date: string | null
   assignee_id: string | null
+}
+
+export interface Section {
+  id: string
+  project_id: string
+  name: string
+  order_index: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SectionCreate {
+  name: string
+  order_index?: number
 }
