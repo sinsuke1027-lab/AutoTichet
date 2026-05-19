@@ -300,3 +300,15 @@ class UserResponse(BaseModel):
     capacity_hours_per_day: float
 
     model_config = {"from_attributes": True}
+
+
+# --- Reschedule ---
+
+
+class RescheduleRequest(BaseModel):
+    new_start_date: date | None = None
+    new_due_date: date
+
+
+class RescheduleResponse(BaseModel):
+    updated_tasks: list[TaskResponse]
