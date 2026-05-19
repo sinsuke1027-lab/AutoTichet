@@ -70,7 +70,7 @@ class Task(Base):
     )
     external_id: Mapped[str | None] = mapped_column(String(100))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    order_index: Mapped[int] = mapped_column(default=0)
+    order_index: Mapped[int] = mapped_column(Integer(), default=0)
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
