@@ -5,7 +5,13 @@ import {
 } from 'antd'
 import { InboxOutlined } from '@ant-design/icons'
 import type { UploadFile } from 'antd'
+import axios from 'axios'
 import api, { type ImportPreviewResponse, type ImportResult } from '../../lib/api'
+
+const SECTION_COLUMNS = [
+  { title: 'セクション名', dataIndex: 'name', key: 'name' },
+  { title: 'タスク数', dataIndex: 'task_count', key: 'task_count' },
+]
 
 const { Dragger } = Upload
 const { Title, Text } = Typography
@@ -31,8 +37,11 @@ export default function ImportPage() {
       })
       setPreview(res.data)
       setStep(1)
-    } catch {
-      setError('プレビューの取得に失敗しました。xlsx ファイルを確認してください。')
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.detail ?? 'プレビューの取得に失敗しました。xlsx ファイルを確認してください。')
+        : 'プレビューの取得に失敗しました。xlsx ファイルを確認してください。'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -50,8 +59,11 @@ export default function ImportPage() {
       })
       setResult(res.data)
       setStep(2)
-    } catch {
-      setError('インポートに失敗しました。')
+    } catch (err) {
+      const msg = axios.isAxiosError(err)
+        ? (err.response?.data?.detail ?? 'インポートに失敗しました。')
+        : 'インポートに失敗しました。'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -60,11 +72,6 @@ export default function ImportPage() {
   const handleReset = () => {
     setStep(0); setFile(null); setPreview(null); setResult(null); setError(null)
   }
-
-  const sectionColumns = [
-    { title: 'セクション名', dataIndex: 'name', key: 'name' },
-    { title: 'タスク数', dataIndex: 'task_count', key: 'task_count' },
-  ]
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
@@ -87,7 +94,7 @@ export default function ImportPage() {
             maxCount={1}
             beforeUpload={(f) => { setFile(f); return false }}
             onRemove={() => setFile(null)}
-            fileList={file ? [{ uid: '1', name: file.name, status: 'done' } as UploadFile] : []}
+            fileList={file ? [{ uid: String(Date.now()), name: file.name, status: 'done' } as UploadFile] : []}
           >
             <p className="ant-upload-drag-icon"><InboxOutlined /></p>
             <p className="ant-upload-text">.xlsx ファイルをドロップするかクリックして選択</p>
@@ -108,7 +115,7 @@ export default function ImportPage() {
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
           <Title level={4}>インポート内容の確認</Title>
           <Space direction="vertical">
-            <Text>プロジェクト: <strong>{preview.projects[0]?.name}</strong>（新規作成）</Text>
+            <Text>プロジェクト: <strong>{preview.projects[0]?.name ?? '（不明）'}</strong>{preview.projects[0]?.will_create ? '（新規作成）' : '（既存に追加）'}</Text>
             <Text>タスク合計: <strong>{preview.tasks.total}</strong> 件（完了済み: {preview.tasks.completed} 件）</Text>
             <Text>サブタスク: {preview.tasks.with_subtasks} 件</Text>
           </Space>
@@ -116,7 +123,7 @@ export default function ImportPage() {
           <Table
             rowKey="name"
             dataSource={preview.sections}
-            columns={sectionColumns}
+            columns={SECTION_COLUMNS}
             size="small"
             pagination={false}
             title={() => <Text strong>セクション一覧</Text>}
@@ -144,19 +151,32 @@ export default function ImportPage() {
       )}
 
       {step === 2 && result && (
-        <Result
-          status="success"
-          title="インポート完了"
-          subTitle={`タスク ${result.created_tasks} 件・セクション ${result.created_sections} 件 を作成しました（重複スキップ: ${result.skipped_duplicates} 件）`}
-          extra={[
-            <Button key="projects" type="primary" onClick={() => navigate('/projects')}>
-              プロジェクトを見る
-            </Button>,
-            <Button key="again" onClick={handleReset}>
-              別のファイルをインポート
-            </Button>,
-          ]}
-        />
+        <>
+          <Result
+            status="success"
+            title="インポート完了"
+            subTitle={`タスク ${result.created_tasks} 件・セクション ${result.created_sections} 件 を作成しました（重複スキップ: ${result.skipped_duplicates} 件）`}
+            extra={[
+              <Button key="projects" type="primary" onClick={() => navigate('/projects')}>
+                プロジェクトを見る
+              </Button>,
+              <Button key="again" onClick={handleReset}>
+                別のファイルをインポート
+              </Button>,
+            ]}
+          />
+          {result.errors.length > 0 && (
+            <Alert
+              type="warning"
+              message="一部インポートに問題が発生しました"
+              description={
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {result.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              }
+            />
+          )}
+        </>
       )}
     </Space>
   )
