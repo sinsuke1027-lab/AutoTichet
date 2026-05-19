@@ -66,6 +66,7 @@ class TaskCreate(BaseModel):
     visibility: str = "team"
     project_id: uuid.UUID | None = None
     parent_task_id: uuid.UUID | None = None
+    section_id: uuid.UUID | None = None
     source_type: str | None = None
     source_id: str | None = None
     confidence_score: float | None = None
@@ -83,6 +84,7 @@ class TaskUpdate(BaseModel):
     start_date: date | None = None
     visibility: str | None = None
     project_id: uuid.UUID | None = None
+    section_id: uuid.UUID | None = None
     tags: list[str] | None = None
 
 
@@ -90,6 +92,7 @@ class TaskResponse(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID | None = None
     parent_task_id: uuid.UUID | None = None
+    section_id: uuid.UUID | None = None
     title: str
     description: str | None = None
     status: TaskStatus
@@ -101,10 +104,13 @@ class TaskResponse(BaseModel):
     source_type: str | None = None
     confidence_score: float | None = None
     route: str | None = None
+    completed_at: datetime | None = None
+    order_index: int = 0
     created_by: str
     created_at: datetime
     updated_at: datetime
     tags: list[str] = Field(default_factory=list)
+    sub_assignees: list[str] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
@@ -169,6 +175,70 @@ class DependencyResponse(BaseModel):
     depends_on_task_id: uuid.UUID
 
     model_config = {"from_attributes": True}
+
+
+# --- Section ---
+
+
+class SectionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    order_index: int = 0
+
+
+class SectionUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    order_index: int | None = None
+
+
+class SectionResponse(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    name: str
+    order_index: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SectionReorderItem(BaseModel):
+    id: uuid.UUID
+    order_index: int
+
+
+# --- TaskAssignee ---
+
+
+class TaskAssigneeCreate(BaseModel):
+    user_id: str
+    role: str = "sub"
+
+
+class TaskAssigneeResponse(BaseModel):
+    id: uuid.UUID
+    task_id: uuid.UUID
+    user_id: str
+    role: str
+
+    model_config = {"from_attributes": True}
+
+
+# --- Import ---
+
+
+class ImportPreviewResponse(BaseModel):
+    file_name: str
+    projects: list[dict]
+    sections: list[dict]
+    tasks: dict
+    warnings: list[str]
+
+
+class ImportResult(BaseModel):
+    created_tasks: int
+    created_sections: int
+    skipped_duplicates: int
+    errors: list[str]
 
 
 # --- Dashboard ---

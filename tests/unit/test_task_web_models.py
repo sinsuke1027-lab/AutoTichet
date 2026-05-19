@@ -122,3 +122,92 @@ def test_task_list_response() -> None:
     lst = TaskListResponse(items=[], total=0)
     assert lst.total == 0
     assert lst.items == []
+
+
+# --- Phase 2A 追加モデルのテスト ---
+
+
+def test_section_create_valid() -> None:
+    from src.models.task_web import SectionCreate
+    s = SectionCreate(name="バックオフィス", order_index=1)
+    assert s.name == "バックオフィス"
+    assert s.order_index == 1
+
+
+def test_section_response_from_attributes() -> None:
+    import uuid
+    from datetime import datetime, timezone
+    from src.models.task_web import SectionResponse
+
+    class FakeSection:
+        pass
+    obj = FakeSection()
+    obj.id = uuid.uuid4()
+    obj.project_id = uuid.uuid4()
+    obj.name = "テスト"
+    obj.order_index = 0
+    obj.created_at = datetime.now(timezone.utc)
+    obj.updated_at = datetime.now(timezone.utc)
+    resp = SectionResponse.model_validate(obj)
+    assert resp.name == "テスト"
+
+
+def test_task_assignee_create() -> None:
+    from src.models.task_web import TaskAssigneeCreate
+    a = TaskAssigneeCreate(user_id="entra-oid-123", role="sub")
+    assert a.role == "sub"
+
+
+def test_import_preview_response() -> None:
+    from src.models.task_web import ImportPreviewResponse
+    preview = ImportPreviewResponse(
+        file_name="test.xlsx",
+        projects=[{"name": "総務", "will_create": True}],
+        sections=[{"project": "総務", "name": "S1", "task_count": 3}],
+        tasks={"total": 3, "completed": 1, "with_subtasks": 0, "with_dependencies": 0},
+        warnings=[],
+    )
+    assert preview.tasks["total"] == 3
+
+
+def test_import_result() -> None:
+    from src.models.task_web import ImportResult
+    r = ImportResult(created_tasks=5, created_sections=2, skipped_duplicates=1, errors=[])
+    assert r.created_tasks == 5
+
+
+def test_task_response_has_new_fields() -> None:
+    import uuid
+    from datetime import datetime, timezone
+    from src.models.task_web import TaskResponse, TaskStatus
+    resp = TaskResponse(
+        id=uuid.uuid4(),
+        title="test",
+        status=TaskStatus.NOT_STARTED,
+        priority="medium",
+        visibility="team",
+        created_by="uid",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+        section_id=None,
+        completed_at=None,
+        order_index=0,
+        sub_assignees=[],
+    )
+    assert resp.section_id is None
+    assert resp.order_index == 0
+    assert resp.sub_assignees == []
+
+
+def test_task_create_has_section_id() -> None:
+    from src.models.task_web import TaskCreate
+    t = TaskCreate(title="Test", section_id=None)
+    assert t.section_id is None
+
+
+def test_task_update_has_section_id() -> None:
+    import uuid
+    from src.models.task_web import TaskUpdate
+    sid = uuid.uuid4()
+    t = TaskUpdate(section_id=sid)
+    assert t.section_id == sid
