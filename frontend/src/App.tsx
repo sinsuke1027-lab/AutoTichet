@@ -8,6 +8,9 @@ import {
   CalendarOutlined,
   TeamOutlined,
   UploadOutlined,
+  AppstoreOutlined,
+  ScheduleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons'
 import { loginRequest } from './lib/msal'
 import Dashboard from './pages/Dashboard'
@@ -18,6 +21,9 @@ import Workload from './pages/Workload'
 import ProjectList from './pages/Projects/List'
 import ProjectDetail from './pages/Projects'
 import ImportPage from './pages/Import'
+import Board from './pages/Board'
+import CalendarView from './pages/Calendar'
+import GanttView from './pages/Gantt'
 
 const { Header, Content, Sider } = Layout
 
@@ -37,6 +43,9 @@ const NAV_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'ダッシュボード' },
   { key: '/tasks', icon: <CheckSquareOutlined />, label: 'タスク一覧' },
   { key: '/projects', icon: <ProjectOutlined />, label: 'プロジェクト' },
+  { key: '/board', icon: <AppstoreOutlined />, label: 'カンバン' },
+  { key: '/calendar', icon: <ScheduleOutlined />, label: 'カレンダー' },
+  { key: '/gantt', icon: <BarChartOutlined />, label: 'ガント' },
   { key: '/schedule', icon: <CalendarOutlined />, label: 'スケジュール' },
   { key: '/workload', icon: <TeamOutlined />, label: 'ワークロード' },
   { key: '/import', icon: <UploadOutlined />, label: 'データインポート' },
@@ -69,6 +78,9 @@ function AppLayout() {
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/projects" element={<ProjectList />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/board" element={<Board />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/gantt" element={<GanttView />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/workload" element={<Workload />} />
             <Route path="/import" element={<ImportPage />} />

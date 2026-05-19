@@ -32,6 +32,7 @@ export interface Task {
   priority: string
   assignee_id: string | null
   due_date: string | null
+  start_date?: string | null
   visibility: string
   tags: string[]
   project_id?: string | null
@@ -114,4 +115,26 @@ export interface ImportResult {
   created_sections: number
   skipped_duplicates: number
   errors: string[]
+}
+
+export interface DependencyResponse {
+  id: string
+  depends_on_task_id: string
+}
+
+export interface UserProfile {
+  user_id: string
+  display_name: string
+  email: string | null
+  role: string
+  capacity_hours_per_day: number
+}
+
+export interface RescheduleRequest {
+  new_start_date?: string | null
+  new_due_date: string
+}
+
+export interface RescheduleResponse {
+  updated_tasks: Task[]
 }
