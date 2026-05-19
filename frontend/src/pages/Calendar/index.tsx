@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
+import type { EventPropGetter, DateCellWrapperProps } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale/ja'
 import { Select, Space, Typography } from 'antd'
@@ -51,8 +52,10 @@ export default function CalendarView() {
   const { data: projects = [] } = useProjects()
   const { data: users = [] } = useUsers()
 
-  const monthStart = startOfMonth(currentDate)
-  const monthEnd = endOfMonth(currentDate)
+  const { monthStart, monthEnd } = useMemo(() => ({
+    monthStart: startOfMonth(currentDate),
+    monthEnd: endOfMonth(currentDate),
+  }), [currentDate])
 
   const { data: tasks = [] } = useTasksForView({
     due_date_gte: format(monthStart, 'yyyy-MM-dd'),
@@ -64,8 +67,16 @@ export default function CalendarView() {
   const events = useMemo<CalEvent[]>(() => {
     return tasks.map((task) => {
       const end = task.due_date ? parseISO(task.due_date) : new Date()
-      const start = task.start_date ? parseISO(task.start_date) : end
-      return { id: task.id, title: task.title, start, end, allDay: true, resource: task }
+      const hasRange = !!task.start_date
+      const start = hasRange ? parseISO(task.start_date!) : end
+      return {
+        id: task.id,
+        title: task.title,
+        start,
+        end,
+        allDay: !hasRange,
+        resource: task,
+      }
     })
   }, [tasks])
 
@@ -78,7 +89,7 @@ export default function CalendarView() {
   }, [tasks])
 
   const DensityCellWrapper = useCallback(
-    ({ value, children }: { value: Date; children: React.ReactNode }) => {
+    ({ value, children }: DateCellWrapperProps) => {
       const key = format(value, 'yyyy-MM-dd')
       const count = taskCountByDate[key] ?? 0
       const bg =
@@ -91,10 +102,9 @@ export default function CalendarView() {
     [taskCountByDate]
   )
 
-  const eventPropGetter = useCallback(
-    (event: object) => {
-      const ev = event as CalEvent
-      return { style: { backgroundColor: assigneeColor(ev.resource.assignee_id ?? null) } }
+  const eventPropGetter = useCallback<EventPropGetter<CalEvent>>(
+    (event) => {
+      return { style: { backgroundColor: assigneeColor(event.resource.assignee_id ?? null) } }
     },
     []
   )
@@ -130,10 +140,10 @@ export default function CalendarView() {
         date={currentDate}
         onNavigate={setCurrentDate}
         style={{ height: 620 }}
-        eventPropGetter={eventPropGetter as any}
+        eventPropGetter={eventPropGetter}
         onSelectEvent={(event) => navigate(`/tasks/${(event as CalEvent).id}`)}
         messages={RBC_MESSAGES}
-        components={{ dateCellWrapper: DensityCellWrapper as any }}
+        components={{ dateCellWrapper: DensityCellWrapper }}
       />
     </Space>
   )
