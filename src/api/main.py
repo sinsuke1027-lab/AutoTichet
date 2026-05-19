@@ -8,7 +8,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.graph import AgentState, build_graph
-from src.api.routers import dashboard, health, projects, task_details, tasks, tasks_crud, users
+from src.api.routers import (
+    dashboard,
+    health,
+    projects,
+    sections,
+    task_details,
+    tasks,
+    tasks_crud,
+    users,
+)
 from src.connectors.forms import FormsConnector
 from src.connectors.graph_api import GraphAPIClient
 from src.connectors.onenote import OneNoteConnector
@@ -219,5 +228,6 @@ app.include_router(tasks.router)
 app.include_router(projects.router)
 app.include_router(tasks_crud.router)
 app.include_router(task_details.router)
+app.include_router(sections.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
