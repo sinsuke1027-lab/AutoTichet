@@ -112,9 +112,31 @@
 
 ---
 
-## Web App Phase 2: Should 機能（次の実装対象）
+## Web App Phase 2A: タスク詳細 UI 完成・Asana インポート ✅ 完了（2026-05-19）
 
 **前提:** Web App Phase 1 完了 ✅
+
+### DB・バックエンド
+- [x] **Alembic 0002**: sections・task_assignees テーブル追加・Task 列追加（section_id, external_id, completed_at, order_index）
+- [x] **Pydantic モデル更新**: Section*/TaskAssignee*/Import* モデル追加・TaskResponse 拡張
+- [x] **Section CRUD API**: `/api/v1/projects/{id}/sections`（一覧・作成・更新・削除・並び替え）
+- [x] **Task Assignees API**: `/api/v1/tasks/{id}/assignees`（一覧・追加・削除）
+- [x] **タスク複製 API**: `POST /tasks/{id}/duplicate`
+- [x] **キーワード検索・section_id フィルタ**: `GET /tasks?q=...&section_id=...`
+- [x] **ユーザー一覧ロール制限撤廃**: list_users を全認証済みユーザーに開放
+- [x] **Asana インポートバックエンド**: openpyxl xlsx 解析・preview/confirm 2 段階 API
+
+### フロントエンド
+- [x] **App.tsx サイドバー**: Sider + Menu（ダッシュボード・タスク・プロジェクト・スケジュール・ワークロード・インポート）
+- [x] **プロジェクト一覧ページ**: `/projects`（カードグリッド・作成モーダル）
+- [x] **プロジェクト詳細ページ**: `/projects/:id`（Section 別タスク一覧・セクション追加・タスク追加）
+- [x] **タスク詳細タブ拡張**: 詳細・コメント・工数・サブタスク の 4 タブ・複製ボタン
+- [x] **タスク一覧検索・フィルタ**: キーワード検索・ステータス・プロジェクト・セクションフィルタ・ページネーション
+- [x] **Asana インポートウィザード**: 3 ステップ（Upload → Preview → Complete）
+
+## Web App Phase 2B: Should 機能（次の実装対象）
+
+**前提:** Web App Phase 2A 完了 ✅
 
 ### タスク操作 UX 強化
 - [ ] **F-11 D&D**: タスクをスケジュール画面でドラッグ＆ドロップ配置（`dnd-kit` 使用）
@@ -126,12 +148,6 @@
 - [ ] **F-22 カレンダービュー**: 月次カレンダー（due_date ベース）
 - [ ] **F-22 ガントチャート**: プロジェクト別タスクの期間バー表示
 - [ ] **F-23 依存関係可視化**: ガント上でのタスク前後関係表示
-
-### タスク詳細機能
-- [ ] **F-05 コメント UI**: タスク詳細ページにコメント一覧・投稿フォーム追加
-- [ ] **F-12 工数 UI**: タスク詳細ページに予定/実績工数入力フォーム追加
-- [ ] **サブタスク UI**: 親タスク詳細ページにサブタスク作成・一覧表示
-- [ ] **担当者選択**: タスク作成・編集フォームにユーザー選択 Select 追加
 
 ### 通知・アラート
 - [ ] **F-14 負荷アラート**: ワークロード超過・期限超過のブラウザ通知 or バッジ
@@ -172,6 +188,7 @@
 | Phase 1A（LangGraph パイプライン） | ✅ 全完了 | — | — |
 | Phase 1B（Graph API 統合テスト） | 1 / 5 | 4 タスク | 🔒 Graph API 承認待ち |
 | Web App Phase 1（Must 機能） | ✅ 全完了（2026-05-19） | — | — |
-| Web App Phase 2（Should 機能） | 0 / 15 | 15 タスク | Web App Ph1 完了 ✅ → 着手可能 |
+| Web App Phase 2A（タスク詳細・Asana インポート） | ✅ 全完了（2026-05-19） | — | — |
+| Web App Phase 2B（Should 機能） | 0 / 11 | 11 タスク | Phase 2A 完了 ✅ → 着手可能 |
 | Phase 3（ローカル LLM + Bot） | 0 / 4 | 4 タスク | Phase 2 完了 + Ollama + Bot 登録 |
 | Phase 4（音声） | 0 / 3 | 3 タスク | Phase 3 完了 + Whisper 方式決定 |
