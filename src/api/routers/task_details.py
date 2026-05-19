@@ -8,12 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import CurrentUser
 from src.db.engine import get_db
-from src.db.models import Task, TaskComment, TaskDependency, TaskWorkHour
+from src.db.models import Task, TaskAssignee, TaskComment, TaskDependency, TaskWorkHour
 from src.models.task_web import (
     CommentCreate,
     CommentResponse,
     DependencyCreate,
     DependencyResponse,
+    TaskAssigneeCreate,
+    TaskAssigneeResponse,
     WorkHourCreate,
     WorkHourResponse,
 )
@@ -140,4 +142,48 @@ async def delete_dependency(
     if dep is None:
         raise HTTPException(status_code=404, detail="依存関係が見つかりません")
     await db.delete(dep)
+    await db.commit()
+
+
+# --- 担当者（サブ） ---
+
+
+@router.get("/{task_id}/assignees", response_model=list[TaskAssigneeResponse])
+async def list_assignees(
+    task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
+) -> list[TaskAssigneeResponse]:
+    await _get_task_or_404(task_id, db)
+    result = await db.execute(select(TaskAssignee).where(TaskAssignee.task_id == task_id))
+    return [TaskAssigneeResponse.model_validate(a) for a in result.scalars().all()]
+
+
+@router.post("/{task_id}/assignees", response_model=TaskAssigneeResponse, status_code=201)
+async def add_assignee(
+    task_id: uuid.UUID, body: TaskAssigneeCreate, db: DbDep, current_user: CurrentUser
+) -> TaskAssigneeResponse:
+    from sqlalchemy.exc import IntegrityError as _IntegrityError
+
+    await _get_task_or_404(task_id, db)
+    assignee = TaskAssignee(task_id=task_id, user_id=body.user_id, role=body.role)
+    db.add(assignee)
+    try:
+        await db.commit()
+    except _IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="この担当者はすでに登録されています") from exc
+    await db.refresh(assignee)
+    return TaskAssigneeResponse.model_validate(assignee)
+
+
+@router.delete("/{task_id}/assignees/{user_id}", status_code=204)
+async def remove_assignee(
+    task_id: uuid.UUID, user_id: str, db: DbDep, current_user: CurrentUser
+) -> None:
+    result = await db.execute(
+        select(TaskAssignee).where(TaskAssignee.task_id == task_id, TaskAssignee.user_id == user_id)
+    )
+    assignee = result.scalar_one_or_none()
+    if assignee is None:
+        raise HTTPException(status_code=404, detail="担当者が見つかりません")
+    db.delete(assignee)
     await db.commit()

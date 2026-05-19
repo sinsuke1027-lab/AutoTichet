@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from src.api.auth import CurrentUser
 from src.db.engine import get_db
-from src.db.models import Task, TaskTag
+from src.db.models import Task, TaskAssignee, TaskTag
 from src.models.task_web import (
     TaskCreate,
     TaskListResponse,
@@ -24,10 +24,12 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 def _task_to_response(task: Task) -> TaskResponse:
     tags = [t.tag for t in task.tags] if task.tags else []
+    sub_assignees = [a.user_id for a in task.sub_assignees] if task.sub_assignees else []
     return TaskResponse(
         id=task.id,
         project_id=task.project_id,
         parent_task_id=task.parent_task_id,
+        section_id=task.section_id,
         title=task.title,
         description=task.description,
         status=TaskStatus(task.status),
@@ -39,10 +41,13 @@ def _task_to_response(task: Task) -> TaskResponse:
         source_type=task.source_type,
         confidence_score=task.confidence_score,
         route=task.route,
+        completed_at=task.completed_at,
+        order_index=task.order_index,
         created_by=task.created_by,
         created_at=task.created_at,
         updated_at=task.updated_at,
         tags=tags,
+        sub_assignees=sub_assignees,
     )
 
 
@@ -57,7 +62,7 @@ async def list_tasks(
     limit: int = Query(default=50, le=200),
     offset: int = 0,
 ) -> TaskListResponse:
-    q = select(Task).options(selectinload(Task.tags))
+    q = select(Task).options(selectinload(Task.tags), selectinload(Task.sub_assignees))
     if status_filter:
         q = q.where(Task.status == status_filter.value)
     if assignee:
@@ -88,14 +93,16 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     for tag in tags:
         db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
-    await db.refresh(task, ["tags"])
+    await db.refresh(task, ["tags", "sub_assignees"])
     return _task_to_response(task)
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> TaskResponse:
     result = await db.execute(
-        select(Task).where(Task.id == task_id).options(selectinload(Task.tags))
+        select(Task)
+        .where(Task.id == task_id)
+        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
     )
     task = result.scalar_one_or_none()
     if task is None:
@@ -108,7 +115,9 @@ async def update_task(
     task_id: uuid.UUID, body: TaskUpdate, db: DbDep, current_user: CurrentUser
 ) -> TaskResponse:
     result = await db.execute(
-        select(Task).where(Task.id == task_id).options(selectinload(Task.tags))
+        select(Task)
+        .where(Task.id == task_id)
+        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
     )
     task = result.scalar_one_or_none()
     if task is None:
@@ -122,7 +131,7 @@ async def update_task(
         for tag in body.tags:
             db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
-    await db.refresh(task, ["tags"])
+    await db.refresh(task, ["tags", "sub_assignees"])
     return _task_to_response(task)
 
 
@@ -141,6 +150,8 @@ async def list_subtasks(
     task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
 ) -> list[TaskResponse]:
     result = await db.execute(
-        select(Task).where(Task.parent_task_id == task_id).options(selectinload(Task.tags))
+        select(Task)
+        .where(Task.parent_task_id == task_id)
+        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
     )
     return [_task_to_response(t) for t in result.scalars().all()]
