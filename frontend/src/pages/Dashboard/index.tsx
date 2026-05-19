@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { useDashboardSummary, useTodayTasks, useOverdueTasks } from '../../hooks/useDashboard'
+import type { TodayTaskItem, OverdueTaskItem } from '../../lib/api'
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300']
 
@@ -77,12 +78,12 @@ export default function Dashboard() {
           <Card title="今日やること" extra={<Tag color="blue">{todayTasks?.length ?? 0}件</Tag>}>
             <List
               dataSource={todayTasks ?? []}
-              renderItem={(item: Record<string, unknown>) => (
-                <List.Item>
-                  <Tag color={item['priority'] === 'urgent' ? 'red' : 'default'}>
-                    {String(item['priority'])}
+              renderItem={(item: TodayTaskItem) => (
+                <List.Item key={item.id}>
+                  <Tag color={item.priority === 'urgent' ? 'red' : 'default'}>
+                    {item.priority}
                   </Tag>
-                  {String(item['title'])}
+                  {item.title}
                 </List.Item>
               )}
               locale={{ emptyText: '今日のタスクはありません' }}
@@ -96,10 +97,10 @@ export default function Dashboard() {
         <Card title="期限超過タスク" style={{ marginBottom: 24 }}>
           <List
             dataSource={overdueTasks ?? []}
-            renderItem={(item: Record<string, unknown>) => (
-              <List.Item>
-                <Tag color="red">{String(item['due_date'])}</Tag>
-                {String(item['title'])}
+            renderItem={(item: OverdueTaskItem) => (
+              <List.Item key={item.id}>
+                <Tag color="red">{item.due_date ?? '—'}</Tag>
+                {item.title}
               </List.Item>
             )}
           />

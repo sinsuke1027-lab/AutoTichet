@@ -1,5 +1,6 @@
 import { Typography, List, Tag, Card, Space } from 'antd'
 import { useTodayTasks, useOverdueTasks } from '../../hooks/useDashboard'
+import type { TodayTaskItem, OverdueTaskItem } from '../../lib/api'
 import dayjs from 'dayjs'
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -23,13 +24,13 @@ export default function Schedule() {
         <Card title="今日やること" loading={isLoading}>
           <List
             dataSource={todayTasks ?? []}
-            renderItem={(item: Record<string, unknown>) => (
-              <List.Item>
+            renderItem={(item: TodayTaskItem) => (
+              <List.Item key={item.id}>
                 <Space>
-                  <Tag color={PRIORITY_COLOR[String(item['priority'])] ?? 'default'}>
-                    {String(item['priority'])}
+                  <Tag color={PRIORITY_COLOR[item.priority] ?? 'default'}>
+                    {item.priority}
                   </Tag>
-                  {String(item['title'])}
+                  {item.title}
                 </Space>
               </List.Item>
             )}
@@ -41,11 +42,11 @@ export default function Schedule() {
           <Card title="期限超過">
             <List
               dataSource={overdueTasks ?? []}
-              renderItem={(item: Record<string, unknown>) => (
-                <List.Item>
+              renderItem={(item: OverdueTaskItem) => (
+                <List.Item key={item.id}>
                   <Space>
-                    <Tag color="red">{String(item['due_date'])}</Tag>
-                    {String(item['title'])}
+                    <Tag color="red">{item.due_date ?? '—'}</Tag>
+                    {item.title}
                   </Space>
                 </List.Item>
               )}

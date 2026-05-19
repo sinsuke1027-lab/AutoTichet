@@ -23,8 +23,12 @@ export default function TaskDetail() {
   if (!task) return <div>タスクが見つかりません</div>
 
   const handleStatusChange = async (status: string) => {
-    await updateTask.mutateAsync({ id: task.id, status })
-    message.success('ステータスを更新しました')
+    try {
+      await updateTask.mutateAsync({ id: task.id, status })
+      message.success('ステータスを更新しました')
+    } catch {
+      message.error('ステータスの更新に失敗しました')
+    }
   }
 
   return (

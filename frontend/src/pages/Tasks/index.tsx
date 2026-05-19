@@ -84,10 +84,14 @@ export default function TaskList() {
 
   const handleCreate = async () => {
     const values = await form.validateFields()
-    await createTask.mutateAsync(values)
-    message.success('タスクを作成しました')
-    form.resetFields()
-    setModalOpen(false)
+    try {
+      await createTask.mutateAsync(values)
+      message.success('タスクを作成しました')
+      form.resetFields()
+      setModalOpen(false)
+    } catch {
+      message.error('タスクの作成に失敗しました')
+    }
   }
 
   return (

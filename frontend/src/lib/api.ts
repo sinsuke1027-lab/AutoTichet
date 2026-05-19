@@ -68,3 +68,19 @@ export interface WorkloadItem {
   capacity_hours: number
   overload: boolean
 }
+
+export interface TodayTaskItem {
+  id: string
+  title: string
+  status: string
+  priority: string
+  assignee_id: string | null
+}
+
+export interface OverdueTaskItem {
+  id: string
+  title: string
+  status: string
+  due_date: string | null
+  assignee_id: string | null
+}

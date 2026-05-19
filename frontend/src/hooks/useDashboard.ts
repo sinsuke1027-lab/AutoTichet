@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import api, { DashboardSummary, WorkloadItem } from '../lib/api'
+import api, { DashboardSummary, WorkloadItem, TodayTaskItem, OverdueTaskItem } from '../lib/api'
 
 export function useDashboardSummary() {
   return useQuery<DashboardSummary>({
@@ -12,7 +12,7 @@ export function useDashboardSummary() {
 }
 
 export function useTodayTasks() {
-  return useQuery<Record<string, unknown>[]>({
+  return useQuery<TodayTaskItem[]>({
     queryKey: ['dashboard', 'today'],
     queryFn: async () => {
       const { data } = await api.get('/dashboard/today')
@@ -22,7 +22,7 @@ export function useTodayTasks() {
 }
 
 export function useOverdueTasks() {
-  return useQuery<Record<string, unknown>[]>({
+  return useQuery<OverdueTaskItem[]>({
     queryKey: ['dashboard', 'overdue'],
     queryFn: async () => {
       const { data } = await api.get('/dashboard/overdue')

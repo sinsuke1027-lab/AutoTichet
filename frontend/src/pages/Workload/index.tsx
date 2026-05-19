@@ -53,7 +53,7 @@ export default function Workload() {
               {item.overload && <Tag color="red">超過</Tag>}
               <span>{item.display_name}</span>
               <Progress
-                percent={Math.round((item.estimated_hours / item.capacity_hours) * 100)}
+                percent={item.capacity_hours > 0 ? Math.round((item.estimated_hours / item.capacity_hours) * 100) : 0}
                 strokeColor={item.overload ? '#ff4d4f' : '#52c41a'}
                 style={{ width: 200 }}
               />
