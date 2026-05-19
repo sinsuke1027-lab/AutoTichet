@@ -2,154 +2,164 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Button,
+  Form,
   Input,
+  message,
   Modal,
   Select,
   Space,
   Table,
   Tag,
   Typography,
-  Form,
-  message,
 } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { useTasks, useCreateTask } from '../../hooks/useTasks'
+import { useProjects } from '../../hooks/useProjects'
+import { useSections } from '../../hooks/useSections'
 import type { Task } from '../../lib/api'
 
-const STATUS_COLOR: Record<string, string> = {
-  not_started: 'default',
-  in_progress: 'processing',
-  completed: 'success',
-  cancelled: 'error',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  not_started: '未着手',
-  in_progress: '進行中',
-  completed: '完了',
-  cancelled: 'キャンセル',
-}
-
-const PRIORITY_COLOR: Record<string, string> = {
-  low: 'green',
-  medium: 'blue',
-  high: 'orange',
-  urgent: 'red',
-}
+const STATUS_OPTIONS = [
+  { label: '全て', value: '' },
+  { label: '未着手', value: 'not_started' },
+  { label: '進行中', value: 'in_progress' },
+  { label: '完了', value: 'completed' },
+  { label: 'キャンセル', value: 'cancelled' },
+]
 
 export default function TaskList() {
   const navigate = useNavigate()
-  const [statusFilter, setStatusFilter] = useState<string | undefined>()
-  const [modalOpen, setModalOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [projectFilter, setProjectFilter] = useState<string | undefined>()
+  const [sectionFilter, setSectionFilter] = useState<string | undefined>()
+  const [keyword, setKeyword] = useState('')
+  const [searchQ, setSearchQ] = useState('')
+  const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const { data, isLoading } = useTasks({ status: statusFilter })
+  const { data: taskList, isLoading } = useTasks({
+    status: statusFilter || undefined,
+    project_id: projectFilter,
+    section_id: sectionFilter,
+    q: searchQ || undefined,
+  })
+  const { data: projects = [] } = useProjects()
+  const { data: sections = [] } = useSections(projectFilter)
   const createTask = useCreateTask()
 
-  const columns: ColumnsType<Task> = [
+  const handleSearch = () => setSearchQ(keyword)
+
+  const handleCreate = async () => {
+    const values = await form.validateFields()
+    try {
+      await createTask.mutateAsync(values as { title: string; description?: string })
+      form.resetFields()
+      setOpen(false)
+    } catch {
+      void message.error('タスクの作成に失敗しました')
+    }
+  }
+
+  const columns = [
     {
-      title: 'タイトル',
+      title: 'タスク名',
       dataIndex: 'title',
-      render: (text: string, record: Task) => (
-        <Button type="link" onClick={() => navigate(`/tasks/${record.id}`)}>
-          {text}
-        </Button>
+      key: 'title',
+      render: (title: string, rec: Task) => (
+        <a onClick={() => navigate(`/tasks/${rec.id}`)}>{title}</a>
       ),
     },
     {
       title: 'ステータス',
       dataIndex: 'status',
-      render: (s: string) => (
-        <Tag color={STATUS_COLOR[s] ?? 'default'}>{STATUS_LABEL[s] ?? s}</Tag>
-      ),
+      key: 'status',
+      render: (s: string) => <Tag>{s}</Tag>,
     },
-    {
-      title: '優先度',
-      dataIndex: 'priority',
-      render: (p: string) => <Tag color={PRIORITY_COLOR[p] ?? 'default'}>{p}</Tag>,
-    },
+    { title: '優先度', dataIndex: 'priority', key: 'priority' },
     {
       title: '期限',
       dataIndex: 'due_date',
-      render: (d: string | null) => (d ? dayjs(d).format('YYYY/MM/DD') : '—'),
-    },
-    {
-      title: 'タグ',
-      dataIndex: 'tags',
-      render: (tags: string[]) => tags.map((t) => <Tag key={t}>{t}</Tag>),
+      key: 'due_date',
+      render: (d: string | null) => d ?? '—',
     },
   ]
 
-  const handleCreate = async () => {
-    const values = await form.validateFields()
-    try {
-      await createTask.mutateAsync(values)
-      message.success('タスクを作成しました')
-      form.resetFields()
-      setModalOpen(false)
-    } catch {
-      message.error('タスクの作成に失敗しました')
-    }
-  }
-
   return (
-    <div>
-      <Space style={{ marginBottom: 16, justifyContent: 'space-between', width: '100%' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>
+    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+        <Typography.Title level={3} style={{ margin: 0 }}>
           タスク一覧
         </Typography.Title>
-        <Space>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+          新規タスク
+        </Button>
+      </Space>
+
+      <Space wrap>
+        <Input
+          placeholder="キーワード検索"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          onPressEnter={handleSearch}
+          suffix={<SearchOutlined onClick={handleSearch} style={{ cursor: 'pointer' }} />}
+          style={{ width: 220 }}
+        />
+        <Select
+          placeholder="ステータス"
+          options={STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          style={{ width: 130 }}
+        />
+        <Select
+          placeholder="プロジェクト"
+          allowClear
+          options={projects.map((p) => ({ label: p.name, value: p.id }))}
+          value={projectFilter}
+          onChange={(v: string | undefined) => {
+            setProjectFilter(v)
+            setSectionFilter(undefined)
+          }}
+          style={{ width: 160 }}
+        />
+        {projectFilter !== undefined && (
           <Select
+            placeholder="セクション"
             allowClear
-            placeholder="ステータス"
-            style={{ width: 120 }}
-            onChange={setStatusFilter}
-            options={Object.entries(STATUS_LABEL).map(([value, label]) => ({ value, label }))}
+            options={sections.map((s) => ({ label: s.name, value: s.id }))}
+            value={sectionFilter}
+            onChange={setSectionFilter}
+            style={{ width: 160 }}
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            新規タスク
-          </Button>
-        </Space>
+        )}
       </Space>
 
       <Table
         rowKey="id"
         loading={isLoading}
-        dataSource={data?.items ?? []}
+        dataSource={taskList?.items ?? []}
         columns={columns}
-        pagination={{ total: data?.total, pageSize: 50 }}
+        pagination={{ pageSize: 20, total: taskList?.total, showSizeChanger: false }}
       />
 
       <Modal
         title="新規タスク作成"
-        open={modalOpen}
+        open={open}
         onOk={handleCreate}
-        onCancel={() => setModalOpen(false)}
-        okText="作成"
-        cancelText="キャンセル"
+        onCancel={() => {
+          setOpen(false)
+          form.resetFields()
+        }}
         confirmLoading={createTask.isPending}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="title" label="タイトル" rules={[{ required: true, message: '必須' }]}>
+          <Form.Item name="title" label="タスク名" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="description" label="詳細">
+          <Form.Item name="description" label="説明">
             <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="priority" label="優先度" initialValue="medium">
-            <Select
-              options={[
-                { value: 'low', label: '低' },
-                { value: 'medium', label: '中' },
-                { value: 'high', label: '高' },
-                { value: 'urgent', label: '緊急' },
-              ]}
-            />
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Space>
   )
 }
