@@ -141,7 +141,7 @@ async def delete_dependency(
     dep = result.scalar_one_or_none()
     if dep is None:
         raise HTTPException(status_code=404, detail="依存関係が見つかりません")
-    await db.delete(dep)
+    db.delete(dep)
     await db.commit()
 
 
@@ -161,14 +161,12 @@ async def list_assignees(
 async def add_assignee(
     task_id: uuid.UUID, body: TaskAssigneeCreate, db: DbDep, current_user: CurrentUser
 ) -> TaskAssigneeResponse:
-    from sqlalchemy.exc import IntegrityError as _IntegrityError
-
     await _get_task_or_404(task_id, db)
     assignee = TaskAssignee(task_id=task_id, user_id=body.user_id, role=body.role)
     db.add(assignee)
     try:
         await db.commit()
-    except _IntegrityError as exc:
+    except IntegrityError as exc:
         await db.rollback()
         raise HTTPException(status_code=409, detail="この担当者はすでに登録されています") from exc
     await db.refresh(assignee)
