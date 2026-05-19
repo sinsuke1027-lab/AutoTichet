@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -10,6 +10,7 @@ import {
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import { Card, Select, Space, Spin, Tag, Typography } from 'antd'
 import { useProjects } from '../../hooks/useProjects'
 import { useTasksForView } from '../../hooks/useTasksForView'
@@ -32,15 +33,14 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'default',
 }
 
-function TaskCard({ task }: { task: Task }) {
-  const navigate = useNavigate()
+function TaskCard({ task, onCardClick }: { task: Task; onCardClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
 
   return (
     <div
       ref={setNodeRef}
       style={{
-        transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
+        transform: CSS.Transform.toString(transform),
         opacity: isDragging ? 0.3 : 1,
         marginBottom: 8,
         cursor: isDragging ? 'grabbing' : 'grab',
@@ -52,7 +52,7 @@ function TaskCard({ task }: { task: Task }) {
     >
       <Card
         size="small"
-        onClick={() => !isDragging && navigate(`/tasks/${task.id}`)}
+        onClick={onCardClick}
         hoverable
       >
         <div style={{ marginBottom: 4, fontWeight: 500, fontSize: 13 }}>{task.title}</div>
@@ -74,11 +74,13 @@ function KanbanColumn({
   label,
   color,
   tasks,
+  onCardClick,
 }: {
   colKey: string
   label: string
   color: string
   tasks: Task[]
+  onCardClick: (taskId: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: colKey })
 
@@ -106,7 +108,7 @@ function KanbanColumn({
         <span style={{ color: '#888', fontSize: 13 }}>({tasks.length})</span>
       </div>
       {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} />
+        <TaskCard key={task.id} task={task} onCardClick={() => onCardClick(task.id)} />
       ))}
     </div>
   )
@@ -115,6 +117,8 @@ function KanbanColumn({
 export default function Board() {
   const [projectId, setProjectId] = useState<string | undefined>()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const dragOccurredRef = useRef(false)
+  const navigate = useNavigate()
 
   const { data: projects = [] } = useProjects()
   const { data: tasks = [], isLoading } = useTasksForView({ project_id: projectId })
@@ -126,19 +130,41 @@ export default function Board() {
 
   const columns = STATUS_COLUMNS
 
-  const getColumnTasks = (colKey: string) => tasks.filter((t) => t.status === colKey)
+  const columnTasks = useMemo(
+    () =>
+      STATUS_COLUMNS.reduce<Record<string, Task[]>>((acc, col) => {
+        acc[col.key] = tasks.filter((t) => t.status === col.key)
+        return acc
+      }, {}),
+    [tasks]
+  )
 
   const handleDragStart = ({ active }: DragStartEvent) => {
+    dragOccurredRef.current = true
     setActiveTask(tasks.find((t) => t.id === active.id) ?? null)
   }
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     setActiveTask(null)
-    if (!over) return
+    if (!over) {
+      dragOccurredRef.current = false
+      return
+    }
     const overColKey = columns.find((c) => c.key === String(over.id))?.key
-    if (!overColKey) return
+    if (!overColKey) {
+      dragOccurredRef.current = false
+      return
+    }
     updateTask.mutate({ id: String(active.id), status: overColKey })
+    // dragOccurredRef は次の click イベントのタイミングでリセットするため setTimeout を使う
+    setTimeout(() => { dragOccurredRef.current = false }, 100)
   }
+
+  const handleCardClick = useCallback((taskId: string) => {
+    if (!dragOccurredRef.current) {
+      navigate(`/tasks/${taskId}`)
+    }
+  }, [navigate])
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
@@ -168,7 +194,8 @@ export default function Board() {
                 colKey={col.key}
                 label={col.label}
                 color={col.color}
-                tasks={getColumnTasks(col.key)}
+                tasks={columnTasks[col.key] ?? []}
+                onCardClick={handleCardClick}
               />
             ))}
           </div>
