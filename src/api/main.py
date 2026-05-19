@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -8,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.graph import AgentState, build_graph
 from src.api.routers import dashboard, health, projects, task_details, tasks, tasks_crud, users
+from src.connectors.forms import FormsConnector
 from src.connectors.graph_api import GraphAPIClient
 from src.connectors.onenote import OneNoteConnector
 from src.connectors.planner import PlannerConnector
@@ -70,6 +72,7 @@ async def polling_job() -> None:
     todo = TodoConnector(graph_client)
     teams = TeamsChatConnector(graph_client)
     onenote = OneNoteConnector(graph_client)
+    forms = FormsConnector(graph_client)
 
     # ALLOWED_USER_IDS 設定時は get_users() を呼ばず直接使用（最小権限）
     allowed_ids = settings.get_allowed_user_ids()
@@ -156,6 +159,33 @@ async def polling_job() -> None:
             dept_plan_map=settings.get_dept_plan_map(),
         )
         await mark_processed(page_id, "onenote")
+
+    # ── Microsoft Forms（SharePoint 経由）─────────────────────────────────
+    if settings.sharepoint_site_id and settings.forms_list_id:
+        try:
+            form_responses = await forms.get_form_responses()
+            for form_item in form_responses:
+                item_id = str(form_item.get("id", ""))
+                if not item_id:
+                    continue
+                if await is_processed(item_id):
+                    continue
+                fields = form_item.get("fields", {})
+                text = "\n".join(f"{k}: {v}" for k, v in fields.items() if isinstance(v, str))
+                if text.strip():
+                    await _run_agent_and_route(
+                        text=text,
+                        source_type="form",
+                        source_id=item_id,
+                        graph=_ensure_graph(),
+                        planner=planner,
+                        todo=todo,
+                        company_plan_id=settings.company_wide_plan_id,
+                        dept_plan_map=settings.get_dept_plan_map(),
+                    )
+                    await mark_processed(item_id, "form")
+        except Exception as e:
+            logging.getLogger(__name__).warning("Forms ポーリングエラー: %s", e)
 
 
 @asynccontextmanager
