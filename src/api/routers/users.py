@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.auth import CurrentUser, TokenPayload, require_role
+from src.api.auth import CurrentUser
 from src.db.engine import get_db
 from src.db.models import UserProfile
 from src.models.task_web import MeResponse, UserResponse
@@ -26,7 +26,7 @@ async def get_me(current_user: CurrentUser) -> MeResponse:
 @router.get("", response_model=list[UserResponse])
 async def list_users(
     db: DbDep,
-    current_user: Annotated[TokenPayload, Depends(require_role("leader"))],
+    current_user: CurrentUser,
 ) -> list[UserResponse]:
     result = await db.execute(select(UserProfile).order_by(UserProfile.display_name))
     return [UserResponse.model_validate(u) for u in result.scalars().all()]
