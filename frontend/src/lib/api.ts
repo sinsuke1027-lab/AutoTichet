@@ -100,3 +100,18 @@ export interface SectionCreate {
   name: string
   order_index?: number
 }
+
+export interface ImportPreviewResponse {
+  file_name: string
+  projects: Array<{ name: string; will_create: boolean }>
+  sections: Array<{ project: string; name: string; task_count: number }>
+  tasks: { total: number; completed: number; with_subtasks: number; with_dependencies: number }
+  warnings: string[]
+}
+
+export interface ImportResult {
+  created_tasks: number
+  created_sections: number
+  skipped_duplicates: number
+  errors: string[]
+}
