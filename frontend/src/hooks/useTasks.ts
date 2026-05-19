@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api, { Task, TaskListResponse } from '../lib/api'
+import api, { type Task, type TaskListResponse } from '../lib/api'
 
 interface TaskFilters {
   status?: string

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import api, { DashboardSummary, WorkloadItem, TodayTaskItem, OverdueTaskItem } from '../lib/api'
+import api, { type DashboardSummary, type WorkloadItem, type TodayTaskItem, type OverdueTaskItem } from '../lib/api'
 
 export function useDashboardSummary() {
   return useQuery<DashboardSummary>({
