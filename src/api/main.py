@@ -183,7 +183,7 @@ async def polling_job() -> None:
                         company_plan_id=settings.company_wide_plan_id,
                         dept_plan_map=settings.get_dept_plan_map(),
                     )
-                    await mark_processed(item_id, "form")
+                await mark_processed(item_id, "form")
         except Exception as e:
             logging.getLogger(__name__).warning("Forms ポーリングエラー: %s", e)
 

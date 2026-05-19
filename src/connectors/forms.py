@@ -29,7 +29,7 @@ class FormsConnector:
             "$orderby": "createdDateTime asc",
         }
         if since_id:
-            params["$filter"] = f"id gt '{since_id}'"
+            params["$filter"] = f"id gt {since_id}"
 
         async with httpx.AsyncClient() as client:
             resp = await client.get(
