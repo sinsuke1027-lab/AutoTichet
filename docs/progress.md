@@ -1,12 +1,23 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2A（タスク詳細 UI・Asana インポート）✅ 完了 → Phase 2B / Phase 1B へ**
-ステータス: セクション管理・担当者 API・Asana インポート・フロントエンド拡張完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B-1（マルチビュー: カンバン・カレンダー・ガント + F-36 自動リスケジュール）✅ 完了 → Phase 2B-2 以降へ**
+ステータス: カンバン・カレンダー・ガント 3 ビュー実装完了・F-36 reschedule エンドポイント実装完了・Graph API 申請中（承認待ち）
 
 ## 最終更新
-- **日付**: 2026-05-19
+- **日付**: 2026-05-20
 - **完了した作業**:
+  - **[Web App Phase 2B-1 — 全 6 タスク完了]** マルチビュー + F-36 自動リスケジュール実装
+    - バックエンド: `due_date_gte`/`lte`/`assignee_ids` フィルタ追加、`POST /tasks/{id}/reschedule` エンドポイント新設（BFS 依存グラフ走査）
+    - フロントエンド: `@dnd-kit`, `react-big-calendar`, `gantt-task-react` ライブラリ導入
+    - カンバンビュー (`/board`): ステータス 4 列・dnd-kit D&D・CSS.Transform.toString()・drag/click 競合防止
+    - カレンダービュー (`/calendar`): 月次・担当者 Multi-Select フィルタ・タスク密度ヒートマップ・`allDay` 期間バー対応
+    - ガントチャート (`/gantt`): gantt-task-react・バー D&D で reschedule・依存関係矢印・`enabled` ガード・onError フィードバック
+    - フック: `useTasksForView`・`useReschedule`・`useUsers` 新規作成
+    - テスト: 118 passed（新規 4 件: test_reschedule.py）
+    - バグ修正: BFS キュー条件・start_date 上書き・`allDay` フラグ・due_date なしタスクのクラッシュ防止
+    - git push: `71eb868` (最終コミット) → origin/master にプッシュ済み
+
   - **[Web App Phase 2A — 全 12 タスク完了]** タスク詳細 UI 完成・Asana インポート機能実装
     - Alembic 0002: sections・task_assignees テーブル追加・Task 列追加（section_id, external_id, completed_at, order_index）
     - Section CRUD API（`/api/v1/projects/{id}/sections`）・Task Assignees API・タスク複製 API
@@ -20,7 +31,11 @@
     - Asana インポートウィザード（3 ステップ: Upload → Preview → Complete）
     - バグ修正: `await db.delete()` の await 漏れを sections/task_details の 3 箇所で修正
   - **テスト**: バックエンド 114 passed（.venv Python 3.11）
-  - **git コミット**: `31fc4e0`（最終コミット）
+  - **git コミット**: `31fc4e0`
+
+## 実装計画ファイル（Phase 2B-1）
+- `docs/superpowers/plans/2026-05-19-phase2b1-multiview-implementation.md`（Phase 2B-1 実装計画・全完了）
+- `docs/specs/2026-05-19-phase2b1-multiview-design.md`（Phase 2B-1 設計書）
 
   - **[Web App Phase 1 — 全 18 タスク完了]** React + FastAPI + PostgreSQL タスク管理 Web アプリ実装（2026-05-19）
     - PostgreSQL 16 + SQLAlchemy 2.x（Mapped 型）+ Alembic 非同期マイグレーション
@@ -45,7 +60,8 @@
 | test_connectors.py | 10 | ⚠️ respx 未インストール（環境問題） |
 | test_teams_chat.py | 3 | ⚠️ respx 未インストール（環境問題） |
 | test_onenote.py | 3 | ⚠️ respx 未インストール（環境問題） |
-| **実行可能合計** | **79** | ✅ 全 passed |
+| test_reschedule.py | 4 | ✅ |
+| **実行可能合計** | **118** | ✅ 全 passed |
 
 > ⚠️ `respx` は `.venv` に未インストールのため test_connectors / test_teams_chat / test_onenote が collection エラー。コード自体は正常実装済み。
 
@@ -68,7 +84,7 @@
 1. `docs/progress.md`（このファイル）を確認
 2. Graph API 承認状況を確認
    - **承認済み** → `docs/tasks.md` の Phase 1B タスクから開始
-   - **未承認** → Web App Phase 2B（Should 機能）から開始（ブレインストーミング → 設計 → 実装）
+   - **未承認** → Web App Phase 2B-2 以降（F-07 個人 ToDo・F-04 二重登録防止・F-14 負荷アラート・F-21 Teams 通知・F-12 工数自動算出）から開始
 
 ## 実装計画ファイル
 - `docs/superpowers/plans/2026-05-19-phase2a-task-detail-implementation.md`（Phase 2A 実装計画・全完了）
