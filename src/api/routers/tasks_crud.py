@@ -58,25 +58,32 @@ async def list_tasks(
     status_filter: TaskStatus | None = Query(default=None, alias="status"),  # noqa: B008
     assignee: str | None = None,
     project_id: uuid.UUID | None = None,
+    section_id: uuid.UUID | None = None,
     tag: str | None = None,
+    q: str | None = None,
     limit: int = Query(default=50, le=200),
     offset: int = 0,
 ) -> TaskListResponse:
-    q = select(Task).options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+    query = select(Task).options(selectinload(Task.tags), selectinload(Task.sub_assignees))
     if status_filter:
-        q = q.where(Task.status == status_filter.value)
+        query = query.where(Task.status == status_filter.value)
     if assignee:
-        q = q.where(Task.assignee_id == assignee)
+        query = query.where(Task.assignee_id == assignee)
     if project_id:
-        q = q.where(Task.project_id == project_id)
+        query = query.where(Task.project_id == project_id)
+    if section_id:
+        query = query.where(Task.section_id == section_id)
     if tag:
-        q = q.where(Task.id.in_(select(TaskTag.task_id).where(TaskTag.tag == tag)))
+        query = query.where(Task.id.in_(select(TaskTag.task_id).where(TaskTag.tag == tag)))
+    if q:
+        like = f"%{q}%"
+        query = query.where(Task.title.ilike(like) | Task.description.ilike(like))
 
-    count_result = await db.execute(select(func.count()).select_from(q.subquery()))
+    count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
     result = await db.execute(
-        q.order_by(Task.due_date.asc().nulls_last()).limit(limit).offset(offset)
+        query.order_by(Task.due_date.asc().nulls_last()).limit(limit).offset(offset)
     )
     items = [_task_to_response(t) for t in result.scalars().all()]
     return TaskListResponse(items=items, total=total)
@@ -133,6 +140,46 @@ async def update_task(
     await db.commit()
     await db.refresh(task, ["tags", "sub_assignees"])
     return _task_to_response(task)
+
+
+@router.post(
+    "/{task_id}/duplicate", response_model=TaskResponse, status_code=status.HTTP_201_CREATED
+)
+async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> TaskResponse:
+    result = await db.execute(
+        select(Task)
+        .where(Task.id == task_id)
+        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+    )
+    original = result.scalar_one_or_none()
+    if original is None:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+
+    new_task = Task(
+        title=f"{original.title}（コピー）",
+        description=original.description,
+        status="not_started",
+        priority=original.priority,
+        assignee_id=original.assignee_id,
+        due_date=original.due_date,
+        start_date=original.start_date,
+        visibility=original.visibility,
+        project_id=original.project_id,
+        section_id=original.section_id,
+        parent_task_id=original.parent_task_id,
+        created_by=current_user.sub,
+        completed_at=None,
+        order_index=original.order_index,
+    )
+    db.add(new_task)
+    await db.flush()
+    for tag_obj in original.tags:
+        db.add(TaskTag(task_id=new_task.id, tag=tag_obj.tag))
+    for sa_obj in original.sub_assignees:
+        db.add(TaskAssignee(task_id=new_task.id, user_id=sa_obj.user_id, role=sa_obj.role))
+    await db.commit()
+    await db.refresh(new_task, ["tags", "sub_assignees"])
+    return _task_to_response(new_task)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
