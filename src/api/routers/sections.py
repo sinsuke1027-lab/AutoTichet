@@ -71,7 +71,7 @@ async def delete_section(
     current_user: CurrentUser,
 ) -> None:
     section = await _get_section_or_404(project_id, section_id, db)
-    db.delete(section)
+    await db.delete(section)
     await db.commit()
 
 

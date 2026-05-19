@@ -141,7 +141,7 @@ async def delete_dependency(
     dep = result.scalar_one_or_none()
     if dep is None:
         raise HTTPException(status_code=404, detail="依存関係が見つかりません")
-    db.delete(dep)
+    await db.delete(dep)
     await db.commit()
 
 
@@ -183,5 +183,5 @@ async def remove_assignee(
     assignee = result.scalar_one_or_none()
     if assignee is None:
         raise HTTPException(status_code=404, detail="担当者が見つかりません")
-    db.delete(assignee)
+    await db.delete(assignee)
     await db.commit()
