@@ -27,6 +27,7 @@ export default api
 export interface Task {
   id: string
   title: string
+  description: string | null
   status: string
   priority: string
   assignee_id: string | null
