@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  Alert,
   Button,
   Form,
   Input,
@@ -8,6 +9,7 @@ import {
   Modal,
   Select,
   Space,
+  Switch,
   Table,
   Tag,
   Typography,
@@ -16,6 +18,7 @@ import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { useTasks, useCreateTask } from '../../hooks/useTasks'
 import { useProjects } from '../../hooks/useProjects'
 import { useSections } from '../../hooks/useSections'
+import { useSimilarTasks } from '../../hooks/useSimilarTasks'
 import type { Task } from '../../lib/api'
 
 const STATUS_OPTIONS = [
@@ -33,6 +36,8 @@ export default function TaskList() {
   const [sectionFilter, setSectionFilter] = useState<string | undefined>()
   const [keyword, setKeyword] = useState('')
   const [searchQ, setSearchQ] = useState('')
+  const [myTasksOnly, setMyTasksOnly] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
@@ -41,18 +46,23 @@ export default function TaskList() {
     project_id: projectFilter,
     section_id: sectionFilter,
     q: searchQ || undefined,
+    my_tasks_only: myTasksOnly || undefined,
   })
   const { data: projects = [] } = useProjects()
   const { data: sections = [] } = useSections(projectFilter)
   const createTask = useCreateTask()
+  const { data: similarTasks = [] } = useSimilarTasks(newTitle)
 
   const handleSearch = () => setSearchQ(keyword)
 
   const handleCreate = async () => {
     const values = await form.validateFields()
     try {
-      await createTask.mutateAsync(values as { title: string; description?: string })
+      await createTask.mutateAsync(
+        values as { title: string; description?: string; visibility?: string },
+      )
       form.resetFields()
+      setNewTitle('')
       setOpen(false)
     } catch {
       void message.error('タスクの作成に失敗しました')
@@ -131,6 +141,10 @@ export default function TaskList() {
             style={{ width: 160 }}
           />
         )}
+        <Space>
+          <Switch checked={myTasksOnly} onChange={setMyTasksOnly} />
+          <span>自分の ToDo のみ</span>
+        </Space>
       </Space>
 
       <Table
@@ -144,19 +158,45 @@ export default function TaskList() {
       <Modal
         title="新規タスク作成"
         open={open}
-        onOk={handleCreate}
+        onOk={() => void handleCreate()}
         onCancel={() => {
           setOpen(false)
           form.resetFields()
+          setNewTitle('')
         }}
         confirmLoading={createTask.isPending}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="title" label="タスク名" rules={[{ required: true }]}>
-            <Input />
+            <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
           </Form.Item>
+          {similarTasks.length > 0 && (
+            <Alert
+              type="warning"
+              style={{ marginBottom: 12 }}
+              message={`類似タスクが見つかりました（${similarTasks.length}件）`}
+              description={
+                <ul style={{ margin: 0, paddingLeft: 16 }}>
+                  {similarTasks.map((t) => (
+                    <li key={t.id}>
+                      {t.title} ({t.status})
+                    </li>
+                  ))}
+                </ul>
+              }
+            />
+          )}
           <Form.Item name="description" label="説明">
             <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="visibility" label="公開範囲" initialValue="team">
+            <Select
+              options={[
+                { label: 'チーム共有', value: 'team' },
+                { label: '全公開', value: 'all' },
+                { label: '個人（ToDo）', value: 'private' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>

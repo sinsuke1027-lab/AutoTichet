@@ -10,6 +10,7 @@ interface TaskFilters {
   tag?: string
   limit?: number
   offset?: number
+  my_tasks_only?: boolean
 }
 
 export function useTasks(filters: TaskFilters = {}) {
