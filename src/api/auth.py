@@ -7,12 +7,15 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.db.engine import get_db
 from src.models.config import get_settings
 
 _bearer = HTTPBearer(auto_error=False)
 
-_ROLE_HIERARCHY: dict[str, int] = {
+ROLE_HIERARCHY: dict[str, int] = {
     "member": 0,
     "leader": 1,
     "manager": 2,
@@ -29,6 +32,7 @@ class TokenPayload(BaseModel):
     email: str = ""
     roles: list[str] = []
     tid: str = ""
+    department_tags: list[str] = []
 
 
 async def _fetch_jwks(tenant_id: str) -> dict[str, Any]:
@@ -47,6 +51,7 @@ async def _fetch_jwks(tenant_id: str) -> dict[str, Any]:
 
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)] = None,
+    db: AsyncSession = Depends(get_db),
 ) -> TokenPayload:
     if credentials is None:
         raise HTTPException(
@@ -72,12 +77,31 @@ async def get_current_user(
             algorithms=["RS256"],
             audience=settings.azure_client_id,
         )
+        sub = payload.get("oid", payload.get("sub", ""))
+
+        # DB から UserProfile を取得（循環インポート回避のため関数内でインポート）
+        from src.db.models import UserProfile  # noqa: PLC0415
+
+        profile_result = await db.execute(select(UserProfile).where(UserProfile.user_id == sub))
+        profile = profile_result.scalar_one_or_none()
+
+        raw_roles: list[str] = payload.get("roles", [])
+        if raw_roles:
+            # JWT に roles あり → 本番（Entra ID App Roles）
+            roles = raw_roles
+        else:
+            # JWT に roles なし → 開発環境（DB fallback）
+            roles = [profile.role] if profile else ["member"]
+
+        department_tags: list[str] = list(profile.department_tags) if profile else []
+
         return TokenPayload(
-            sub=payload.get("oid", payload.get("sub", "")),
+            sub=sub,
             name=payload.get("name", ""),
             email=payload.get("preferred_username", ""),
-            roles=payload.get("roles", []),
+            roles=roles,
             tid=payload.get("tid", ""),
+            department_tags=department_tags,
         )
     except JWTError as e:
         raise HTTPException(
@@ -93,10 +117,10 @@ def require_role(
         current_user: Annotated[TokenPayload, Depends(get_current_user)],
     ) -> TokenPayload:
         user_level = max(
-            (_ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
+            (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
             default=0,
         )
-        required_level = _ROLE_HIERARCHY.get(required_role, 99)
+        required_level = ROLE_HIERARCHY.get(required_role, 99)
         if user_level < required_level:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
