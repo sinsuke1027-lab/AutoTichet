@@ -128,6 +128,7 @@ export interface UserProfile {
   email: string | null
   role: string
   capacity_hours_per_day: number
+  department_tags: string[]
 }
 
 export interface RescheduleRequest {
@@ -137,4 +138,37 @@ export interface RescheduleRequest {
 
 export interface RescheduleResponse {
   updated_tasks: Task[]
+}
+
+export interface AdminUser {
+  user_id: string
+  display_name: string
+  email: string | null
+  role: string
+  department_tags: string[]
+  capacity_hours_per_day: number
+}
+
+export interface AdminUserCreate {
+  user_id: string
+  display_name: string
+  email?: string | null
+  role: string
+  department_tags: string[]
+  capacity_hours_per_day: number
+}
+
+export interface AdminUserUpdate {
+  display_name?: string | null
+  email?: string | null
+  role?: string | null
+  department_tags?: string[] | null
+  capacity_hours_per_day?: number | null
+}
+
+export interface SimilarTask {
+  id: string
+  title: string
+  status: string
+  score: number
 }
