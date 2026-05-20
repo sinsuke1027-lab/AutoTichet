@@ -3,13 +3,15 @@ from datetime import time as time_type
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.auth import CurrentUser
+from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.db.engine import get_db
 from src.db.models import Task, TaskWorkHour, UserProfile
 from src.models.task_web import (
+    DailyWorkloadItem,
     DashboardSummary,
     OverdueTaskItem,
     TaskStatus,
@@ -162,4 +164,86 @@ async def get_completion_trend(db: DbDep, current_user: CurrentUser) -> list[Tre
             completed=counts_by_day.get((today - timedelta(days=i)).isoformat(), 0),
         )
         for i in range(7, -1, -1)
+    ]
+
+
+@router.get("/daily-workload", response_model=list[DailyWorkloadItem])
+async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[DailyWorkloadItem]:
+    today = date.today()
+    end_date = today + timedelta(days=6)
+
+    user_role = max(
+        (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
+        default=0,
+    )
+
+    # estimated_hours: task ごとに最大値を採用（複数エントリ対策）
+    wh_sub = (
+        select(
+            TaskWorkHour.task_id,
+            func.max(TaskWorkHour.estimated_hours).label("estimated_hours"),
+        )
+        .group_by(TaskWorkHour.task_id)
+        .subquery()
+    )
+
+    base_query = (
+        select(
+            Task.due_date.label("task_date"),
+            func.sum(func.coalesce(wh_sub.c.estimated_hours, 1.0)).label("total_hours"),
+            func.count(Task.id).label("task_count"),
+        )
+        .outerjoin(wh_sub, wh_sub.c.task_id == Task.id)
+        .where(
+            Task.due_date >= today,
+            Task.due_date <= end_date,
+            Task.status.notin_(["completed", "cancelled"]),
+            Task.due_date.isnot(None),
+        )
+    )
+
+    capacity_hours: float = 8.0
+
+    if user_role < ROLE_HIERARCHY["manager"]:
+        if user_role >= ROLE_HIERARCHY["leader"] and current_user.department_tags:
+            dept_result = await db.execute(
+                select(UserProfile.user_id).where(
+                    UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags))
+                )
+            )
+            dept_user_ids = list(dept_result.scalars().all())
+            base_query = base_query.where(Task.assignee_id.in_(dept_user_ids))
+            cap_result = await db.execute(
+                select(func.avg(UserProfile.capacity_hours_per_day)).where(
+                    UserProfile.user_id.in_(dept_user_ids)
+                )
+            )
+            capacity_hours = float(cap_result.scalar_one() or 8.0)
+        else:
+            base_query = base_query.where(Task.assignee_id == current_user.sub)
+            cap_result = await db.execute(
+                select(UserProfile.capacity_hours_per_day).where(
+                    UserProfile.user_id == current_user.sub
+                )
+            )
+            capacity_hours = float(cap_result.scalar_one() or 8.0)
+    else:
+        cap_result = await db.execute(select(func.avg(UserProfile.capacity_hours_per_day)))
+        capacity_hours = float(cap_result.scalar_one() or 8.0)
+
+    result = await db.execute(base_query.group_by(Task.due_date))
+    rows: dict[str, tuple[float, int]] = {
+        str(row[0]): (float(row[1] or 0.0), int(row[2] or 0)) for row in result.all()
+    }
+
+    return [
+        DailyWorkloadItem(
+            date=(today + timedelta(days=i)).isoformat(),
+            total_hours=round(rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[0], 1),
+            capacity_hours=round(capacity_hours, 1),
+            overload=rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[0]
+            > capacity_hours,
+            task_count=rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[1],
+        )
+        for i in range(7)
     ]
