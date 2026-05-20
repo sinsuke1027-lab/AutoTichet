@@ -27,6 +27,7 @@ import Board from './pages/Board'
 import CalendarView from './pages/Calendar'
 import GanttView from './pages/Gantt'
 import AdminUsers from './pages/Admin/Users'
+import WorkloadAlertBadge from './components/WorkloadAlertBadge'
 
 const { Header, Content, Sider } = Layout
 
@@ -71,7 +72,19 @@ function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ color: 'white', fontSize: 18, padding: '0 24px' }}>AutoTicket</Header>
+      <Header
+        style={{
+          color: 'white',
+          fontSize: 18,
+          padding: '0 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span>AutoTicket</span>
+        <WorkloadAlertBadge />
+      </Header>
       <Layout>
         <Sider width={200} theme="light">
           <Menu
