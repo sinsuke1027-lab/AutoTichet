@@ -1,12 +1,26 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B-1（マルチビュー: カンバン・カレンダー・ガント + F-36 自動リスケジュール）✅ 完了 → Phase 2B-2 以降へ**
-ステータス: カンバン・カレンダー・ガント 3 ビュー実装完了・F-36 reschedule エンドポイント実装完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B-2（ユーザー管理・権限制御・UX 強化）✅ 完了 → Phase 2B-3 以降へ**
+ステータス: F-08 ユーザー管理・ロール制御・F-07 個人 ToDo・F-04 類似タスク警告・F-11 週次 D&D グリッド 全実装完了・Graph API 申請中（承認待ち）
 
 ## 最終更新
 - **日付**: 2026-05-20
 - **完了した作業**:
+  - **[Web App Phase 2B-2 — 全 14 タスク完了]** ユーザー管理・権限制御・UX 強化
+    - Alembic 0003（start_date 補完）・0004（department_tags JSONB）
+    - ハイブリッド認証: JWT-first / DB-fallback・ROLE_HIERARCHY 公開
+    - Admin API: GET/POST/PATCH/DELETE /api/v1/admin/users（admin 権限ガード）
+    - ロールベース閲覧制御: member=own+public, leader=dept+public, manager/admin=全件
+    - /tasks/similar の認可フィルタ（private タスク漏洩防止）・my_tasks_only + ロールフィルタ競合修正
+    - F-07: my_tasks_only フィルタ・タスク作成時 visibility 選択（private/team/all）
+    - F-04: /tasks/similar エンドポイント（トークン分割 ILIKE・スコア 0.5 以上・最大 5 件）
+    - F-11: Schedule ページ週次 D&D グリッド（前後 3 日 + 今日 + 3 日・start_date 更新）
+    - Admin Users ページ（/admin/users・admin ロール限定表示）・部門タグ Select mode=tags
+    - テスト: 115 passed（新規 13 件: test_admin_router・test_visibility・test_similar_tasks）
+    - バグ修正: visibility "public" → "all"・similar 認可バイパス・my_tasks_only ロール競合
+    - git push: `6638870` → origin/master にプッシュ済み
+
   - **[Web App Phase 2B-1 — 全 6 タスク完了]** マルチビュー + F-36 自動リスケジュール実装
     - バックエンド: `due_date_gte`/`lte`/`assignee_ids` フィルタ追加、`POST /tasks/{id}/reschedule` エンドポイント新設（BFS 依存グラフ走査）
     - フロントエンド: `@dnd-kit`, `react-big-calendar`, `gantt-task-react` ライブラリ導入
