@@ -218,16 +218,16 @@ async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[Daily
                     UserProfile.user_id.in_(dept_user_ids)
                 )
             )
-            capacity_hours = float(cap_result.scalar_one() or 8.0)
+            capacity_hours = float(cap_result.scalar_one_or_none() or 8.0)
         else:
-            # leader without dept_tags: show own tasks only (workload context — no visibility filter needed)
+            # leader without dept_tags: own tasks only (workload — no visibility filter)
             base_query = base_query.where(Task.assignee_id == current_user.sub)
             cap_result = await db.execute(
                 select(UserProfile.capacity_hours_per_day).where(
                     UserProfile.user_id == current_user.sub
                 )
             )
-            capacity_hours = float(cap_result.scalar_one() or 8.0)
+            capacity_hours = float(cap_result.scalar_one_or_none() or 8.0)
     else:
         cap_result = await db.execute(select(func.avg(UserProfile.capacity_hours_per_day)))
         capacity_hours = float(cap_result.scalar_one() or 8.0)
