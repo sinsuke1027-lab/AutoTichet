@@ -104,11 +104,12 @@ async def list_tasks(
         )
 
     # ロールベース閲覧制御（適用順序: 通常フィルタ → my_tasks_only → ロールフィルタ）
+    # my_tasks_only=True のときは既に visibility=="private" & assignee_id 絞り込み済みのためスキップ
     user_role = max(
         (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
         default=0,
     )
-    if user_role < ROLE_HIERARCHY["manager"]:
+    if not my_tasks_only and user_role < ROLE_HIERARCHY["manager"]:
         if user_role >= ROLE_HIERARCHY["leader"]:
             if current_user.department_tags:
                 dept_result = await db.execute(
@@ -120,17 +121,17 @@ async def list_tasks(
                 query = query.where(
                     or_(
                         Task.assignee_id.in_(dept_user_ids),
-                        Task.visibility == "public",
+                        Task.visibility == "all",
                     )
                 )
             else:
-                query = query.where(Task.visibility == "public")
+                query = query.where(Task.visibility == "all")
         else:
-            # member: 自分のタスク + public
+            # member: 自分のタスク + all
             query = query.where(
                 or_(
                     Task.assignee_id == current_user.sub,
-                    Task.visibility == "public",
+                    Task.visibility == "all",
                 )
             )
     # manager / admin はフィルタなし（全件）
@@ -171,7 +172,41 @@ async def similar_tasks(
         return []
 
     conditions = [Task.title.ilike(f"%{t}%") for t in tokens]
-    result = await db.execute(select(Task).where(or_(*conditions)).limit(100))
+    sim_query = select(Task).where(or_(*conditions))
+
+    # ロールベース認可フィルタ（list_tasks と同一ロジック）
+    sim_user_role = max(
+        (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
+        default=0,
+    )
+    if sim_user_role < ROLE_HIERARCHY["manager"]:
+        if sim_user_role >= ROLE_HIERARCHY["leader"]:
+            if current_user.department_tags:
+                dept_result = await db.execute(
+                    select(UserProfile.user_id).where(
+                        UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags))
+                    )
+                )
+                dept_user_ids = list(dept_result.scalars().all())
+                sim_query = sim_query.where(
+                    or_(
+                        Task.assignee_id.in_(dept_user_ids),
+                        Task.visibility == "all",
+                    )
+                )
+            else:
+                sim_query = sim_query.where(Task.visibility == "all")
+        else:
+            # member: 自分のタスク + all
+            sim_query = sim_query.where(
+                or_(
+                    Task.assignee_id == current_user.sub,
+                    Task.visibility == "all",
+                )
+            )
+    # manager / admin はフィルタなし（全件）
+
+    result = await db.execute(sim_query.limit(100))
     tasks_found = result.scalars().all()
 
     scored: list[tuple[float, Task]] = []
