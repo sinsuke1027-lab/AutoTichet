@@ -29,10 +29,12 @@
 
 ```sql
 ALTER TABLE user_profiles
-  ADD COLUMN department_tags JSON NOT NULL DEFAULT '[]';
+  ADD COLUMN department_tags JSONB NOT NULL DEFAULT '[]';
 ```
 
 downgrade: `ALTER TABLE user_profiles DROP COLUMN department_tags`
+
+> **注意:** `?|` 演算子（部門タグの AND/OR マッチング）は PostgreSQL の **JSONB** 型専用。`JSON` 型では実行時エラーになるため、必ず `JSONB` を使うこと。SQLAlchemy の型マッピングは `from sqlalchemy.dialects.postgresql import JSONB` を使用する。
 
 **`department_tags` の値例:**
 ```json
@@ -114,7 +116,17 @@ if user_role < _ROLE_HIERARCHY["manager"]:
 # manager / admin はフィルタなし（全件）
 ```
 
-**JSON の `?|` 演算子はPostgreSQL 固有。** SQLAlchemy の `func.jsonb_exists_any` を使う実装でも同等。
+**`?|` 演算子は PostgreSQL の JSONB 型専用（§3 注意参照）。** SQLAlchemy の `func.jsonb_exists_any` を使う実装でも同等。
+
+#### フィルタ適用順序
+
+`list_tasks` 内のフィルタは以下の順序で適用する：
+
+1. 通常フィルタ（status / assignee / project_id / section_id / tag / q / due_date_gte/lte / assignee_ids）
+2. `my_tasks_only` フィルタ（§4-4）
+3. ロールベース閲覧制御フィルタ（本節）
+
+ロールベースフィルタを**最後**に適用することで、どのパラメータ指定でも権限を上書きできずセキュリティが担保される。
 
 ### 4-3. 管理 API（`src/api/routers/admin.py`）（新規）
 
@@ -170,6 +182,8 @@ if my_tasks_only:
     )
 ```
 
+> **適用位置:** 通常フィルタ群（due_date_gte/lte・assignee_ids）の直後、ロールベース閲覧制御フィルタの直前に追記する（§4-2 フィルタ適用順序参照）。
+
 ### 4-5. F-04 二重登録防止（`src/api/routers/tasks_crud.py`）
 
 新規エンドポイント：
@@ -177,6 +191,8 @@ if my_tasks_only:
 ```
 GET /api/v1/tasks/similar?q={title}
 ```
+
+> **実装上の注意（ルート定義順）:** `tasks_crud.py` の既存ルート `GET /{task_id}` より**前**に `/similar` を定義すること。FastAPI はパターンマッチを上から評価するため、後ろに定義すると `similar` が `task_id` として解釈され 404 になる。
 
 処理：
 1. `q` をスペース・句読点（`[　 、。，．・]` 等）で分割してトークンリストを作成
@@ -217,6 +233,17 @@ class SimilarTaskResponse(BaseModel):
 
 フィルタバーに `Switch`「自分の ToDo のみ」を追加。ON 時は `my_tasks_only=true` で再取得。OFF 時は通常フィルタに戻る。
 
+**タスク作成時の `visibility=private` 設定 UI:**
+`my_tasks_only` は `visibility == "private"` のタスクのみを対象とするため、タスク作成モーダルに `visibility` の Select を追加する。
+
+| 選択肢 | 値 | 説明 |
+|------|------|------|
+| チーム共有（デフォルト） | `"team"` | プロジェクトメンバー全員が閲覧可 |
+| 全公開 | `"public"` | ロールに関わらず全員が閲覧可 |
+| 個人（ToDo） | `"private"` | 担当者本人のみ閲覧可（`my_tasks_only` の対象） |
+
+既存の `TaskCreate` フォームに `visibility` の `Select` を追加し、デフォルト `"team"` で設定する。
+
 ### 5-4. F-04 二重登録防止 UI（タスク作成モーダル改修）
 
 - タイトル `Input` の `onChange` に 500ms デバウンスを設定
@@ -231,11 +258,21 @@ class SimilarTaskResponse(BaseModel):
 
 ### 5-5. F-11 スケジュール D&D（`/schedule` 既存ページ改修）
 
+**UI 構造の変更:**
+現在の `/schedule` ページ（今日のタスク・期限超過の2カード構成）は日付グリッドを持たないため、D&D のドロップ先が存在しない。以下の構造に改修する：
+
+- **週次カレンダーグリッド（7列）**: 当日を含む前後3日 = 計7日分の日付列を横並び表示
+- 各日付列にタスクカードを縦スタック表示（`start_date` が一致するタスクを配置）
+- `start_date` が未設定のタスクは左端の「未配置」エリアに表示
+
+**D&D 実装:**
 - 既存の `Schedule/index.tsx` に `@dnd-kit/core` の `DndContext` を追加
 - タスクカードに `useDraggable`（ドラッグハンドルアイコン付き）
-- 日付セルに `useDroppable`
-- ドロップ時: `PATCH /tasks/{id}` で `start_date` のみ更新（`due_date` は変更しない）
-- ドロップ先の日付セルはドラッグ中にハイライト（`isOver` 判定）
+- 日付列に `useDroppable`（id = ISO date 文字列）
+- ドロップ時: `PUT /tasks/{id}` で `start_date` のみ更新（`due_date` は変更しない。`exclude_unset=True` で部分更新として動作）
+- ドロップ先の日付列はドラッグ中にハイライト（`isOver` 判定）
+
+> **注意:** バックエンドに `PATCH` エンドポイントは存在しない。`PUT /tasks/{id}` に `{ start_date: "YYYY-MM-DD" }` のみ送ることで `exclude_unset=True` により部分更新として機能する。
 
 ### 5-6. 新規フック
 
@@ -288,7 +325,7 @@ src/api/auth.py               ← TokenPayload に department_tags 追加・DB f
 src/models/task_web.py        ← AdminUserCreate/Update/Response・SimilarTaskResponse 追加
 src/api/routers/tasks_crud.py ← 閲覧制御・my_tasks_only・/similar エンドポイント追加
 src/api/main.py               ← admin ルーター登録
-frontend/src/lib/api.ts       ← AdminUser・SimilarTask 型追加
+frontend/src/lib/api.ts       ← AdminUser・SimilarTask 型追加、UserProfile に department_tags フィールド追加
 frontend/src/App.tsx          ← /admin/users ルート・サイドバー（admin のみ表示）追加
 frontend/src/pages/Tasks/index.tsx  ← 個人 ToDo スイッチ追加
 frontend/src/pages/Schedule/index.tsx ← D&D 実装
