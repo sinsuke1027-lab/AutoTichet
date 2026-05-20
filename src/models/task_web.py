@@ -353,3 +353,16 @@ class SimilarTaskResponse(BaseModel):
     title: str
     status: str
     score: float
+
+
+# --- Daily Workload ---
+
+
+class DailyWorkloadItem(BaseModel):
+    date: str  # "YYYY-MM-DD"
+    total_hours: float  # due_date がその日のタスクの estimated_hours 合計
+    capacity_hours: (
+        float  # ロール別 capacity（member=個人、leader=部署平均、manager/admin=全体平均）
+    )
+    overload: bool  # total_hours > capacity_hours
+    task_count: int
