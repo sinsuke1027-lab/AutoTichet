@@ -172,3 +172,11 @@ export interface SimilarTask {
   status: string
   score: number
 }
+
+export interface DailyWorkloadItem {
+  date: string
+  total_hours: number
+  capacity_hours: number
+  overload: boolean
+  task_count: number
+}
