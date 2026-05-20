@@ -3,7 +3,7 @@ from datetime import time as time_type
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -220,6 +220,7 @@ async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[Daily
             )
             capacity_hours = float(cap_result.scalar_one() or 8.0)
         else:
+            # leader without dept_tags: show own tasks only (workload context — no visibility filter needed)
             base_query = base_query.where(Task.assignee_id == current_user.sub)
             cap_result = await db.execute(
                 select(UserProfile.capacity_hours_per_day).where(
@@ -241,8 +242,8 @@ async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[Daily
             date=(today + timedelta(days=i)).isoformat(),
             total_hours=round(rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[0], 1),
             capacity_hours=round(capacity_hours, 1),
-            overload=rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[0]
-            > capacity_hours,
+            overload=round(rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[0], 1)
+            > round(capacity_hours, 1),
             task_count=rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[1],
         )
         for i in range(7)

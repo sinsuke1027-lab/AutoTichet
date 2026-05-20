@@ -1,7 +1,6 @@
 from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -120,3 +119,13 @@ def test_returned_dates_are_consecutive_from_today() -> None:
     data = resp.json()
     expected = [(date.today() + timedelta(days=i)).isoformat() for i in range(7)]
     assert [d["date"] for d in data] == expected
+
+
+def test_daily_workload_leader_without_dept_tags() -> None:
+    """leader（部署タグなし）: member スコープにフォールバック（2 回 execute）"""
+    leader = TokenPayload(sub="l2", roles=["leader"], department_tags=[])
+    db = _db_with_results([_capacity_scalar(8.0), _empty_workload()])
+    client = _make_app(leader, db)
+    resp = client.get("/api/v1/dashboard/daily-workload")
+    assert resp.status_code == 200
+    assert len(resp.json()) == 7
