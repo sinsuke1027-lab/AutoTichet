@@ -11,8 +11,10 @@ import {
   AppstoreOutlined,
   ScheduleOutlined,
   BarChartOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { loginRequest } from './lib/msal'
+import { useAuthStore } from './store/useAuthStore'
 import Dashboard from './pages/Dashboard'
 import TaskList from './pages/Tasks'
 import TaskDetail from './pages/Tasks/TaskDetail'
@@ -24,6 +26,7 @@ import ImportPage from './pages/Import'
 import Board from './pages/Board'
 import CalendarView from './pages/Calendar'
 import GanttView from './pages/Gantt'
+import AdminUsers from './pages/Admin/Users'
 
 const { Header, Content, Sider } = Layout
 
@@ -54,9 +57,17 @@ const NAV_ITEMS = [
 function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const roles = useAuthStore((s) => s.roles)
+  const navItemsWithAdmin = [
+    ...NAV_ITEMS,
+    ...(roles.includes('admin')
+      ? [{ key: '/admin/users', icon: <SettingOutlined />, label: 'ユーザー管理' }]
+      : []),
+  ]
+
   const selectedKey =
-    NAV_ITEMS.find((item) => item.key !== '/' && location.pathname.startsWith(item.key))?.key ??
-    '/'
+    navItemsWithAdmin.find((item) => item.key !== '/' && location.pathname.startsWith(item.key))
+      ?.key ?? '/'
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -67,7 +78,7 @@ function AppLayout() {
             mode="inline"
             selectedKeys={[selectedKey]}
             style={{ height: '100%', borderRight: 0 }}
-            items={NAV_ITEMS}
+            items={navItemsWithAdmin}
             onClick={({ key }) => navigate(key)}
           />
         </Sider>
@@ -84,6 +95,7 @@ function AppLayout() {
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/workload" element={<Workload />} />
             <Route path="/import" element={<ImportPage />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Content>
