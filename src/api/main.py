@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.agents.graph import AgentState, build_graph
 from src.api.routers import (
+    admin,
     dashboard,
     health,
     import_router,
@@ -233,3 +234,4 @@ app.include_router(sections.router)
 app.include_router(dashboard.router)
 app.include_router(users.router)
 app.include_router(import_router.router)
+app.include_router(admin.router)
