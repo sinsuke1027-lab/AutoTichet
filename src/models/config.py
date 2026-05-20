@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     # フロントエンド
     azure_client_id_frontend: str = ""
     frontend_url: str = "http://localhost:5173"
+    # 開発モード（JWT検証スキップ・X-Dev-Userヘッダーを受け入れる。本番では必ず false）
+    dev_mode: bool = False
     # Forms / SharePoint
     sharepoint_site_id: str = ""
     forms_list_id: str = ""

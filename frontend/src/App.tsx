@@ -28,8 +28,11 @@ import CalendarView from './pages/Calendar'
 import GanttView from './pages/Gantt'
 import AdminUsers from './pages/Admin/Users'
 import WorkloadAlertBadge from './components/WorkloadAlertBadge'
+import DevLogin, { DEV_USER_KEY } from './pages/DevLogin'
 
 const { Header, Content, Sider } = Layout
+
+const DEV_BYPASS = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
 
 function LoginPage() {
   const { instance } = useMsal()
@@ -59,6 +62,8 @@ function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const roles = useAuthStore((s) => s.roles)
+  const displayName = useAuthStore((s) => s.displayName)
+  const clearUser = useAuthStore((s) => s.clearUser)
   const navItemsWithAdmin = [
     ...NAV_ITEMS,
     ...(roles.includes('admin')
@@ -69,6 +74,11 @@ function AppLayout() {
   const selectedKey =
     navItemsWithAdmin.find((item) => item.key !== '/' && location.pathname.startsWith(item.key))
       ?.key ?? '/'
+
+  function handleDevLogout() {
+    sessionStorage.removeItem(DEV_USER_KEY)
+    clearUser()
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -83,7 +93,23 @@ function AppLayout() {
         }}
       >
         <span>AutoTicket</span>
-        <WorkloadAlertBadge />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {DEV_BYPASS && (
+            <>
+              <span style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>
+                [DEV] {displayName}
+              </span>
+              <Button
+                size="small"
+                onClick={handleDevLogout}
+                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)' }}
+              >
+                ログアウト
+              </Button>
+            </>
+          )}
+          <WorkloadAlertBadge />
+        </div>
       </Header>
       <Layout>
         <Sider width={200} theme="light">
@@ -117,8 +143,19 @@ function AppLayout() {
   )
 }
 
-export default function App() {
+function MsalGuard() {
   const isAuthenticated = useIsAuthenticated()
   if (!isAuthenticated) return <LoginPage />
   return <AppLayout />
+}
+
+function DevGuard() {
+  const userId = useAuthStore((s) => s.userId)
+  if (!userId) return <DevLogin />
+  return <AppLayout />
+}
+
+export default function App() {
+  if (DEV_BYPASS) return <DevGuard />
+  return <MsalGuard />
 }

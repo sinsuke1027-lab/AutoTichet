@@ -1,9 +1,10 @@
+import json
 import time
 from collections.abc import Callable, Coroutine
 from typing import Annotated, Any
 
 import httpx
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -50,9 +51,27 @@ async def _fetch_jwks(tenant_id: str) -> dict[str, Any]:
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)] = None,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPayload:
+    settings = get_settings()
+    if settings.dev_mode:
+        dev_header = request.headers.get("X-Dev-User")
+        if dev_header:
+            try:
+                dev_data = json.loads(dev_header)
+                return TokenPayload(
+                    sub=dev_data.get("userId", "dev-user"),
+                    name=dev_data.get("displayName", "Dev User"),
+                    email=dev_data.get("email", "dev@example.com"),
+                    roles=[dev_data.get("role", "member")],
+                    tid="dev",
+                    department_tags=dev_data.get("departmentTags", []),
+                )
+            except (json.JSONDecodeError, KeyError):
+                pass
+
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -60,7 +79,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = credentials.credentials
-    settings = get_settings()
     try:
         jwks = await _fetch_jwks(settings.azure_tenant_id)
         unverified_header = jwt.get_unverified_header(token)

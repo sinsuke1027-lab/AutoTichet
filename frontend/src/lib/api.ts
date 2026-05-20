@@ -1,12 +1,20 @@
 import axios from 'axios'
 import { msalInstance, loginRequest } from './msal'
 
+const DEV_BYPASS = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
+const DEV_USER_KEY = 'autoticket_dev_user'
+
 const api = axios.create({
   baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 })
 
 api.interceptors.request.use(async (config) => {
+  if (DEV_BYPASS) {
+    const raw = sessionStorage.getItem(DEV_USER_KEY)
+    if (raw) config.headers['X-Dev-User'] = raw
+    return config
+  }
   const accounts = msalInstance.getAllAccounts()
   if (accounts.length > 0) {
     try {
