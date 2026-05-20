@@ -1,19 +1,22 @@
+import re
 import uuid
 from collections import deque
 from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.api.auth import CurrentUser
+from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.db.engine import get_db
-from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag
+from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, UserProfile
 from src.models.task_web import (
     RescheduleRequest,
     RescheduleResponse,
+    SimilarTaskResponse,
     TaskCreate,
     TaskListResponse,
     TaskResponse,
@@ -70,6 +73,7 @@ async def list_tasks(
     due_date_gte: date | None = Query(default=None),
     due_date_lte: date | None = Query(default=None),
     assignee_ids: list[str] | None = Query(default=None),
+    my_tasks_only: bool = Query(default=False),
 ) -> TaskListResponse:
     query = select(Task).options(selectinload(Task.tags), selectinload(Task.sub_assignees))
     if status_filter:
@@ -91,6 +95,45 @@ async def list_tasks(
         query = query.where(Task.due_date <= due_date_lte)
     if assignee_ids:
         query = query.where(Task.assignee_id.in_(assignee_ids))
+
+    # F-07: 個人 ToDo フィルタ（ロールフィルタより先に適用）
+    if my_tasks_only:
+        query = query.where(
+            Task.assignee_id == current_user.sub,
+            Task.visibility == "private",
+        )
+
+    # ロールベース閲覧制御（適用順序: 通常フィルタ → my_tasks_only → ロールフィルタ）
+    user_role = max(
+        (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
+        default=0,
+    )
+    if user_role < ROLE_HIERARCHY["manager"]:
+        if user_role >= ROLE_HIERARCHY["leader"]:
+            if current_user.department_tags:
+                dept_result = await db.execute(
+                    select(UserProfile.user_id).where(
+                        UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags))
+                    )
+                )
+                dept_user_ids = list(dept_result.scalars().all())
+                query = query.where(
+                    or_(
+                        Task.assignee_id.in_(dept_user_ids),
+                        Task.visibility == "public",
+                    )
+                )
+            else:
+                query = query.where(Task.visibility == "public")
+        else:
+            # member: 自分のタスク + public
+            query = query.where(
+                or_(
+                    Task.assignee_id == current_user.sub,
+                    Task.visibility == "public",
+                )
+            )
+    # manager / admin はフィルタなし（全件）
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
@@ -115,6 +158,34 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     await db.commit()
     await db.refresh(task, ["tags", "sub_assignees"])
     return _task_to_response(task)
+
+
+@router.get("/similar", response_model=list[SimilarTaskResponse])
+async def similar_tasks(
+    db: DbDep,
+    current_user: CurrentUser,
+    q: str = Query(min_length=3),
+) -> list[SimilarTaskResponse]:
+    tokens = [t for t in re.split(r"[　 、。，．・\s]+", q) if t]
+    if not tokens:
+        return []
+
+    conditions = [Task.title.ilike(f"%{t}%") for t in tokens]
+    result = await db.execute(select(Task).where(or_(*conditions)).limit(100))
+    tasks_found = result.scalars().all()
+
+    scored: list[tuple[float, Task]] = []
+    for task in tasks_found:
+        match_count = sum(1 for t in tokens if t.lower() in task.title.lower())
+        score = match_count / len(tokens)
+        if score >= 0.5:
+            scored.append((score, task))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [
+        SimilarTaskResponse(id=task.id, title=task.title, status=task.status, score=sc)
+        for sc, task in scored[:5]
+    ]
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
