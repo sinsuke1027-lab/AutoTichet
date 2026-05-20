@@ -1,12 +1,21 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B-2（ユーザー管理・権限制御・UX 強化）✅ 完了 → Phase 2B-3 以降へ**
-ステータス: F-08 ユーザー管理・ロール制御・F-07 個人 ToDo・F-04 類似タスク警告・F-11 週次 D&D グリッド 全実装完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B-3（F-14 負荷アラート）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
+ステータス: F-14 日別ワークロードバッジ（GET /dashboard/daily-workload + WorkloadAlertBadge）実装完了・Graph API 申請中（承認待ち）
 
 ## 最終更新
 - **日付**: 2026-05-20
 - **完了した作業**:
+  - **[Web App Phase 2B-3 — F-14 全タスク完了]** 負荷アラート（ワークロードバッジ）実装
+    - `DailyWorkloadItem` Pydantic モデル追加（`src/models/task_web.py`）
+    - `GET /dashboard/daily-workload` エンドポイント（due_date 日別集計・ロール別スコープ・1.0h デフォルト）
+    - `tests/unit/test_daily_workload.py`（7 件追加 → 合計 122 passed）
+    - `frontend/src/hooks/useDailyWorkload.ts`（5 分キャッシュ）
+    - `frontend/src/components/WorkloadAlertBadge.tsx`（Badge + Popover + recharts BarChart + Cell 着色 + ReferenceLine）
+    - `frontend/src/App.tsx` ヘッダー右端に WorkloadAlertBadge 統合
+    - TypeScript チェック通過・フロントエンドビルド（Windows 環境の pre-existing クラッシュは無関係）
+
   - **[Web App Phase 2B-2 — 全 14 タスク完了]** ユーザー管理・権限制御・UX 強化
     - Alembic 0003（start_date 補完）・0004（department_tags JSONB）
     - ハイブリッド認証: JWT-first / DB-fallback・ROLE_HIERARCHY 公開
