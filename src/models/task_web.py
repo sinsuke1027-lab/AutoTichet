@@ -312,3 +312,44 @@ class RescheduleRequest(BaseModel):
 
 class RescheduleResponse(BaseModel):
     updated_tasks: list[TaskResponse]
+
+
+# --- Admin User ---
+
+
+class AdminUserCreate(BaseModel):
+    user_id: str
+    display_name: str
+    email: str | None = None
+    role: str = "member"
+    department_tags: list[str] = []
+    capacity_hours_per_day: float = 8.0
+
+
+class AdminUserUpdate(BaseModel):
+    display_name: str | None = None
+    email: str | None = None
+    role: str | None = None
+    department_tags: list[str] | None = None
+    capacity_hours_per_day: float | None = None
+
+
+class AdminUserResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    user_id: str
+    display_name: str
+    email: str | None = None
+    role: str
+    department_tags: list[str]
+    capacity_hours_per_day: float
+
+
+# --- Similar Task ---
+
+
+class SimilarTaskResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str
+    score: float
