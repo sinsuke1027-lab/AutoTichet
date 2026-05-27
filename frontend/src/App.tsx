@@ -12,6 +12,7 @@ import {
   ScheduleOutlined,
   BarChartOutlined,
   SettingOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons'
 import { loginRequest } from './lib/msal'
 import { useAuthStore } from './store/useAuthStore'
@@ -26,7 +27,8 @@ import ImportPage from './pages/Import'
 import Board from './pages/Board'
 import CalendarView from './pages/Calendar'
 import GanttView from './pages/Gantt'
-import AdminUsers from './pages/Admin/Users'
+import AdminPage from './pages/Admin'
+import TemplatesPage from './pages/Templates'
 import WorkloadAlertBadge from './components/WorkloadAlertBadge'
 import DevLogin, { DEV_USER_KEY } from './pages/DevLogin'
 
@@ -55,6 +57,7 @@ const NAV_ITEMS = [
   { key: '/gantt', icon: <BarChartOutlined />, label: 'ガント' },
   { key: '/schedule', icon: <CalendarOutlined />, label: 'スケジュール' },
   { key: '/workload', icon: <TeamOutlined />, label: 'ワークロード' },
+  { key: '/templates', icon: <FileTextOutlined />, label: 'テンプレート' },
   { key: '/import', icon: <UploadOutlined />, label: 'データインポート' },
 ]
 
@@ -67,7 +70,7 @@ function AppLayout() {
   const navItemsWithAdmin = [
     ...NAV_ITEMS,
     ...(roles.includes('admin')
-      ? [{ key: '/admin/users', icon: <SettingOutlined />, label: 'ユーザー管理' }]
+      ? [{ key: '/admin', icon: <SettingOutlined />, label: '管理設定' }]
       : []),
   ]
 
@@ -133,8 +136,9 @@ function AppLayout() {
             <Route path="/gantt" element={<GanttView />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/workload" element={<Workload />} />
+            <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/import" element={<ImportPage />} />
-            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Content>
