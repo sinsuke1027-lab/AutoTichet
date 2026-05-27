@@ -11,6 +11,7 @@ from src.agents.graph import AgentState, build_graph
 from src.api.routers import (
     admin,
     dashboard,
+    dev,
     health,
     import_router,
     projects,
@@ -18,6 +19,7 @@ from src.api.routers import (
     task_details,
     tasks,
     tasks_crud,
+    templates,
     users,
 )
 from src.connectors.forms import FormsConnector
@@ -226,6 +228,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(dev.router)
 app.include_router(tasks.router)
 app.include_router(projects.router)
 app.include_router(tasks_crud.router)
@@ -235,3 +238,4 @@ app.include_router(dashboard.router)
 app.include_router(users.router)
 app.include_router(import_router.router)
 app.include_router(admin.router)
+app.include_router(templates.router)
