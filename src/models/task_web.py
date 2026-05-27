@@ -382,3 +382,60 @@ class DailyWorkloadItem(BaseModel):
 
 class GenerateSubtasksResponse(BaseModel):
     suggested_titles: list[str]
+
+
+# --- テンプレート機能 (F-15) ---
+
+
+class TemplateSubtask(BaseModel):
+    title: str
+    description: str | None = None
+    priority: str = "medium"
+    due_date_offset_days: int = 0
+
+
+class TemplateData(BaseModel):
+    title: str
+    description: str | None = None
+    priority: str = "medium"
+    visibility: str = "team"
+    tags: list[str] = []
+    estimated_hours: float | None = None
+    due_date_offset_days: int = 0
+    subtasks: list[TemplateSubtask] = []
+
+
+class TemplateCreate(BaseModel):
+    name: str
+    description: str | None = None
+    template_data: TemplateData
+
+
+class TemplateUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    template_data: TemplateData | None = None
+
+
+class TemplateResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: str | None
+    template_data: TemplateData
+    created_by: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TemplateApplyRequest(BaseModel):
+    base_date: date | None = None
+    project_id: uuid.UUID | None = None
+    section_id: uuid.UUID | None = None
+    assignee_id: str | None = None
+
+
+class TemplateApplyResponse(BaseModel):
+    task_id: uuid.UUID
+    subtask_ids: list[uuid.UUID]
