@@ -14,6 +14,18 @@ _SUBTASK_SYSTEM = (
     '{"subtasks": ["サブタスク名1", "サブタスク名2", "サブタスク名3"]}'
 )
 
+_CLARIFY_SYSTEM = (
+    "あなたはプロジェクト管理の専門家です。"
+    "タスクのタイトルと説明を読み、完了条件が明確かどうかを判断してください。"
+    "以下のJSON形式のみで返してください:\n"
+    '{"has_issue": true/false, "suggestion": "改善提案（has_issueがtrueの場合のみ、1〜2文）"}\n'
+    "has_issueをtrueにする条件:\n"
+    "- 説明が存在しないか極めて短い（意味のある内容が10文字未満）\n"
+    "- 何をもって完了とするかが不明確\n"
+    "- 抽象的すぎて具体的なアクションが見えない\n"
+    "上記に当てはまらない場合はhas_issue: falseを返してください。"
+)
+
 
 class GeminiProvider:
     def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
@@ -63,3 +75,21 @@ class GeminiProvider:
             return data.get("subtasks", [])
         except json.JSONDecodeError:
             return []
+
+    async def clarify_requirements(self, title: str, description: str | None) -> str | None:
+        prompt = f"タスクタイトル: {title}\n説明: {description or '（未記載）'}"
+        resp = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=_CLARIFY_SYSTEM,
+                response_mime_type="application/json",
+            ),
+        )
+        try:
+            data: dict[str, object] = json.loads(resp.text or '{"has_issue": false}')
+            if data.get("has_issue"):
+                return str(data.get("suggestion", ""))
+            return None
+        except json.JSONDecodeError:
+            return None

@@ -456,3 +456,13 @@ class PastPerformanceResponse(BaseModel):
     max_actual_hours: float | None
     task_count: int
     similar_tasks: list[PastPerformanceSimilarTask]
+
+
+class ClarifyIssue(BaseModel):
+    field: str  # "due_date" | "assignees" | "description"
+    message: str
+    suggestion: str | None  # AI提案文（descriptionのみ）
+
+
+class ClarifyRequirementsResponse(BaseModel):
+    issues: list[ClarifyIssue]
