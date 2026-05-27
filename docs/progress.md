@@ -1,12 +1,43 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B-3（F-14 負荷アラート）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
-ステータス: F-14 日別ワークロードバッジ（GET /dashboard/daily-workload + WorkloadAlertBadge）実装完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B-4（F-32 サブタスク自動生成・F-15 テンプレート機能）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
+ステータス: F-32 AI サブタスク提案・F-15 定型業務テンプレート一括作成 実装完了・Graph API 申請中（承認待ち）
 
 ## 最終更新
-- **日付**: 2026-05-20
+- **日付**: 2026-05-27
 - **完了した作業**:
+  - **[F-32 サブタスク自動生成 — Gemini API 連携]**
+    - `GeminiProvider.generate_subtasks()` 追加（`src/providers/gemini.py`）
+    - `POST /tasks/{id}/generate-subtasks` エンドポイント（503 エラーハンドリング・logger.exception 付き）
+    - `GenerateSubtasksResponse` Pydantic モデル追加
+    - `useGenerateSubtasks()` フック追加（`frontend/src/hooks/useTaskDetails.ts`）
+    - `SubtasksPanel.tsx` を AI 提案 UI に刷新（チェックボックス選択→一括追加）
+    - テスト 6 件追加（`tests/unit/test_generate_subtasks.py`）→ 合計 128 passed
+
+  - **[F-15 テンプレート機能 — 定型業務の雛形登録・一括作成]**
+    - **Alembic 0005**: `task_templates.updated_at` カラム追加（`sa.text("now()")` 準拠）
+    - **Pydantic モデル 7 種**: `TemplateSubtask` / `TemplateData` / `TemplateCreate` / `TemplateUpdate` / `TemplateResponse` / `TemplateApplyRequest` / `TemplateApplyResponse`（`src/models/task_web.py`）
+    - **テンプレート CRUD ルーター**: `src/api/routers/templates.py`（GET/POST/PUT/DELETE・作成者 or admin 認可・`POST /{id}/apply` でメインタスク＋サブタスク一括作成）
+    - **テスト 13 件**: `tests/unit/test_templates_router.py`（CRUD・403 認可・apply 3 件）→ 合計 141 passed
+    - **フロントエンド**: `useTemplates.ts`（5 フック）・`/templates` 管理ページ（カード一覧・Drawer 作成/編集・Form.List サブタスク）・App.tsx ナビ追加
+    - **タスク作成モーダル統合**: テンプレート選択 Select + DatePicker + 「このテンプレートで作成」ボタン・Divider で手動作成と区別
+    - TypeScript チェック通過・全コミット origin/master にプッシュ済み
+
+  - **[バグ修正セッション — SQLAlchemy MissingGreenlet 根本修正]**
+    - **ガントチャート reschedule エラー修正**（`src/api/routers/tasks_crud.py` `reschedule_task`）
+      - 原因: `_cascade_reschedule()` が `await db.execute(SELECT)` → autoflush → UPDATE → `updated_at` expire → `db.refresh(task, ["tags","sub_assignees","subtasks"])` が列属性を再ロードせず → `_task_to_response()` で `MissingGreenlet` → HTTP 500
+      - 修正: `commit()` 後に部分 `db.refresh()` を廃止し、フル `SELECT` + `selectinload` で再クエリ
+    - **`update_task` 同種バグ修正**（`tasks_crud.py` L275）
+      - タグ更新時 `db.flush()` → UPDATE → `updated_at` expire → 部分 `db.refresh()` → `MissingGreenlet` → HTTP 500
+      - 修正: `commit()` 後に同パターンで再クエリ
+    - **ガントチャート React StrictMode 二重発火修正**（`frontend/src/pages/Gantt/index.tsx`）
+      - `isReschedulingRef` + `useCallback` で同時実行を防御
+      - `toLocalDate()` をコンポーネント外の純粋関数に移動（タイムゾーン問題修正）
+    - **全 router の `db.refresh()` 安全性確認**: `tasks_crud.py` `update_task` のみが問題、他は全安全
+    - **セキュリティレビュー実施**: `DEV_MODE` バイパス機能の脆弱性候補を分析→信頼度閾値(8)未満のため有意な脆弱性なし
+    - **テスト**: `tests/unit/test_auth.py` 7 件 ✅ passed
+
   - **[Web App Phase 2B-3 — F-14 全タスク完了]** 負荷アラート（ワークロードバッジ）実装
     - `DailyWorkloadItem` Pydantic モデル追加（`src/models/task_web.py`）
     - `GET /dashboard/daily-workload` エンドポイント（due_date 日別集計・ロール別スコープ・1.0h デフォルト）
@@ -84,7 +115,10 @@
 | test_teams_chat.py | 3 | ⚠️ respx 未インストール（環境問題） |
 | test_onenote.py | 3 | ⚠️ respx 未インストール（環境問題） |
 | test_reschedule.py | 4 | ✅ |
-| **実行可能合計** | **118** | ✅ 全 passed |
+| test_daily_workload.py | 7 | ✅ |
+| test_generate_subtasks.py | 6 | ✅ |
+| test_templates_router.py | 13 | ✅ |
+| **実行可能合計** | **141** | ✅ 全 passed |
 
 > ⚠️ `respx` は `.venv` に未インストールのため test_connectors / test_teams_chat / test_onenote が collection エラー。コード自体は正常実装済み。
 
@@ -107,9 +141,12 @@
 1. `docs/progress.md`（このファイル）を確認
 2. Graph API 承認状況を確認
    - **承認済み** → `docs/tasks.md` の Phase 1B タスクから開始
-   - **未承認** → Web App Phase 2B-2 以降（F-07 個人 ToDo・F-04 二重登録防止・F-14 負荷アラート・F-21 Teams 通知・F-12 工数自動算出）から開始
+   - **未承認** → Web App Phase 2B 残タスク（F-21 Teams 通知・F-12 工数自動算出）から開始
 
 ## 実装計画ファイル
+- `docs/superpowers/plans/2026-05-27-f15-template.md`（F-15 テンプレート機能 実装計画・全完了）
+- `docs/superpowers/specs/2026-05-27-f15-template-design.md`（F-15 テンプレート機能 設計書）
+- `docs/superpowers/plans/2026-05-27-f32-generate-subtasks.md`（F-32 サブタスク自動生成 実装計画・全完了）
 - `docs/superpowers/plans/2026-05-19-phase2a-task-detail-implementation.md`（Phase 2A 実装計画・全完了）
 - `docs/specs/2026-05-19-phase2a-task-detail-design.md`（Phase 2A 設計書）
 - `docs/superpowers/plans/2026-05-18-phase1-webapp-implementation.md`（Web App Phase 1 実装計画・全完了）
