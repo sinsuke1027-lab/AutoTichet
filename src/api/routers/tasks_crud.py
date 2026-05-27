@@ -16,6 +16,8 @@ from src.db.engine import get_db
 from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, UserProfile
 from src.models.config import get_settings
 from src.models.task_web import (
+    ClarifyIssue,
+    ClarifyRequirementsResponse,
     GenerateSubtasksResponse,
     RescheduleRequest,
     RescheduleResponse,
@@ -462,3 +464,45 @@ async def generate_subtasks(
             status_code=503, detail="サブタスク生成に失敗しました。しばらく後に再試行してください"
         )
     return GenerateSubtasksResponse(suggested_titles=titles)
+
+
+@router.post("/{task_id}/clarify-requirements", response_model=ClarifyRequirementsResponse)
+async def clarify_requirements_endpoint(
+    task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
+) -> ClarifyRequirementsResponse:
+    result = await db.execute(
+        select(Task).options(selectinload(Task.sub_assignees)).where(Task.id == task_id)
+    )
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+
+    issues: list[ClarifyIssue] = []
+
+    if task.due_date is None:
+        issues.append(
+            ClarifyIssue(field="due_date", message="期限が設定されていません", suggestion=None)
+        )
+
+    if not task.sub_assignees:
+        issues.append(
+            ClarifyIssue(field="assignees", message="担当者が設定されていません", suggestion=None)
+        )
+
+    settings = get_settings()
+    if settings.google_api_key:
+        provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+        try:
+            suggestion = await provider.clarify_requirements(task.title, task.description)
+            if suggestion:
+                issues.append(
+                    ClarifyIssue(
+                        field="description",
+                        message="完了条件が不明確です",
+                        suggestion=suggestion,
+                    )
+                )
+        except Exception:
+            logger.exception("Gemini clarify_requirements failed for task %s", task_id)
+
+    return ClarifyRequirementsResponse(issues=issues)
