@@ -399,10 +399,10 @@ class TemplateData(BaseModel):
     description: str | None = None
     priority: str = "medium"
     visibility: str = "team"
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
     estimated_hours: float | None = None
     due_date_offset_days: int = 0
-    subtasks: list[TemplateSubtask] = []
+    subtasks: list[TemplateSubtask] = Field(default_factory=list)
 
 
 class TemplateCreate(BaseModel):
