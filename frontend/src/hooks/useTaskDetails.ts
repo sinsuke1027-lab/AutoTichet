@@ -99,3 +99,31 @@ export function useGenerateSubtasks(taskId: string) {
       api.post(`/tasks/${taskId}/generate-subtasks`).then((r) => r.data),
   })
 }
+
+interface PastPerformanceSimilarTask {
+  id: string
+  title: string
+  actual_hours: number
+}
+
+interface PastPerformanceData {
+  avg_actual_hours: number | null
+  min_actual_hours: number | null
+  max_actual_hours: number | null
+  task_count: number
+  similar_tasks: PastPerformanceSimilarTask[]
+}
+
+export function usePastPerformance(taskId: string) {
+  return useQuery<PastPerformanceData>({
+    queryKey: ['past-performance', taskId],
+    queryFn: async () => {
+      const { data } = await api.get<PastPerformanceData>(
+        `/tasks/${taskId}/past-performance`
+      )
+      return data
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!taskId,
+  })
+}

@@ -1,8 +1,75 @@
-import { Button, Form, InputNumber, Space, Table } from 'antd'
-import { useWorkHours, useCreateWorkHour } from '../../../hooks/useTaskDetails'
+import { Button, Divider, Form, InputNumber, List, Space, Spin, Statistic, Table, Typography } from 'antd'
+import { useWorkHours, useCreateWorkHour, usePastPerformance } from '../../../hooks/useTaskDetails'
 
 interface Props {
   taskId: string
+}
+
+interface PastPerformanceSimilarTaskItem {
+  id: string
+  title: string
+  actual_hours: number
+}
+
+interface PastPerformanceData {
+  avg_actual_hours: number | null
+  min_actual_hours: number | null
+  max_actual_hours: number | null
+  task_count: number
+  similar_tasks: PastPerformanceSimilarTaskItem[]
+}
+
+function PastPerformanceSection({ taskId }: Props) {
+  const { data, isLoading } = usePastPerformance(taskId)
+
+  return (
+    <div>
+      <Divider orientation="left" plain>
+        過去の類似タスク実績
+      </Divider>
+      {isLoading ? (
+        <Spin size="small" />
+      ) : !data || data.task_count === 0 ? (
+        <Typography.Text type="secondary">過去データなし</Typography.Text>
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Space wrap>
+            <Statistic
+              title="平均実績"
+              value={data.avg_actual_hours ?? 0}
+              suffix="h"
+              precision={1}
+            />
+            <Statistic
+              title="最小"
+              value={data.min_actual_hours ?? 0}
+              suffix="h"
+              precision={1}
+            />
+            <Statistic
+              title="最大"
+              value={data.max_actual_hours ?? 0}
+              suffix="h"
+              precision={1}
+            />
+            <Statistic title="件数" value={data.task_count} suffix="件" />
+          </Space>
+          <List<PastPerformanceSimilarTaskItem>
+            size="small"
+            dataSource={data.similar_tasks}
+            renderItem={(item) => (
+              <List.Item>
+                <Typography.Text>{item.title}</Typography.Text>
+                <Typography.Text type="secondary" style={{ marginLeft: 'auto' }}>
+                  {item.actual_hours}h
+                </Typography.Text>
+              </List.Item>
+            )}
+          />
+        </Space>
+      )}
+    </div>
+  )
 }
 
 export default function WorkHoursPanel({ taskId }: Props) {
@@ -68,6 +135,7 @@ export default function WorkHoursPanel({ taskId }: Props) {
         pagination={false}
         locale={{ emptyText: '工数記録はありません' }}
       />
+      <PastPerformanceSection taskId={taskId} />
     </Space>
   )
 }
