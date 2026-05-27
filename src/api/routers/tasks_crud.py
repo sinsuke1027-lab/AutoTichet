@@ -13,7 +13,9 @@ from sqlalchemy.orm import selectinload
 from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.db.engine import get_db
 from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, UserProfile
+from src.models.config import get_settings
 from src.models.task_web import (
+    GenerateSubtasksResponse,
     RescheduleRequest,
     RescheduleResponse,
     SimilarTaskResponse,
@@ -23,6 +25,7 @@ from src.models.task_web import (
     TaskStatus,
     TaskUpdate,
 )
+from src.providers.gemini import GeminiProvider
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
@@ -32,6 +35,7 @@ DbDep = Annotated[AsyncSession, Depends(get_db)]
 def _task_to_response(task: Task) -> TaskResponse:
     tags = [t.tag for t in task.tags] if task.tags else []
     sub_assignees = [a.user_id for a in task.sub_assignees] if task.sub_assignees else []
+    subtasks = task.subtasks if task.subtasks is not None else []
     return TaskResponse(
         id=task.id,
         project_id=task.project_id,
@@ -55,6 +59,8 @@ def _task_to_response(task: Task) -> TaskResponse:
         updated_at=task.updated_at,
         tags=tags,
         sub_assignees=sub_assignees,
+        subtask_count=len(subtasks),
+        subtask_done_count=sum(1 for s in subtasks if s.status == "completed"),
     )
 
 
@@ -75,7 +81,11 @@ async def list_tasks(
     assignee_ids: list[str] | None = Query(default=None),
     my_tasks_only: bool = Query(default=False),
 ) -> TaskListResponse:
-    query = select(Task).options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+    query = select(Task).options(
+        selectinload(Task.tags),
+        selectinload(Task.sub_assignees),
+        selectinload(Task.subtasks),
+    )
     if status_filter:
         query = query.where(Task.status == status_filter.value)
     if assignee:
@@ -151,13 +161,17 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     tags = body.tags
     data = body.model_dump(exclude={"tags"})
     data["created_by"] = current_user.sub
+    # 個人タスク（private）は担当者未指定の場合、作成者を担当者に設定する
+    # （閲覧フィルター: assignee_id==me OR visibility==all に合致させるため）
+    if data.get("visibility") == "private" and not data.get("assignee_id"):
+        data["assignee_id"] = current_user.sub
     task = Task(**data)
     db.add(task)
     await db.flush()
     for tag in tags:
         db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
-    await db.refresh(task, ["tags", "sub_assignees"])
+    await db.refresh(task, ["tags", "sub_assignees", "subtasks"])
     return _task_to_response(task)
 
 
@@ -228,7 +242,9 @@ async def get_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> 
     result = await db.execute(
         select(Task)
         .where(Task.id == task_id)
-        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+        .options(
+            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+        )
     )
     task = result.scalar_one_or_none()
     if task is None:
@@ -243,7 +259,9 @@ async def update_task(
     result = await db.execute(
         select(Task)
         .where(Task.id == task_id)
-        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+        .options(
+            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+        )
     )
     task = result.scalar_one_or_none()
     if task is None:
@@ -257,8 +275,18 @@ async def update_task(
         for tag in body.tags:
             db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
-    await db.refresh(task, ["tags", "sub_assignees"])
-    return _task_to_response(task)
+    # flush(タグ削除)でUPDATEが発行されupdated_atがexpireするため、
+    # commit後に再クエリして全属性を確実にロードする
+    refreshed = await db.execute(
+        select(Task)
+        .where(Task.id == task_id)
+        .options(
+            selectinload(Task.tags),
+            selectinload(Task.sub_assignees),
+            selectinload(Task.subtasks),
+        )
+    )
+    return _task_to_response(refreshed.scalar_one())
 
 
 @router.post(
@@ -268,7 +296,9 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
     result = await db.execute(
         select(Task)
         .where(Task.id == task_id)
-        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+        .options(
+            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+        )
     )
     original = result.scalar_one_or_none()
     if original is None:
@@ -297,7 +327,7 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
     for sa_obj in original.sub_assignees:
         db.add(TaskAssignee(task_id=new_task.id, user_id=sa_obj.user_id, role=sa_obj.role))
     await db.commit()
-    await db.refresh(new_task, ["tags", "sub_assignees"])
+    await db.refresh(new_task, ["tags", "sub_assignees", "subtasks"])
     return _task_to_response(new_task)
 
 
@@ -318,7 +348,9 @@ async def list_subtasks(
     result = await db.execute(
         select(Task)
         .where(Task.parent_task_id == task_id)
-        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+        .options(
+            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+        )
     )
     return [_task_to_response(t) for t in result.scalars().all()]
 
@@ -340,7 +372,11 @@ async def _cascade_reschedule(db: AsyncSession, root_id: uuid.UUID, delta: timed
             task_result = await db.execute(
                 select(Task)
                 .where(Task.id == dep.task_id)
-                .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+                .options(
+                    selectinload(Task.tags),
+                    selectinload(Task.sub_assignees),
+                    selectinload(Task.subtasks),
+                )
             )
             task = task_result.scalar_one_or_none()
             if task:
@@ -360,7 +396,11 @@ async def reschedule_task(
     result = await db.execute(
         select(Task)
         .where(Task.id == task_id)
-        .options(selectinload(Task.tags), selectinload(Task.sub_assignees))
+        .options(
+            selectinload(Task.tags),
+            selectinload(Task.sub_assignees),
+            selectinload(Task.subtasks),
+        )
     )
     task = result.scalar_one_or_none()
     if task is None:
@@ -377,10 +417,36 @@ async def reschedule_task(
         dependent_tasks = await _cascade_reschedule(db, task_id, delta)
 
     await db.commit()
-    await db.refresh(task, ["tags", "sub_assignees"])
-    for t in dependent_tasks:
-        await db.refresh(t, ["tags", "sub_assignees"])
 
-    return RescheduleResponse(
-        updated_tasks=[_task_to_response(t) for t in [task, *dependent_tasks]]
-    )
+    # _cascade_reschedule の autoflush で onupdate 列(updated_at)が expire するため
+    # commit 後に再クエリして全属性を確実にロードする
+    refreshed_ids = [task_id] + [t.id for t in dependent_tasks]
+    refreshed: list[Task] = []
+    for rid in refreshed_ids:
+        r = await db.execute(
+            select(Task)
+            .where(Task.id == rid)
+            .options(
+                selectinload(Task.tags),
+                selectinload(Task.sub_assignees),
+                selectinload(Task.subtasks),
+            )
+        )
+        refreshed.append(r.scalar_one())
+
+    return RescheduleResponse(updated_tasks=[_task_to_response(t) for t in refreshed])
+
+
+@router.post("/{task_id}/generate-subtasks", response_model=GenerateSubtasksResponse)
+async def generate_subtasks(
+    task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
+) -> GenerateSubtasksResponse:
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+
+    settings = get_settings()
+    provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+    titles = await provider.generate_subtasks(task.title, task.description)
+    return GenerateSubtasksResponse(suggested_titles=titles)
