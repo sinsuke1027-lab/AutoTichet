@@ -3,7 +3,7 @@ from datetime import time as time_type
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,22 +24,46 @@ router = APIRouter(prefix="/api/v1/dashboard", tags=["dashboard"])
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
+async def _scope_condition(db: AsyncSession, current_user: CurrentUser):  # type: ignore[return]
+    """ロールに応じたタスク絞り込み条件を返す。manager/admin は None（全件）。"""
+    user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+    if user_role >= ROLE_HIERARCHY["manager"]:
+        return None
+    if user_role >= ROLE_HIERARCHY["leader"] and current_user.department_tags:
+        dept_result = await db.execute(
+            select(UserProfile.user_id).where(
+                UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags))
+            )
+        )
+        dept_user_ids = list(dept_result.scalars().all())
+        return or_(Task.assignee_id.in_(dept_user_ids), Task.visibility == "all")
+    return or_(Task.assignee_id == current_user.sub, Task.visibility == "all")
+
+
 @router.get("/summary", response_model=DashboardSummary)
 async def get_summary(db: DbDep, current_user: CurrentUser) -> DashboardSummary:
     today = date.today()
-    result = await db.execute(select(Task.status, func.count()).group_by(Task.status))
+    scope = await _scope_condition(db, current_user)
+
+    count_query = select(Task.status, func.count()).group_by(Task.status)
+    if scope is not None:
+        count_query = count_query.where(scope)
+    result = await db.execute(count_query)
     counts = {row[0]: row[1] for row in result.all()}
     total = sum(counts.values())
     not_started = counts.get("not_started", 0)
     in_progress = counts.get("in_progress", 0)
     completed = counts.get("completed", 0)
-    overdue_result = await db.execute(
-        select(func.count(Task.id)).where(
-            Task.due_date < today,
-            Task.status.notin_(["completed", "cancelled"]),
-        )
+
+    overdue_query = select(func.count(Task.id)).where(
+        Task.due_date < today,
+        Task.status.notin_(["completed", "cancelled"]),
     )
+    if scope is not None:
+        overdue_query = overdue_query.where(scope)
+    overdue_result = await db.execute(overdue_query)
     overdue = overdue_result.scalar_one()
+
     completion_rate = (completed / total * 100) if total > 0 else 0.0
     return DashboardSummary(
         total_tasks=total,
@@ -57,6 +81,7 @@ async def get_today_tasks(db: DbDep, current_user: CurrentUser) -> list[TodayTas
     result = await db.execute(
         select(Task)
         .where(
+            Task.assignee_id == current_user.sub,
             Task.due_date == today,
             Task.status.notin_(["completed", "cancelled"]),
         )
@@ -78,7 +103,8 @@ async def get_today_tasks(db: DbDep, current_user: CurrentUser) -> list[TodayTas
 @router.get("/overdue", response_model=list[OverdueTaskItem])
 async def get_overdue_tasks(db: DbDep, current_user: CurrentUser) -> list[OverdueTaskItem]:
     today = date.today()
-    result = await db.execute(
+    scope = await _scope_condition(db, current_user)
+    overdue_query = (
         select(Task)
         .where(
             Task.due_date < today,
@@ -87,6 +113,9 @@ async def get_overdue_tasks(db: DbDep, current_user: CurrentUser) -> list[Overdu
         .order_by(Task.due_date.asc())
         .limit(50)
     )
+    if scope is not None:
+        overdue_query = overdue_query.where(scope)
+    result = await db.execute(overdue_query)
     tasks = result.scalars().all()
     return [
         OverdueTaskItem(
@@ -104,6 +133,28 @@ async def get_overdue_tasks(db: DbDep, current_user: CurrentUser) -> list[Overdu
 async def get_workload(db: DbDep, current_user: CurrentUser) -> list[WorkloadItem]:
     today = date.today()
     next_week = today + timedelta(days=7)
+
+    user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+
+    # ロールに応じて閲覧対象ユーザーのプロファイルを取得
+    if user_role >= ROLE_HIERARCHY["manager"]:
+        prof_result = await db.execute(select(UserProfile).order_by(UserProfile.display_name))
+    elif user_role >= ROLE_HIERARCHY["leader"] and current_user.department_tags:
+        prof_result = await db.execute(
+            select(UserProfile)
+            .where(UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags)))
+            .order_by(UserProfile.display_name)
+        )
+    else:
+        # member: 自分のみ
+        prof_result = await db.execute(
+            select(UserProfile).where(UserProfile.user_id == current_user.sub)
+        )
+
+    profiles = {p.user_id: p for p in prof_result.scalars().all()}
+    if not profiles:
+        return []
+
     wh_result = await db.execute(
         select(TaskWorkHour.user_id, func.sum(TaskWorkHour.estimated_hours))
         .join(Task, Task.id == TaskWorkHour.task_id)
@@ -111,31 +162,23 @@ async def get_workload(db: DbDep, current_user: CurrentUser) -> list[WorkloadIte
             Task.due_date >= today,
             Task.due_date <= next_week,
             Task.status.notin_(["completed", "cancelled"]),
+            TaskWorkHour.user_id.in_(list(profiles.keys())),
         )
         .group_by(TaskWorkHour.user_id)
     )
-    user_hours = {row[0]: row[1] or 0.0 for row in wh_result.all()}
+    user_hours = {row[0]: float(row[1] or 0.0) for row in wh_result.all()}
 
-    profiles_result = await db.execute(
-        select(UserProfile).where(UserProfile.user_id.in_(list(user_hours.keys())))
-    )
-    profiles = {p.user_id: p for p in profiles_result.scalars().all()}
-
-    items = []
-    for user_id, hours in user_hours.items():
-        profile = profiles.get(user_id)
-        capacity = (profile.capacity_hours_per_day * 5) if profile else 40.0
-        display_name = profile.display_name if profile else user_id
-        items.append(
-            WorkloadItem(
-                user_id=user_id,
-                display_name=display_name,
-                estimated_hours=hours,
-                capacity_hours=capacity,
-                overload=hours > capacity,
-            )
+    # 工数未登録のメンバーも 0h で含める（チーム全員が見えるように）
+    return [
+        WorkloadItem(
+            user_id=uid,
+            display_name=p.display_name,
+            estimated_hours=user_hours.get(uid, 0.0),
+            capacity_hours=p.capacity_hours_per_day * 5,
+            overload=user_hours.get(uid, 0.0) > p.capacity_hours_per_day * 5,
         )
-    return items
+        for uid, p in profiles.items()
+    ]
 
 
 @router.get("/completion-trend", response_model=list[TrendPoint])

@@ -2,9 +2,8 @@ import io
 from datetime import date
 
 import openpyxl
-import pytest
 
-from src.services.asana_importer import AsanaRow, parse_asana_xlsx
+from src.services.asana_importer import parse_asana_xlsx
 
 
 def _make_xlsx(rows: list[dict]) -> bytes:

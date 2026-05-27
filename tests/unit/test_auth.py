@@ -1,6 +1,7 @@
+from unittest.mock import MagicMock
+
 import pytest
 from fastapi import HTTPException
-from fastapi.security import HTTPAuthorizationCredentials
 
 from src.api.auth import TokenPayload, get_current_user, require_role
 
@@ -27,8 +28,10 @@ def test_token_payload_empty_roles_default() -> None:
 
 @pytest.mark.asyncio
 async def test_get_current_user_missing_token() -> None:
+    mock_request = MagicMock()
+    mock_request.headers.get.return_value = None
     with pytest.raises(HTTPException) as exc_info:
-        await get_current_user(credentials=None)
+        await get_current_user(request=mock_request, credentials=None)
     assert exc_info.value.status_code == 401
 
 

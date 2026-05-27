@@ -8,7 +8,7 @@ from src.providers.ollama import OllamaProvider, OllamaVisionProvider
 
 
 def test_ollama_provider_implements_protocol() -> None:
-    provider = OllamaProvider(host="http://localhost:11434", model="qwen2.5:14b")
+    provider = OllamaProvider(host="http://localhost:11434", model="qwen2.5:7b")
     assert isinstance(provider, LLMProvider)
 
 

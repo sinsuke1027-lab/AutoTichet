@@ -149,7 +149,10 @@ export default function Schedule() {
     const { active, over } = event
     if (!over) return
     const taskId = active.id as string
+    const task = active.data.current?.task as Task | undefined
     const newDate = over.id === '__unassigned__' ? null : (over.id as string)
+    const currentDate = task?.start_date ?? null
+    if (newDate === currentDate) return
     updateTask.mutate({ id: taskId, start_date: newDate })
   }
 

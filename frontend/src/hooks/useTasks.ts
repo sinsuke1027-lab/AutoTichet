@@ -43,6 +43,7 @@ export function useCreateTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
     },
   })
 }
@@ -60,6 +61,7 @@ export function useUpdateTask(taskId?: string) {
     onSuccess: (_, body) => {
       const id = taskId ?? body.id
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
       if (id) queryClient.invalidateQueries({ queryKey: ['task', id] })
     },
   })
@@ -73,6 +75,7 @@ export function useDeleteTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
     },
   })
 }

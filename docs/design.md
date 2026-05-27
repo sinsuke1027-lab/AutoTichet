@@ -1,8 +1,22 @@
 # AutoTicket — 基本設計書（概要版）
 
-最終更新: 2026-05-02  
-フェーズ: Phase 1 実装中  
+最終更新: 2026-05-18
+フェーズ: Phase 1 実装中（Web アプリ化対応予定）
 対象読者: バックエンドエンジニア
+
+> ⚠️ **アーキテクチャ更新のお知らせ（2026-05-18）**
+>
+> 社内要件（37機能）の統合に伴い、以下の変更が決定しました。
+>
+> | 項目 | 変更前 | 変更後 |
+> |------|--------|--------|
+> | タスク保存先 | Microsoft Planner / To Do | **PostgreSQL** |
+> | タスク閲覧 UI | Planner / To Do の画面 | **カスタム React SPA** |
+> | 認証 | なし | **Entra ID（MSAL）** |
+>
+> **本ドキュメントは LangGraph 自動起票パイプライン（バックエンド）の設計を記載しています。**
+> Web アプリ全体の設計（DB スキーマ・API・フロントエンド）は
+> [`docs/specs/2026-05-18-dashboard-webapp-design.md`](specs/2026-05-18-dashboard-webapp-design.md) を参照してください。
 
 ---
 
@@ -44,13 +58,13 @@
   └─────────────┘   └───────────────┘
 ```
 
-**LLMプロバイダー（.envで切り替え）:**
+**LLMプロバイダー（.env の `LLM_PROVIDER` で切り替え）:**
 
 ```
 LangGraph エージェント
     │
-    ├─ Pattern A（非機密）→ Ollama / Claude / Gemini / Azure OpenAI（設定値で選択）
-    └─ Pattern B（機密）  → Ollama のみ（強制）
+    ├─ Pattern A（非機密）→ Gemini（デフォルト）/ Claude / Azure OpenAI / Ollama（設定値で選択）
+    └─ Pattern B（機密）  → Ollama のみ（強制・外部送信禁止、Phase 3 以降）
 ```
 
 ---
@@ -186,9 +200,9 @@ def select_provider(sensitivity: str, settings: Settings) -> LLMProvider:
 
 | `LLM_PROVIDER` | 必須環境変数 | モデル例 |
 |----------------|------------|---------|
-| `ollama` | `OLLAMA_BASE_URL` | `qwen2.5:14b` |
+| `gemini`（デフォルト） | `GOOGLE_API_KEY` | `gemini-2.0-flash` |
+| `ollama` | `OLLAMA_HOST` | `qwen2.5:7b` |
 | `claude` | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
-| `gemini` | `GOOGLE_API_KEY` | `gemini-2.0-flash` |
 | `azure_openai` | `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT` | `gpt-4o` |
 
 ---
@@ -327,23 +341,30 @@ class ExtractResponse(BaseModel):
 
 | 変数名 | 必須 | 説明 |
 |--------|------|------|
-| `TENANT_ID` | 必須 | Azure AD テナントID |
-| `CLIENT_ID` | 必須 | アプリ登録のクライアントID |
-| `CLIENT_SECRET` | 必須 | アプリ登録のクライアントシークレット |
-| `LLM_PROVIDER` | 必須 | `ollama` / `claude` / `gemini` / `azure_openai` |
-| `OLLAMA_BASE_URL` | 条件付 | Ollama エンドポイント（例: `http://localhost:11434`） |
-| `OLLAMA_MODEL` | 条件付 | Ollama モデル名（例: `qwen2.5:14b`） |
-| `ANTHROPIC_API_KEY` | 条件付 | Claude API キー |
-| `GOOGLE_API_KEY` | 条件付 | Gemini API キー |
-| `AZURE_OPENAI_ENDPOINT` | 条件付 | Azure OpenAI エンドポイントURL |
+| `AZURE_TENANT_ID` | 必須 | Azure AD テナントID |
+| `AZURE_CLIENT_ID` | 必須 | アプリ登録のクライアントID |
+| `AZURE_CLIENT_SECRET` | 必須 | アプリ登録のクライアントシークレット |
+| `ALLOWED_USER_IDS` | 必須 | 処理対象ユーザーID（カンマ区切り）。空の場合は全ユーザーが対象になるため必ず設定 |
+| `LLM_PROVIDER` | 必須 | `gemini`（デフォルト）/ `claude` / `azure_openai` / `ollama` |
+| `LLM_VISION_PROVIDER` | 必須 | `gemini`（デフォルト）/ `claude` / `azure_openai` / `ollama` |
+| `GOOGLE_API_KEY` | 条件付 | Gemini API キー（`LLM_PROVIDER=gemini` の場合） |
+| `GEMINI_MODEL` | 任意 | Gemini モデル名（デフォルト: `gemini-2.0-flash`） |
+| `ANTHROPIC_API_KEY` | 条件付 | Claude API キー（`LLM_PROVIDER=claude` の場合） |
+| `AZURE_OPENAI_ENDPOINT` | 条件付 | Azure OpenAI エンドポイントURL（`LLM_PROVIDER=azure_openai` の場合） |
 | `AZURE_OPENAI_API_KEY` | 条件付 | Azure OpenAI APIキー |
-| `AZURE_OPENAI_DEPLOYMENT` | 条件付 | デプロイメント名（例: `gpt-4o`） |
-| `PLANNER_ALL_PLAN_ID` | 必須 | 全社 Planner の Plan ID |
+| `AZURE_OPENAI_DEPLOYMENT` | 条件付 | デプロイメント名（デフォルト: `gpt-4o`） |
+| `OLLAMA_HOST` | 条件付 | Ollama エンドポイント（デフォルト: `http://localhost:11434`） |
+| `OLLAMA_MODEL` | 条件付 | Ollama モデル名（デフォルト: `qwen2.5:7b`） |
+| `PLANNER_GROUP_ID` | 必須 | 全社 M365 Group ID |
+| `PLANNER_PLAN_ID` | 必須 | デフォルト Planner プラン ID |
+| `COMPANY_WIDE_PLAN_ID` | 必須 | 全社共通 Planner の Plan ID |
+| `DEPT_PLAN_MAP` | 必須 | 部署グループID→プランID マッピング（JSON形式、例: `{"group-id": "plan-id"}`） |
 | `LANGFUSE_PUBLIC_KEY` | 必須 | Langfuse パブリックキー |
 | `LANGFUSE_SECRET_KEY` | 必須 | Langfuse シークレットキー |
-| `LANGFUSE_HOST` | 必須 | Langfuse ホスト（例: `http://localhost:3000`） |
-| `POLL_INTERVAL_SECONDS` | 任意 | ポーリング間隔（デフォルト: `300`） |
-| `SQLITE_PATH` | 任意 | SQLite ファイルパス（デフォルト: `data/processed.db`） |
+| `LANGFUSE_HOST` | 必須 | Langfuse ホスト（デフォルト: `http://localhost:3000`） |
+| `POLLING_INTERVAL_SECONDS` | 任意 | ポーリング間隔（デフォルト: `300`） |
+| `AUTO_CREATE_THRESHOLD` | 任意 | 自動起票スコア閾値（デフォルト: `0.8`） |
+| `MANUAL_REVIEW_THRESHOLD` | 任意 | 承認依頼スコア閾値（デフォルト: `0.5`） |
 
 ---
 

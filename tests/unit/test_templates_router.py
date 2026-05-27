@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi import FastAPI
@@ -40,8 +40,8 @@ def _mock_template(created_by: str = "user-1") -> MagicMock:
         ],
     }
     t.created_by = created_by
-    t.created_at = datetime.now(timezone.utc)
-    t.updated_at = datetime.now(timezone.utc)
+    t.created_at = datetime.now(UTC)
+    t.updated_at = datetime.now(UTC)
     return t
 
 
@@ -85,8 +85,8 @@ def test_create_template() -> None:
 
     async def _refresh(obj, *args: object, **kwargs: object) -> None:
         obj.id = uuid.uuid4()
-        obj.created_at = datetime.now(timezone.utc)
-        obj.updated_at = datetime.now(timezone.utc)
+        obj.created_at = datetime.now(UTC)
+        obj.updated_at = datetime.now(UTC)
 
     mock_db.refresh = AsyncMock(side_effect=_refresh)
 

@@ -45,6 +45,9 @@ export interface Task {
   tags: string[]
   project_id?: string | null
   section_id?: string | null
+  parent_task_id?: string | null
+  subtask_count?: number
+  subtask_done_count?: number
   created_at: string
   updated_at: string
 }

@@ -33,3 +33,13 @@ docker/volumes/
 
 # ログ
 *.log
+
+# Claude Code ワークツリー・ローカル設定
+.claude/worktrees/
+.claude/settings.local.json
+
+# Playwright MCP スナップショット
+.playwright-mcp/
+
+# Playwright テスト結果
+frontend/test-results/

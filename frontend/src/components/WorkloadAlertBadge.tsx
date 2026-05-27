@@ -14,12 +14,15 @@ import {
   YAxis,
 } from 'recharts'
 import { useDailyWorkload } from '../hooks/useDailyWorkload'
+import { useSettingsStore } from '../store/useSettingsStore'
 
 export default function WorkloadAlertBadge() {
   const [open, setOpen] = useState(false)
   const { data = [] } = useDailyWorkload()
+  const thresholdPct = useSettingsStore((s) => s.workloadThresholdPct)
+  const threshold = thresholdPct / 100
 
-  const overloadDays = data.filter((d) => d.overload)
+  const overloadDays = data.filter((d) => d.total_hours > d.capacity_hours * threshold)
   const capacityHours = data[0]?.capacity_hours ?? 8
 
   const chartData = data.map((d) => ({

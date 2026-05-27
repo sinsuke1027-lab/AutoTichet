@@ -19,7 +19,7 @@
 | Phase 2（将来） | `Notes.Read.All` | OneNote取得 | Application |
 
 > **重要**: スコープ付与後、必ず後述の「アクセス制限設定」も併せて実施してください。  
-> Exchange（メール）のアクセスは特定5名のみに制限できます。
+> Exchange（メール）のアクセスは段階的に制限します（最初は担当者1名、検証後に最大5名まで拡大）。
 
 ---
 
@@ -63,10 +63,11 @@
 
 ---
 
-## アクセス制限設定（特定5名のみに制限）
+## アクセス制限設定（段階的展開：1名 → 最大5名）
 
 `Mail.Read` スコープはテナント全ユーザーのメールへのアクセスを許可するため、  
-**Exchange Application Access Policy** を使用して特定ユーザーのみに制限します。
+**Exchange Application Access Policy** を使用して特定ユーザーのみに制限します。  
+**まず担当者1名のみで動作確認を行い、問題がなければ順次5名まで拡大します。**
 
 ### 前提条件
 - Exchange Online PowerShell モジュールがインストールされていること
@@ -79,7 +80,7 @@
 3. 以下を設定：
    - **グループ名**: `autoticket-allowed-users`
    - **グループメールアドレス**: `autoticket-allowed-users@（ドメイン）`
-4. 対象の5名をメンバーに追加
+4. **最初は担当者1名（自身）のみ**をメンバーに追加する（検証完了後、順次追加・最大5名）
 
 ### 手順B: Application Access Policy の適用
 
@@ -104,7 +105,7 @@ Test-ApplicationAccessPolicy `
 
 ### 手順C: 対象ユーザーのIDをプロジェクト担当者に共有
 
-以下のコマンドで対象5名の Azure AD オブジェクトID（または UPN）を取得し、担当者に共有してください：
+以下のコマンドで対象ユーザーの Azure AD オブジェクトID（または UPN）を取得し、担当者に共有してください（最初は担当者自身の1名分）：
 
 ```powershell
 # Azure AD PowerShell または Graph Explorer で確認
@@ -113,13 +114,39 @@ Get-MgUser -Filter "userPrincipalName eq '対象ユーザーのUPN@your-domain.c
 
 担当者は受け取ったIDを `.env` の `ALLOWED_USER_IDS` にカンマ区切りで設定します：
 
+**Phase 1（1名検証）：**
 ```env
-# 例: Azure AD オブジェクトID または UPN をカンマ区切りで指定
-ALLOWED_USER_IDS=user-guid-1,user-guid-2,user-guid-3,user-guid-4,user-guid-5
+# 担当者自身のAzure ADオブジェクトIDまたはUPNのみ設定
+ALLOWED_USER_IDS=your-own-user-guid
+```
+
+**Phase 2（最大5名に拡大）：自身の動作確認後、メンバーを追加**
+```env
+# カンマ区切りで追加メンバーのIDを追記
+ALLOWED_USER_IDS=your-own-user-guid,user-guid-2,user-guid-3
 ```
 
 > **注意**: `ALLOWED_USER_IDS` が設定されている場合、ツールは指定ユーザーのメールのみを処理します。  
 > 空の場合はテナント全ユーザーを対象とするため、必ず設定してください。
+
+---
+
+## 段階的な展開手順
+
+| フェーズ | 対象 | 作業内容 |
+|---------|------|---------|
+| **Step 1（初期検証）** | 担当者1名のみ | グループに自身のみ追加 → `.env` に自身のIDのみ設定 → 動作確認 |
+| **Step 2（拡大）** | 最大5名まで | IT管理者にメンバー追加を依頼 → `.env` に追加メンバーのIDを追記 |
+
+### Step 1 → Step 2 の拡大手順（IT管理者向け）
+
+Step 2 への拡大時は、`autoticket-allowed-users` グループに追加メンバーを加えるだけです：
+
+1. [Microsoft 365 管理センター](https://admin.microsoft.com) > **チームとグループ** > `autoticket-allowed-users` を選択
+2. **メンバー** タブ > **メンバーを追加**
+3. 追加するユーザーを選択して保存
+
+Application Access Policy の再作成は不要です（グループへの追加のみで有効になります）。
 
 ---
 

@@ -2,7 +2,6 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -66,6 +65,7 @@ def test_clarify_due_date_missing() -> None:
 def test_clarify_assignees_missing() -> None:
     """assignees が空の場合 assignees issue が返る"""
     from datetime import date
+
     from src.models.config import Settings
 
     fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
@@ -92,6 +92,7 @@ def test_clarify_assignees_missing() -> None:
 def test_clarify_no_issues() -> None:
     """due_date あり・assignees あり・Gemini 問題なし → issues 空"""
     from datetime import date
+
     from src.models.config import Settings
 
     fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
@@ -160,6 +161,7 @@ def test_clarify_no_api_key_returns_rule_issues_only(
 def test_clarify_gemini_detects_issue() -> None:
     """Gemini が有問題と判定 → description issue が含まれる"""
     from datetime import date
+
     from src.models.config import Settings
 
     fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
@@ -192,7 +194,6 @@ def test_clarify_gemini_detects_issue() -> None:
 
 def test_clarify_gemini_exception_returns_rule_issues() -> None:
     """Gemini が例外を発生させても 200 でルールチェック結果を返す"""
-    from datetime import date
     from src.models.config import Settings
 
     fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")

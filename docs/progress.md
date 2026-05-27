@@ -1,11 +1,38 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B-4（F-32 サブタスク自動生成・F-15 テンプレート機能）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
-ステータス: F-32 AI サブタスク提案・F-15 定型業務テンプレート一括作成 実装完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B-5（F-29 AI チェック・Admin 組織設定・DevLogin 刷新）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
+ステータス: F-29 clarify-requirements・Admin タブ（ユーザー/組織設定/アラート）・DevLogin カード選択 UI 実装完了・Graph API 申請中（承認待ち）
 
 ## 最終更新
-- **日付**: 2026-05-27
+- **日付**: 2026-05-28
+- **完了した作業**:
+  - **[F-29 タスク要件の明確化プロンプト — Gemini AI チェック]**
+    - `GeminiProvider.clarify_requirements()` 追加（Gemini API でルール＋AI 複合チェック）
+    - `POST /tasks/{id}/clarify-requirements` エンドポイント（`ClarifyIssue` Pydantic モデル）
+    - タスク詳細「詳細」タブに AI チェックボタン・要件不足 Alert 表示
+    - テスト 7 件追加（`tests/unit/test_clarify_requirements.py`）→ 合計 170 passed
+
+  - **[Admin 組織設定・アラート設定タブ]**
+    - `GET/PATCH/DELETE /api/v1/admin/tags` — 部門タグ一覧・リネーム・削除 API 追加（`admin.py`）
+    - `TagRenameRequest` Pydantic モデル追加（`task_web.py`）
+    - Admin ページをタブ構成に刷新: ユーザー管理 / 組織設定 / アラート設定（`frontend/src/pages/Admin/`）
+    - `useAdminTags` フック（一覧・リネーム・削除）・`useAdminUsers` フック追加
+    - `useSettingsStore` Zustand ストア追加（アラート設定永続化）
+    - Dashboard ロールスコープ修正（`_scope_condition()` で member/leader/manager/admin 別絞り込み）
+
+  - **[DevLogin カード選択 UI 刷新]**
+    - `GET /api/v1/dev/users` エンドポイント追加（`dev.py`・DEV_MODE=true のみ有効）
+    - DevLogin をフォーム手入力 → DB からユーザー取得してカード選択方式に変更
+    - ロール・部門タグをカラーバッジで視覚表示
+
+  - **[Gantt 依存関係 UI 改善]**
+    - 先行タスク(A)→後続タスク(B) の選択 UI を 2 ドロップダウン方式に統一
+    - 依存関係削除（`Popconfirm` + `DeleteOutlined`）追加
+    - `DepMapFull` 型で依存 ID を正確に管理
+
+  - **[ruff 自動修正]** 38 件の import 整列・不要 import 除去・`datetime.UTC` 置換
+
 - **完了した作業**:
   - **[F-32 サブタスク自動生成 — Gemini API 連携]**
     - `GeminiProvider.generate_subtasks()` 追加（`src/providers/gemini.py`）
@@ -110,17 +137,24 @@
 | test_langfuse_client.py | 3 | ✅ |
 | test_polling_job.py | 6 | ✅ |
 | test_task_web_models.py | 12 | ✅ |
-| test_tasks_crud_router.py | 6 | ✅ |
-| test_connectors.py | 10 | ⚠️ respx 未インストール（環境問題） |
-| test_teams_chat.py | 3 | ⚠️ respx 未インストール（環境問題） |
-| test_onenote.py | 3 | ⚠️ respx 未インストール（環境問題） |
+| test_tasks_crud_router.py | 8 | ✅ |
+| test_connectors.py | 10 | ✅ |
+| test_teams_chat.py | 3 | ✅ |
+| test_onenote.py | 3 | ✅ |
 | test_reschedule.py | 4 | ✅ |
 | test_daily_workload.py | 7 | ✅ |
 | test_generate_subtasks.py | 6 | ✅ |
 | test_templates_router.py | 13 | ✅ |
-| **実行可能合計** | **141** | ✅ 全 passed |
-
-> ⚠️ `respx` は `.venv` に未インストールのため test_connectors / test_teams_chat / test_onenote が collection エラー。コード自体は正常実装済み。
+| test_clarify_requirements.py | 7 | ✅ |
+| test_admin_router.py | 5 | ✅ |
+| test_auth.py | 7 | ✅ |
+| test_import.py | 5 | ✅ |
+| test_past_performance.py | 6 | ✅ |
+| test_projects_router.py | 4 | ✅ |
+| test_sections_router.py | 4 | ✅ |
+| test_similar_tasks.py | 4 | ✅ |
+| test_visibility.py | 4 | ✅ |
+| **合計** | **170** | ✅ 全 passed |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
@@ -142,6 +176,9 @@
 2. Graph API 承認状況を確認
    - **承認済み** → `docs/tasks.md` の Phase 1B タスクから開始
    - **未承認** → Web App Phase 2B 残タスク（F-21 Teams 通知・F-12 工数自動算出）から開始
+3. 残タスク候補:
+   - **F-21 Teams 通知**: コメント投稿時に担当者へ Teams メッセージ送信
+   - **F-12 工数自動算出**: 蓄積データから目標工数を自動算出・提案
 
 ## 実装計画ファイル
 - `docs/superpowers/plans/2026-05-27-f15-template.md`（F-15 テンプレート機能 実装計画・全完了）

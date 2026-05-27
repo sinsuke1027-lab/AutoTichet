@@ -1,4 +1,6 @@
-import { Col, Row, Statistic, Card, List, Tag, Typography } from 'antd'
+import { Col, Row, Statistic, Card, List, Tag, Typography, Button, Space } from 'antd'
+import { SettingOutlined, UserOutlined, ApartmentOutlined, BellOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router-dom'
 import {
   PieChart,
   Pie,
@@ -8,11 +10,16 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { useDashboardSummary, useTodayTasks, useOverdueTasks } from '../../hooks/useDashboard'
+import { useAuthStore } from '../../store/useAuthStore'
 import type { TodayTaskItem, OverdueTaskItem } from '../../lib/api'
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300']
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+  const roles = useAuthStore((s) => s.roles)
+  const isAdmin = roles.includes('admin')
+
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary()
   const { data: todayTasks } = useTodayTasks()
   const { data: overdueTasks } = useOverdueTasks()
@@ -104,6 +111,39 @@ export default function Dashboard() {
               </List.Item>
             )}
           />
+        </Card>
+      )}
+
+      {isAdmin && (
+        <Card
+          title={
+            <Space>
+              <SettingOutlined style={{ color: '#722ed1' }} />
+              <span style={{ color: '#722ed1' }}>管理者メニュー</span>
+            </Space>
+          }
+          style={{ borderColor: '#d3adf7', background: '#f9f0ff' }}
+        >
+          <Space wrap size="middle">
+            <Button
+              icon={<UserOutlined />}
+              onClick={() => navigate('/admin?tab=users')}
+            >
+              ユーザー管理
+            </Button>
+            <Button
+              icon={<ApartmentOutlined />}
+              onClick={() => navigate('/admin?tab=org')}
+            >
+              組織設定（部門タグ）
+            </Button>
+            <Button
+              icon={<BellOutlined />}
+              onClick={() => navigate('/admin?tab=alert')}
+            >
+              アラート設定
+            </Button>
+          </Space>
         </Card>
       )}
     </div>

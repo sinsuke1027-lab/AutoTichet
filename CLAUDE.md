@@ -89,7 +89,9 @@ AutoTicket/
 │       ├── extract-task.md    # タスク抽出指示スキル
 │       └── sensitivity-check.md  # 機密度分類スキル
 ├── docs/
-│   ├── superpowers/specs/     # 設計ドキュメント
+│   ├── specs/                 # 設計ドキュメント（チーム共有用）
+│   │   └── system-design.md  # 詳細設計書（Phase 0〜9 全体）
+│   ├── superpowers/plans/     # エージェント実装計画（内部用）
 │   ├── progress.md            # 進捗ログ（毎セッション末に更新）
 │   ├── tasks.md               # タスク一覧・チェックリスト
 │   └── graph-api-setup.md    # IT管理者向け申請手順書

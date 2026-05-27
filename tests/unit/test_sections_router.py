@@ -1,14 +1,13 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.api.auth import CurrentUser, TokenPayload
+from src.api.auth import TokenPayload, get_current_user
 from src.db.engine import get_db
-from src.api.auth import get_current_user
 
 
 def _make_app() -> FastAPI:
@@ -51,7 +50,7 @@ def test_create_section_201(app_and_client) -> None:
     app, client = app_and_client
     project_id = uuid.uuid4()
     section_id = uuid.uuid4()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async def fake_db():
         db = AsyncMock()

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Button,
   Form,
@@ -20,7 +19,6 @@ import {
   useDeleteAdminUser,
   useUpdateAdminUser,
 } from '../../hooks/useAdminUsers'
-import { useAuthStore } from '../../store/useAuthStore'
 import type { AdminUser } from '../../lib/api'
 
 const ROLE_OPTIONS = [
@@ -31,15 +29,6 @@ const ROLE_OPTIONS = [
 ]
 
 export default function AdminUsers() {
-  const navigate = useNavigate()
-  const roles = useAuthStore((s) => s.roles)
-
-  // admin 以外はリダイレクト
-  if (!roles.includes('admin')) {
-    navigate('/')
-    return null
-  }
-
   const { data: users = [], isLoading } = useAdminUsers()
   const createUser = useCreateAdminUser()
   const updateUser = useUpdateAdminUser()
@@ -123,8 +112,8 @@ export default function AdminUsers() {
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
       <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Typography.Title level={3} style={{ margin: 0 }}>
-          ユーザー管理
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          ユーザー一覧
         </Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => handleOpen()}>
           ユーザー追加

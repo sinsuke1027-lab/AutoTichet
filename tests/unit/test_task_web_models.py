@@ -1,22 +1,18 @@
 import uuid
-from datetime import date, datetime
+from datetime import UTC, datetime
 
 import pytest
 
 from src.models.task_web import (
-    CommentCreate,
-    CommentResponse,
     DashboardSummary,
     ProjectCreate,
     ProjectResponse,
-    ProjectUpdate,
     TaskCreate,
     TaskListResponse,
     TaskResponse,
     TaskStatus,
     TaskUpdate,
     WorkHourCreate,
-    WorkHourResponse,
     WorkloadItem,
 )
 
@@ -136,7 +132,8 @@ def test_section_create_valid() -> None:
 
 def test_section_response_from_attributes() -> None:
     import uuid
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from src.models.task_web import SectionResponse
 
     class FakeSection:
@@ -146,8 +143,8 @@ def test_section_response_from_attributes() -> None:
     obj.project_id = uuid.uuid4()
     obj.name = "テスト"
     obj.order_index = 0
-    obj.created_at = datetime.now(timezone.utc)
-    obj.updated_at = datetime.now(timezone.utc)
+    obj.created_at = datetime.now(UTC)
+    obj.updated_at = datetime.now(UTC)
     resp = SectionResponse.model_validate(obj)
     assert resp.name == "テスト"
 
@@ -178,7 +175,8 @@ def test_import_result() -> None:
 
 def test_task_response_has_new_fields() -> None:
     import uuid
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from src.models.task_web import TaskResponse, TaskStatus
     resp = TaskResponse(
         id=uuid.uuid4(),
@@ -187,8 +185,8 @@ def test_task_response_has_new_fields() -> None:
         priority="medium",
         visibility="team",
         created_by="uid",
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
         section_id=None,
         completed_at=None,
         order_index=0,
@@ -207,6 +205,7 @@ def test_task_create_has_section_id() -> None:
 
 def test_task_update_has_section_id() -> None:
     import uuid
+
     from src.models.task_web import TaskUpdate
     sid = uuid.uuid4()
     t = TaskUpdate(section_id=sid)
