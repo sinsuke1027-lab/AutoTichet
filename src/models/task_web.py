@@ -439,3 +439,20 @@ class TemplateApplyRequest(BaseModel):
 class TemplateApplyResponse(BaseModel):
     task_id: uuid.UUID
     subtask_ids: list[uuid.UUID]
+
+
+# --- 過去実績参照 (F-27) ---
+
+
+class PastPerformanceSimilarTask(BaseModel):
+    id: uuid.UUID
+    title: str
+    actual_hours: float
+
+
+class PastPerformanceResponse(BaseModel):
+    avg_actual_hours: float | None  # None = 実績データなし
+    min_actual_hours: float | None
+    max_actual_hours: float | None
+    task_count: int
+    similar_tasks: list[PastPerformanceSimilarTask]

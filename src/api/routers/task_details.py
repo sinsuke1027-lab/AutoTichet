@@ -2,18 +2,20 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import CurrentUser
 from src.db.engine import get_db
-from src.db.models import Task, TaskAssignee, TaskComment, TaskDependency, TaskWorkHour
+from src.db.models import Task, TaskAssignee, TaskComment, TaskDependency, TaskTag, TaskWorkHour
 from src.models.task_web import (
     CommentCreate,
     CommentResponse,
     DependencyCreate,
     DependencyResponse,
+    PastPerformanceResponse,
+    PastPerformanceSimilarTask,
     TaskAssigneeCreate,
     TaskAssigneeResponse,
     WorkHourCreate,
@@ -98,6 +100,81 @@ async def create_work_hour(
     await db.commit()
     await db.refresh(wh)
     return WorkHourResponse.model_validate(wh)
+
+
+# --- 過去実績参照 ---
+
+
+@router.get("/{task_id}/past-performance", response_model=PastPerformanceResponse)
+async def get_past_performance(
+    task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
+) -> PastPerformanceResponse:
+    await _get_task_or_404(task_id, db)
+
+    tags_result = await db.execute(select(TaskTag.tag).where(TaskTag.task_id == task_id))
+    tags = list(tags_result.scalars().all())
+
+    if not tags:
+        return PastPerformanceResponse(
+            avg_actual_hours=None,
+            min_actual_hours=None,
+            max_actual_hours=None,
+            task_count=0,
+            similar_tasks=[],
+        )
+
+    similar_ids = (
+        select(TaskTag.task_id).where(TaskTag.tag.in_(tags), TaskTag.task_id != task_id).distinct()
+    )
+
+    agg_result = await db.execute(
+        select(
+            func.avg(TaskWorkHour.actual_hours).label("avg_hours"),
+            func.min(TaskWorkHour.actual_hours).label("min_hours"),
+            func.max(TaskWorkHour.actual_hours).label("max_hours"),
+            func.count(distinct(TaskWorkHour.task_id)).label("task_count"),
+        )
+        .join(Task, Task.id == TaskWorkHour.task_id)
+        .where(
+            TaskWorkHour.task_id.in_(similar_ids),
+            Task.status == "completed",
+            TaskWorkHour.actual_hours.is_not(None),
+        )
+    )
+    agg_row = agg_result.one()
+
+    if not agg_row.task_count:
+        return PastPerformanceResponse(
+            avg_actual_hours=None,
+            min_actual_hours=None,
+            max_actual_hours=None,
+            task_count=0,
+            similar_tasks=[],
+        )
+
+    similar_result = await db.execute(
+        select(Task.id, Task.title, TaskWorkHour.actual_hours)
+        .join(TaskWorkHour, TaskWorkHour.task_id == Task.id)
+        .where(
+            TaskWorkHour.task_id.in_(similar_ids),
+            Task.status == "completed",
+            TaskWorkHour.actual_hours.is_not(None),
+        )
+        .order_by(TaskWorkHour.recorded_at.desc())
+        .limit(3)
+    )
+    similar_tasks = [
+        PastPerformanceSimilarTask(id=row.id, title=row.title, actual_hours=row.actual_hours)
+        for row in similar_result.all()
+    ]
+
+    return PastPerformanceResponse(
+        avg_actual_hours=float(agg_row.avg_hours),
+        min_actual_hours=float(agg_row.min_hours),
+        max_actual_hours=float(agg_row.max_hours),
+        task_count=agg_row.task_count,
+        similar_tasks=similar_tasks,
+    )
 
 
 # --- 依存関係 ---
