@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -459,7 +460,7 @@ class PastPerformanceResponse(BaseModel):
 
 
 class ClarifyIssue(BaseModel):
-    field: str  # "due_date" | "assignees" | "description"
+    field: Literal["due_date", "assignees", "description"]
     message: str
     suggestion: str | None  # AI提案文（descriptionのみ）
 

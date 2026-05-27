@@ -89,7 +89,9 @@ class GeminiProvider:
         try:
             data: dict[str, object] = json.loads(resp.text or '{"has_issue": false}')
             if data.get("has_issue"):
-                return str(data.get("suggestion", ""))
+                raw_suggestion = data.get("suggestion")
+                if isinstance(raw_suggestion, str) and raw_suggestion:
+                    return raw_suggestion
             return None
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, ValueError):
             return None
