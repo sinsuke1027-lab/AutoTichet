@@ -99,7 +99,11 @@ async def delete_template(template_id: uuid.UUID, db: DbDep, current_user: Curre
     await db.commit()
 
 
-@router.post("/{template_id}/apply", response_model=TemplateApplyResponse)
+@router.post(
+    "/{template_id}/apply",
+    response_model=TemplateApplyResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def apply_template(
     template_id: uuid.UUID,
     body: TemplateApplyRequest,
@@ -148,4 +152,5 @@ async def apply_template(
         subtask_ids.append(subtask.id)
 
     await db.commit()
+    await db.refresh(main_task)
     return TemplateApplyResponse(task_id=main_task.id, subtask_ids=subtask_ids)
