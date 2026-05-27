@@ -86,7 +86,7 @@ export default function WorkHoursPanel({ taskId }: Props) {
         form.setFieldValue('estimated_hours', Number(perfData.avg_actual_hours.toFixed(1)))
       }
     }
-  }, [perfSuccess])
+  }, [perfSuccess, perfData, form])
 
   const handleSubmit = async () => {
     const values = await form.validateFields()
