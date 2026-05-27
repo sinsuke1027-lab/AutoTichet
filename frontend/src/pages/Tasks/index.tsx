@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   DatePicker,
+  Divider,
   Form,
   Input,
   message,
@@ -100,6 +101,7 @@ export default function TaskList() {
       })
       setOpen(false)
       setSelectedTemplateId(undefined)
+      setTemplateBaseDate(new Date().toISOString().split('T')[0])
       navigate(`/tasks/${result.task_id}`)
     } catch {
       void message.error('テンプレートの適用に失敗しました')
@@ -261,6 +263,7 @@ export default function TaskList() {
           form.resetFields()
           setNewTitle('')
           setSelectedTemplateId(undefined)
+          setTemplateBaseDate(new Date().toISOString().split('T')[0])
         }}
         confirmLoading={createTask.isPending}
       >
@@ -297,6 +300,7 @@ export default function TaskList() {
             </div>
           </div>
         )}
+        {templates.length > 0 && <Divider plain>または手動で作成</Divider>}
         <Form form={form} layout="vertical">
           <Form.Item name="title" label="タスク名" rules={[{ required: true }]}>
             <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
