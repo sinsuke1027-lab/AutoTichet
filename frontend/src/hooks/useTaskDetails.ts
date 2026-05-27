@@ -127,3 +127,24 @@ export function usePastPerformance(taskId: string) {
     enabled: !!taskId,
   })
 }
+
+interface ClarifyIssue {
+  field: string
+  message: string
+  suggestion: string | null
+}
+
+interface ClarifyRequirementsData {
+  issues: ClarifyIssue[]
+}
+
+export function useClarifyRequirements(taskId: string) {
+  return useMutation<ClarifyRequirementsData>({
+    mutationFn: async () => {
+      const { data } = await api.post<ClarifyRequirementsData>(
+        `/tasks/${taskId}/clarify-requirements`,
+      )
+      return data
+    },
+  })
+}
