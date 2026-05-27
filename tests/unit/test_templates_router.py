@@ -81,6 +81,7 @@ def test_list_templates_returns_list() -> None:
 
 def test_create_template() -> None:
     mock_db = AsyncMock()
+    mock_db.add = MagicMock()
 
     async def _refresh(obj, *args: object, **kwargs: object) -> None:
         obj.id = uuid.uuid4()
