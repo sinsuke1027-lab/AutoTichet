@@ -447,6 +447,14 @@ async def generate_subtasks(
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
 
     settings = get_settings()
+    if not settings.google_api_key:
+        raise HTTPException(status_code=503, detail="Gemini API キーが設定されていません")
+
     provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
-    titles = await provider.generate_subtasks(task.title, task.description)
+    try:
+        titles = await provider.generate_subtasks(task.title, task.description)
+    except Exception:
+        raise HTTPException(
+            status_code=503, detail="サブタスク生成に失敗しました。しばらく後に再試行してください"
+        )
     return GenerateSubtasksResponse(suggested_titles=titles)
