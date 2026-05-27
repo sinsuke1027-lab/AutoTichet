@@ -1,3 +1,4 @@
+import logging
 import re
 import uuid
 from collections import deque
@@ -26,6 +27,8 @@ from src.models.task_web import (
     TaskUpdate,
 )
 from src.providers.gemini import GeminiProvider
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
@@ -454,6 +457,7 @@ async def generate_subtasks(
     try:
         titles = await provider.generate_subtasks(task.title, task.description)
     except Exception:
+        logger.exception("Gemini generate_subtasks failed for task %s", task_id)
         raise HTTPException(
             status_code=503, detail="サブタスク生成に失敗しました。しばらく後に再試行してください"
         )

@@ -1,6 +1,8 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -71,3 +73,53 @@ def test_generate_subtasks_requires_auth() -> None:
     client = TestClient(app2, raise_server_exceptions=False)
     resp = client.post(f"/api/v1/tasks/{uuid.uuid4()}/generate-subtasks")
     assert resp.status_code == 401
+
+
+def test_generate_subtasks_empty_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """google_api_key が空の場合は 503 を返す"""
+    from src.models.config import Settings, get_settings  # noqa: F401
+
+    empty_settings = Settings(
+        google_api_key="",
+        database_url="postgresql+asyncpg://x:x@localhost/x",
+    )
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_task = MagicMock()
+    mock_task.id = uuid.uuid4()
+    mock_task.title = "テスト"
+    mock_task.description = None
+    mock_result.scalar_one_or_none.return_value = mock_task
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    client = _make_client(mock_db)
+
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=empty_settings):
+        resp = client.post(f"/api/v1/tasks/{mock_task.id}/generate-subtasks")
+
+    assert resp.status_code == 503
+
+
+def test_generate_subtasks_provider_error() -> None:
+    """GeminiProvider が例外を発生させた場合は 503 を返す"""
+    from src.db.models import Task
+
+    mock_task = MagicMock(spec=Task)
+    mock_task.id = uuid.uuid4()
+    mock_task.title = "テスト"
+    mock_task.description = None
+
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_task
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    client = _make_client(mock_db)
+
+    with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
+        instance = MockProvider.return_value
+        instance.generate_subtasks = AsyncMock(side_effect=RuntimeError("API unavailable"))
+        resp = client.post(f"/api/v1/tasks/{mock_task.id}/generate-subtasks")
+
+    assert resp.status_code == 503

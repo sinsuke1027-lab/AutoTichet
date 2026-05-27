@@ -1,5 +1,5 @@
 import { RobotOutlined } from '@ant-design/icons'
-import { Button, Checkbox, Input, Space, Spin, Tag, Typography } from 'antd'
+import { Button, Checkbox, Input, Space, Spin, Tag, Typography, message } from 'antd'
 import { useState } from 'react'
 import {
   useCreateSubtask,
@@ -28,9 +28,13 @@ export default function SubtasksPanel({ taskId }: Props) {
   }
 
   const handleGenerate = async () => {
-    const result = await generateSubtasks.mutateAsync()
-    setSuggestions(result.suggested_titles)
-    setChecked(new Set(result.suggested_titles))
+    try {
+      const result = await generateSubtasks.mutateAsync()
+      setSuggestions(result.suggested_titles)
+      setChecked(new Set(result.suggested_titles))
+    } catch {
+      void message.error('サブタスクの生成に失敗しました。しばらく後に再試行してください')
+    }
   }
 
   const toggleChecked = (title: string) => {
@@ -43,10 +47,14 @@ export default function SubtasksPanel({ taskId }: Props) {
   }
 
   const handleCreateChecked = async () => {
-    for (const title of suggestions ?? []) {
-      if (checked.has(title)) {
-        await createSubtask.mutateAsync(title)
+    try {
+      for (const title of suggestions ?? []) {
+        if (checked.has(title)) {
+          await createSubtask.mutateAsync(title)
+        }
       }
+    } catch {
+      void message.error('サブタスクの作成に失敗しました')
     }
     setSuggestions(null)
     setChecked(new Set())
