@@ -123,9 +123,13 @@ export default function TaskDetail() {
           </Descriptions>
           <Button
             onClick={async () => {
-              const result = await clarify.mutateAsync()
-              if (result.issues.length === 0) {
-                void message.success('問題は検出されませんでした')
+              try {
+                const result = await clarify.mutateAsync()
+                if (result.issues.length === 0) {
+                  void message.success('問題は検出されませんでした')
+                }
+              } catch {
+                void message.error('AI チェックに失敗しました。しばらく後に再試行してください')
               }
             }}
             loading={clarify.isPending}
