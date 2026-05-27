@@ -40,6 +40,9 @@ def _make_task(
 
 def test_clarify_due_date_missing() -> None:
     """due_date が null の場合 due_date issue が返る"""
+    from src.models.config import Settings
+
+    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(due_date=None, sub_assignees=[MagicMock()])
     mock_db = AsyncMock()
     mock_result = MagicMock()
@@ -47,10 +50,11 @@ def test_clarify_due_date_missing() -> None:
     mock_db.execute = AsyncMock(return_value=mock_result)
 
     client = _make_client(mock_db)
-    with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
-        instance = MockProvider.return_value
-        instance.clarify_requirements = AsyncMock(return_value=None)
-        resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=fake_settings):
+        with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
+            instance = MockProvider.return_value
+            instance.clarify_requirements = AsyncMock(return_value=None)
+            resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -62,7 +66,9 @@ def test_clarify_due_date_missing() -> None:
 def test_clarify_assignees_missing() -> None:
     """assignees が空の場合 assignees issue が返る"""
     from datetime import date
+    from src.models.config import Settings
 
+    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(due_date=date.today(), sub_assignees=[])
     mock_db = AsyncMock()
     mock_result = MagicMock()
@@ -70,10 +76,11 @@ def test_clarify_assignees_missing() -> None:
     mock_db.execute = AsyncMock(return_value=mock_result)
 
     client = _make_client(mock_db)
-    with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
-        instance = MockProvider.return_value
-        instance.clarify_requirements = AsyncMock(return_value=None)
-        resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=fake_settings):
+        with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
+            instance = MockProvider.return_value
+            instance.clarify_requirements = AsyncMock(return_value=None)
+            resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -85,7 +92,9 @@ def test_clarify_assignees_missing() -> None:
 def test_clarify_no_issues() -> None:
     """due_date あり・assignees あり・Gemini 問題なし → issues 空"""
     from datetime import date
+    from src.models.config import Settings
 
+    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(
         due_date=date.today(),
         sub_assignees=[MagicMock()],
@@ -97,10 +106,11 @@ def test_clarify_no_issues() -> None:
     mock_db.execute = AsyncMock(return_value=mock_result)
 
     client = _make_client(mock_db)
-    with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
-        instance = MockProvider.return_value
-        instance.clarify_requirements = AsyncMock(return_value=None)
-        resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=fake_settings):
+        with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
+            instance = MockProvider.return_value
+            instance.clarify_requirements = AsyncMock(return_value=None)
+            resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
 
     assert resp.status_code == 200
     assert resp.json()["issues"] == []
@@ -150,7 +160,9 @@ def test_clarify_no_api_key_returns_rule_issues_only(
 def test_clarify_gemini_detects_issue() -> None:
     """Gemini が有問題と判定 → description issue が含まれる"""
     from datetime import date
+    from src.models.config import Settings
 
+    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(
         due_date=date.today(),
         sub_assignees=[MagicMock()],
@@ -162,12 +174,13 @@ def test_clarify_gemini_detects_issue() -> None:
     mock_db.execute = AsyncMock(return_value=mock_result)
 
     client = _make_client(mock_db)
-    with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
-        instance = MockProvider.return_value
-        instance.clarify_requirements = AsyncMock(
-            return_value="「〇〇が完了したら終了」のような受け入れ基準を追加してください"
-        )
-        resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=fake_settings):
+        with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
+            instance = MockProvider.return_value
+            instance.clarify_requirements = AsyncMock(
+                return_value="「〇〇が完了したら終了」のような受け入れ基準を追加してください"
+            )
+            resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -175,3 +188,30 @@ def test_clarify_gemini_detects_issue() -> None:
     assert len(desc_issues) == 1
     assert desc_issues[0]["suggestion"] is not None
     assert desc_issues[0]["suggestion"] != ""
+
+
+def test_clarify_gemini_exception_returns_rule_issues() -> None:
+    """Gemini が例外を発生させても 200 でルールチェック結果を返す"""
+    from datetime import date
+    from src.models.config import Settings
+
+    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
+    mock_task = _make_task(due_date=None, sub_assignees=[])
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalar_one_or_none.return_value = mock_task
+    mock_db.execute = AsyncMock(return_value=mock_result)
+
+    client = _make_client(mock_db)
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=fake_settings):
+        with patch("src.api.routers.tasks_crud.GeminiProvider") as MockProvider:
+            instance = MockProvider.return_value
+            instance.clarify_requirements = AsyncMock(side_effect=RuntimeError("API unavailable"))
+            resp = client.post(f"/api/v1/tasks/{mock_task.id}/clarify-requirements")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    fields = [i["field"] for i in data["issues"]]
+    assert "due_date" in fields
+    assert "assignees" in fields
+    assert "description" not in fields

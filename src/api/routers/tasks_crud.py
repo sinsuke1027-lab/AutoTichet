@@ -470,6 +470,11 @@ async def generate_subtasks(
 async def clarify_requirements_endpoint(
     task_id: uuid.UUID, db: DbDep, current_user: CurrentUser
 ) -> ClarifyRequirementsResponse:
+    """タスクの要件不足を検知して返す。
+
+    Gemini APIキーが未設定でもルールチェック（期限・担当者）の結果を返す（503にしない）。
+    generate_subtasksと異なり、部分的な成功を許容する設計。
+    """
     result = await db.execute(
         select(Task).options(selectinload(Task.sub_assignees)).where(Task.id == task_id)
     )
