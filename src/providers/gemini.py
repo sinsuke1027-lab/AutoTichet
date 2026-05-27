@@ -6,6 +6,14 @@ from google.genai import types
 from src.models.task import ExtractedTask
 from src.providers.ollama import _EXTRACT_SYSTEM
 
+_SUBTASK_SYSTEM = (
+    "あなたはプロジェクト管理の専門家です。"
+    "タスクのタイトルと説明から、そのタスクを完了するために必要なサブタスクを3〜6個提案してください。"
+    "各サブタスクは具体的で実行可能な短いアクション（30文字以内）にしてください。"
+    "以下のJSON形式のみで返してください。説明文は不要です:\n"
+    '{"subtasks": ["サブタスク名1", "サブタスク名2", "サブタスク名3"]}'
+)
+
 
 class GeminiProvider:
     def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
@@ -37,3 +45,18 @@ class GeminiProvider:
             ],
         )
         return resp.text or ""
+
+    async def generate_subtasks(self, title: str, description: str | None) -> list[str]:
+        prompt = f"タスクタイトル: {title}"
+        if description:
+            prompt += f"\n説明: {description}"
+        resp = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=_SUBTASK_SYSTEM,
+                response_mime_type="application/json",
+            ),
+        )
+        data: dict[str, list[str]] = json.loads(resp.text or '{"subtasks": []}')
+        return data.get("subtasks", [])

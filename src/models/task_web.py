@@ -111,6 +111,8 @@ class TaskResponse(BaseModel):
     updated_at: datetime
     tags: list[str] = Field(default_factory=list)
     sub_assignees: list[str] = Field(default_factory=list)
+    subtask_count: int = 0
+    subtask_done_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -314,6 +316,13 @@ class RescheduleResponse(BaseModel):
     updated_tasks: list[TaskResponse]
 
 
+# --- Admin Tag ---
+
+
+class TagRenameRequest(BaseModel):
+    new_name: str = Field(min_length=1, max_length=50)
+
+
 # --- Admin User ---
 
 
@@ -361,6 +370,15 @@ class SimilarTaskResponse(BaseModel):
 class DailyWorkloadItem(BaseModel):
     date: str  # "YYYY-MM-DD"
     total_hours: float  # due_date がその日のタスクの estimated_hours 合計
-    capacity_hours: float  # ロール別 capacity（member=個人、leader=部署平均、manager/admin=全体平均）
+    capacity_hours: (
+        float  # ロール別 capacity（member=個人、leader=部署平均、manager/admin=全体平均）
+    )
     overload: bool  # total_hours > capacity_hours
     task_count: int
+
+
+# --- AI サブタスク生成 ---
+
+
+class GenerateSubtasksResponse(BaseModel):
+    suggested_titles: list[str]
