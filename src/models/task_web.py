@@ -331,7 +331,7 @@ class AdminUserCreate(BaseModel):
     display_name: str
     email: str | None = None
     role: str = "member"
-    department_tags: list[str] = []
+    department_tags: list[str] = Field(default_factory=list)
     capacity_hours_per_day: float = 8.0
 
 
