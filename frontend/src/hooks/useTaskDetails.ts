@@ -92,3 +92,10 @@ export function useUpdateSubtaskStatus(taskId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['subtasks', taskId] }),
   })
 }
+
+export function useGenerateSubtasks(taskId: string) {
+  return useMutation<{ suggested_titles: string[] }, Error>({
+    mutationFn: () =>
+      api.post(`/tasks/${taskId}/generate-subtasks`).then((r) => r.data),
+  })
+}
