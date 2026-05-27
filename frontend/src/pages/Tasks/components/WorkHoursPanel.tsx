@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Button, Divider, Form, InputNumber, List, Space, Spin, Statistic, Table, Typography } from 'antd'
 import { useWorkHours, useCreateWorkHour, usePastPerformance } from '../../../hooks/useTaskDetails'
 
@@ -76,6 +77,16 @@ export default function WorkHoursPanel({ taskId }: Props) {
   const { data: records = [] } = useWorkHours(taskId)
   const createWorkHour = useCreateWorkHour(taskId)
   const [form] = Form.useForm()
+  const { data: perfData, isSuccess: perfSuccess } = usePastPerformance(taskId)
+
+  useEffect(() => {
+    if (perfSuccess && perfData?.avg_actual_hours != null) {
+      const current = form.getFieldValue('estimated_hours')
+      if (current == null) {
+        form.setFieldValue('estimated_hours', Number(perfData.avg_actual_hours.toFixed(1)))
+      }
+    }
+  }, [perfSuccess])
 
   const handleSubmit = async () => {
     const values = await form.validateFields()
