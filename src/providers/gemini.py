@@ -58,5 +58,8 @@ class GeminiProvider:
                 response_mime_type="application/json",
             ),
         )
-        data: dict[str, list[str]] = json.loads(resp.text or '{"subtasks": []}')
-        return data.get("subtasks", [])
+        try:
+            data: dict[str, list[str]] = json.loads(resp.text or '{"subtasks": []}')
+            return data.get("subtasks", [])
+        except json.JSONDecodeError:
+            return []
