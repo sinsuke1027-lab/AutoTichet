@@ -136,14 +136,8 @@ def test_generate_handover_gemini_error() -> None:
 
 def test_generate_handover_no_api_key() -> None:
     """gemini_api_key="" → 503"""
-    from src.models.config import get_settings
-
     mock_db = _make_db([])
-    app = FastAPI()
-    app.include_router(router)
-    app.dependency_overrides[get_current_user] = lambda: _member_user
-    app.dependency_overrides[get_db] = lambda: mock_db
-    app.dependency_overrides[get_settings] = lambda: _EMPTY_SETTINGS
-    client = TestClient(app, raise_server_exceptions=False)
-    resp = client.post("/api/v1/tasks/generate-handover", json={"assignee_id": None})
+    client = _make_client(mock_db)
+    with patch("src.api.routers.tasks_crud.get_settings", return_value=_EMPTY_SETTINGS):
+        resp = client.post("/api/v1/tasks/generate-handover", json={"assignee_id": None})
     assert resp.status_code == 503

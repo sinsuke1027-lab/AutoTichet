@@ -364,8 +364,8 @@ async def generate_handover(
     body: HandoverRequest,
     db: DbDep,
     current_user: CurrentUser,
-    settings: Settings = Depends(get_settings),
 ) -> GenerateHandoverResponse:
+    settings = get_settings()
     target_user_id = body.assignee_id or current_user.sub
 
     if body.assignee_id and body.assignee_id != current_user.sub:
