@@ -62,7 +62,7 @@ export function useArchiveTask() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (taskId: string) => {
-      await api.patch(`/tasks/${taskId}`, { status: 'cancelled' })
+      await api.put(`/tasks/${taskId}`, { status: 'cancelled' })
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dashboard', 'stale-tasks'] })
