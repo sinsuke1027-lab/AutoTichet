@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from datetime import time as time_type
 from typing import Annotated
 
@@ -14,6 +14,7 @@ from src.models.task_web import (
     DailyWorkloadItem,
     DashboardSummary,
     OverdueTaskItem,
+    StaleTaskItem,
     TaskStatus,
     TodayTaskItem,
     TrendPoint,
@@ -290,4 +291,36 @@ async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[Daily
             task_count=rows.get((today + timedelta(days=i)).isoformat(), (0.0, 0))[1],
         )
         for i in range(7)
+    ]
+
+
+@router.get("/stale-tasks", response_model=list[StaleTaskItem])
+async def get_stale_tasks(db: DbDep, current_user: CurrentUser) -> list[StaleTaskItem]:
+    """14日以上更新のないアクティブタスク一覧（ロールスコープ適用）"""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+    scope = await _scope_condition(db, current_user)
+    query = (
+        select(Task)
+        .where(
+            Task.status.notin_(["completed", "cancelled"]),
+            Task.updated_at < cutoff,
+        )
+        .order_by(Task.updated_at.asc())
+        .limit(10)
+    )
+    if scope is not None:
+        query = query.where(scope)
+    result = await db.execute(query)
+    tasks = result.scalars().all()
+    now = datetime.now(timezone.utc)
+    return [
+        StaleTaskItem(
+            id=t.id,
+            title=t.title,
+            assignee_id=t.assignee_id,
+            due_date=t.due_date,
+            updated_at=t.updated_at,
+            days_stale=(now - t.updated_at).days,
+        )
+        for t in tasks
     ]

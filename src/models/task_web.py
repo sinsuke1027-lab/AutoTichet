@@ -468,3 +468,17 @@ class ClarifyIssue(BaseModel):
 
 class ClarifyRequirementsResponse(BaseModel):
     issues: list[ClarifyIssue]
+
+
+# --- Stale Tasks (F-31) ---
+
+
+class StaleTaskItem(BaseModel):
+    id: uuid.UUID
+    title: str
+    assignee_id: str | None
+    due_date: date | None
+    updated_at: datetime
+    days_stale: int
+
+    model_config = {"from_attributes": True}
