@@ -29,6 +29,7 @@ import { useUsers } from '../../hooks/useUsers'
 import { useTemplates, useApplyTemplate } from '../../hooks/useTemplates'
 import { useAuthStore } from '../../store/useAuthStore'
 import type { Task } from '../../lib/api'
+import ExtractModal from './ExtractModal'
 
 const ROLE_LEVEL: Record<string, number> = { member: 0, leader: 1, manager: 2, admin: 3 }
 
@@ -55,6 +56,7 @@ export default function TaskList() {
   const [myTasksOnly, setMyTasksOnly] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
+  const [extractModalOpen, setExtractModalOpen] = useState(false)
   const [form] = Form.useForm()
   const watchedTags = (Form.useWatch('tags', form) as string[] | undefined) ?? []
   const { data: estimate } = useEstimateHours(watchedTags)
@@ -192,6 +194,12 @@ export default function TaskList() {
         <Typography.Title level={3} style={{ margin: 0 }}>
           タスク一覧
         </Typography.Title>
+        <Button
+          icon={<RobotOutlined />}
+          onClick={() => setExtractModalOpen(true)}
+        >
+          テキストから作成
+        </Button>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
           新規タスク
         </Button>
@@ -383,6 +391,10 @@ export default function TaskList() {
           </Form.Item>
         </Form>
       </Modal>
+      <ExtractModal
+        open={extractModalOpen}
+        onClose={() => setExtractModalOpen(false)}
+      />
     </Space>
   )
 }
