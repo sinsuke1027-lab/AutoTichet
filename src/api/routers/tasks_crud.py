@@ -37,6 +37,43 @@ router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 
 
+def _compute_risk_level(task: Task) -> str | None:
+    """due_date・status・work_hours から遅延リスクレベルを返す純粋関数。"""
+    if task.status in ("completed", "cancelled") or task.due_date is None:
+        return None
+
+    today = date.today()
+    days_until_due = (task.due_date - today).days
+    score = 0
+
+    if days_until_due < 0:
+        score += 60
+    elif days_until_due <= 3:
+        score += 20
+    elif days_until_due <= 7:
+        score += 10
+
+    if task.status == "not_started" and 0 <= days_until_due <= 14:
+        score += 20
+
+    work_hours: list = task.work_hours or []
+    estimated_total = sum(wh.estimated_hours for wh in work_hours if wh.estimated_hours)
+    actual_total = sum(wh.actual_hours for wh in work_hours if wh.actual_hours)
+    if estimated_total > 0 and actual_total > estimated_total * 1.2:
+        score += 15
+
+    if task.status == "in_progress" and not any(
+        wh.actual_hours for wh in work_hours if wh.actual_hours
+    ):
+        score += 10
+
+    if score >= 60:
+        return "high"
+    if score >= 30:
+        return "medium"
+    return None
+
+
 def _task_to_response(task: Task) -> TaskResponse:
     tags = [t.tag for t in task.tags] if task.tags else []
     sub_assignees = [a.user_id for a in task.sub_assignees] if task.sub_assignees else []
@@ -66,6 +103,7 @@ def _task_to_response(task: Task) -> TaskResponse:
         sub_assignees=sub_assignees,
         subtask_count=len(subtasks),
         subtask_done_count=sum(1 for s in subtasks if s.status == "completed"),
+        risk_level=_compute_risk_level(task),
     )
 
 
@@ -90,6 +128,7 @@ async def list_tasks(
         selectinload(Task.tags),
         selectinload(Task.sub_assignees),
         selectinload(Task.subtasks),
+        selectinload(Task.work_hours),
     )
     if status_filter:
         query = query.where(Task.status == status_filter.value)
@@ -248,7 +287,10 @@ async def get_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> 
         select(Task)
         .where(Task.id == task_id)
         .options(
-            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+            selectinload(Task.tags),
+            selectinload(Task.sub_assignees),
+            selectinload(Task.subtasks),
+            selectinload(Task.work_hours),
         )
     )
     task = result.scalar_one_or_none()

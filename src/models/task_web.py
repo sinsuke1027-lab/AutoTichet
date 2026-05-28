@@ -114,6 +114,7 @@ class TaskResponse(BaseModel):
     sub_assignees: list[str] = Field(default_factory=list)
     subtask_count: int = 0
     subtask_done_count: int = 0
+    risk_level: str | None = None  # "high" | "medium" | None
 
     model_config = {"from_attributes": True}
 
