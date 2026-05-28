@@ -213,3 +213,31 @@ export const getEstimateHours = async (tags: string[]): Promise<HourEstimate> =>
   const { data } = await api.get<HourEstimate>(`/tasks/estimate-hours?${params.toString()}`)
   return data
 }
+
+export interface ExtractedTask {
+  is_task: boolean
+  title: string
+  assignee_name: string | null
+  deadline: string | null
+  priority: 'high' | 'medium' | 'low'
+  category: string
+  visibility: 'private' | 'team' | 'all'
+  confidence_score: number
+  source_type: string
+}
+
+export interface ExtractResult {
+  tasks: ExtractedTask[]
+  skipped_reason?: string
+}
+
+export const extractTasksFromText = async (
+  text: string,
+  sourceType: string,
+): Promise<ExtractResult> => {
+  const { data } = await api.post<ExtractResult>('/tasks/extract', {
+    text,
+    source_type: sourceType,
+  })
+  return data
+}
