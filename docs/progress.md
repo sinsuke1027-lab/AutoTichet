@@ -7,6 +7,13 @@
 ## 最終更新
 - **日付**: 2026-05-28
 - **完了した作業**:
+  - **[F-33 テキスト抽出 UI]**
+    - `POST /tasks/extract` を JSON ボディ対応に修正・`ExtractResponse` Pydantic モデル追加
+    - `ExtractedTask`・`ExtractResult` 型追加（`frontend/src/lib/api.ts`）
+    - `useExtractTasks` フック追加（`frontend/src/hooks/useTasks.ts`）
+    - `ExtractModal.tsx` 新規作成（スプリットパネル・編集サブモーダル・Pattern B 警告・昇格ボタン・AI ヒント）
+    - タスク一覧ページに「テキストから作成」ボタン追加
+
   - **[F-12 工数自動算出]**
     - `HourEstimate` Pydantic モデル追加（`src/models/task_web.py`）
     - `GET /api/v1/tasks/estimate-hours` エンドポイント追加（タグ OR 一致・完了タスクの実績工数集計、N+1 なし）
