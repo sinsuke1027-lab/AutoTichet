@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api, { type Task, type TaskListResponse, type HourEstimate, getEstimateHours } from '../lib/api'
+import api, { type Task, type TaskListResponse, type HourEstimate, type ExtractResult, getEstimateHours, extractTasksFromText } from '../lib/api'
 
 interface TaskFilters {
   status?: string
@@ -104,5 +104,17 @@ export function useRecordEstimatedHours() {
         actual_hours: null,
       })
     },
+  })
+}
+
+export function useExtractTasks() {
+  return useMutation({
+    mutationFn: ({
+      text,
+      sourceType,
+    }: {
+      text: string
+      sourceType: string
+    }): Promise<ExtractResult> => extractTasksFromText(text, sourceType),
   })
 }
