@@ -485,7 +485,7 @@ class StaleTaskItem(BaseModel):
 
 
 class HourEstimate(BaseModel):
-    avg_actual_hours: float | None
-    min_actual_hours: float | None
-    max_actual_hours: float | None
+    avg_actual_hours: float | None = None
+    min_actual_hours: float | None = None
+    max_actual_hours: float | None = None
     task_count: int
