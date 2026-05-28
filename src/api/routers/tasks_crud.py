@@ -20,7 +20,9 @@ from src.models.task import ExtractedTask
 from src.models.task_web import (
     ClarifyIssue,
     ClarifyRequirementsResponse,
+    GenerateHandoverResponse,
     GenerateSubtasksResponse,
+    HandoverRequest,
     HourEstimate,
     RescheduleRequest,
     RescheduleResponse,
@@ -355,6 +357,63 @@ async def extract_from_text(
         logger.exception("extract_tasks failed")
         raise HTTPException(status_code=503, detail="LLM によるタスク抽出に失敗しました")
     return ExtractResponse(tasks=extracted)
+
+
+@router.post("/generate-handover", response_model=GenerateHandoverResponse)
+async def generate_handover(
+    body: HandoverRequest,
+    db: DbDep,
+    current_user: CurrentUser,
+    settings: Settings = Depends(get_settings),
+) -> GenerateHandoverResponse:
+    target_user_id = body.assignee_id or current_user.sub
+
+    if body.assignee_id and body.assignee_id != current_user.sub:
+        user_level = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+        if user_level < ROLE_HIERARCHY.get("leader", 1):
+            raise HTTPException(status_code=403, detail="リーダー以上の権限が必要です")
+
+    if not settings.gemini_api_key:
+        raise HTTPException(status_code=503, detail="Gemini API キーが設定されていません")
+
+    result = await db.execute(
+        select(Task)
+        .join(TaskAssignee, TaskAssignee.task_id == Task.id)
+        .where(
+            TaskAssignee.user_id == target_user_id,
+            Task.status.notin_(["completed", "cancelled"]),
+        )
+        .options(selectinload(Task.comments))
+        .order_by(Task.due_date.asc().nulls_last())
+    )
+    tasks = result.scalars().all()
+
+    lines: list[str] = []
+    for task in tasks:
+        lines.append(f"## {task.title}")
+        lines.append(f"- ステータス: {task.status}")
+        lines.append(f"- 優先度: {task.priority}")
+        lines.append(f"- 期限: {task.due_date or '未設定'}")
+        if task.description:
+            lines.append(f"- 説明: {task.description}")
+        recent = sorted(task.comments, key=lambda c: c.created_at, reverse=True)[:3]
+        if recent:
+            lines.append("- 最近のコメント:")
+            for c in recent:
+                lines.append(f"  - {c.content}")
+        lines.append("")
+    tasks_text = "\n".join(lines)
+
+    provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
+    try:
+        document = await provider.generate_handover_doc(tasks_text)
+    except Exception:
+        logger.exception("Gemini generate_handover_doc failed")
+        raise HTTPException(
+            status_code=503, detail="引き継ぎ書の生成に失敗しました。しばらく後に再試行してください"
+        )
+
+    return GenerateHandoverResponse(document=document)
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
