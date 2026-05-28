@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert,
@@ -61,6 +61,16 @@ export default function TaskList() {
   const watchedTags = (Form.useWatch('tags', form) as string[] | undefined) ?? []
   const { data: estimate } = useEstimateHours(watchedTags)
   const recordEstimatedHours = useRecordEstimatedHours()
+  const autoFilledRef = useRef(false)
+
+  useEffect(() => {
+    if (!estimate || estimate.task_count === 0 || estimate.avg_actual_hours == null) return
+    const current = form.getFieldValue('estimated_hours') as number | undefined
+    if (current == null || autoFilledRef.current) {
+      form.setFieldValue('estimated_hours', estimate.avg_actual_hours)
+      autoFilledRef.current = true
+    }
+  }, [estimate, form])
 
   const { data: taskList, isLoading } = useTasks({
     status: statusFilter || undefined,
@@ -100,6 +110,7 @@ export default function TaskList() {
     }
     setOpen(false)
     form.resetFields()
+    autoFilledRef.current = false
     setNewTitle('')
   }
 
@@ -363,12 +374,10 @@ export default function TaskList() {
 
           {estimate && estimate.task_count >= 1 && estimate.avg_actual_hours != null ? (
             <Form.Item label=" " colon={false}>
-              <Tag
-                color="blue"
-                style={{ cursor: 'pointer' }}
-                onClick={() => form.setFieldValue('estimated_hours', estimate.avg_actual_hours)}
-              >
-                🤖 推奨工数: {estimate.avg_actual_hours}h（過去{estimate.task_count}件）
+              <Tag color="blue">
+                🤖 過去{estimate.task_count}件: 平均 {estimate.avg_actual_hours}h
+                {estimate.min_actual_hours != null &&
+                  ` / 最小 ${estimate.min_actual_hours}h / 最大 ${estimate.max_actual_hours}h`}
               </Tag>
             </Form.Item>
           ) : watchedTags.length > 0 ? (
@@ -378,7 +387,13 @@ export default function TaskList() {
           ) : null}
 
           <Form.Item name="estimated_hours" label="予定工数（h）">
-            <InputNumber min={0} step={0.5} style={{ width: '100%' }} placeholder="例: 2.0" />
+            <InputNumber
+              min={0}
+              step={0.5}
+              style={{ width: '100%' }}
+              placeholder="例: 2.0"
+              onChange={() => { autoFilledRef.current = false }}
+            />
           </Form.Item>
           <Form.Item name="visibility" label="公開範囲" initialValue="team">
             <Select
