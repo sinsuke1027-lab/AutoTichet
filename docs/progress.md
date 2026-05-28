@@ -1,15 +1,25 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B-6（F-30 遅延リスク予測・F-31 自動棚卸し提案）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
-ステータス: F-30 リスクバッジ・F-31 棚卸しカード実装完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B（Should 機能）✅ ほぼ完了（F-21 Teams 通知のみ残・Graph API 承認待ち）**
+ステータス: F-12 工数自動算出完了・F-21 は Graph API 承認待ちのためブロック中
 
 ## 最終更新
 - **日付**: 2026-05-28
 - **完了した作業**:
+  - **[F-12 工数自動算出]**
+    - `HourEstimate` Pydantic モデル追加（`src/models/task_web.py`）
+    - `GET /api/v1/tasks/estimate-hours` エンドポイント追加（タグ OR 一致・完了タスクの実績工数集計、N+1 なし）
+    - ユニットテスト 5 件追加（`tests/unit/test_estimate_hours.py`）→ 合計 172 passed
+    - `HourEstimate` 型・`getEstimateHours` 関数追加（`frontend/src/lib/api.ts`）
+    - `useEstimateHours(tags)` フック（enabled: tags.length > 0・staleTime 2分）追加
+    - `useRecordEstimatedHours()` フック（POST /tasks/{id}/work-hours）追加
+    - タスク作成モーダルにタグ Select フィールド・推奨工数バッジ（青/グレー）・予定工数 InputNumber 追加
+    - タスク作成後に estimated_hours が入力されていれば工数レコードを自動登録
+
   - **[F-30 遅延リスク AI 予測]** `_compute_risk_level()` 純粋関数・`TaskResponse.risk_level`・タスク一覧バッジ（高リスク/要注意）
   - **[F-31 タスクの自動棚卸し提案]** `StaleTaskItem` モデル・`GET /dashboard/stale-tasks`・Dashboard 棚卸しカード・`useArchiveTask(PUT)` フック
-  - テスト 13 件追加（`test_delay_risk.py` 8件・`test_stale_tasks.py` 5件）→ 合計 183 passed
+  - テスト 13 件追加（`test_delay_risk.py` 8件・`test_stale_tasks.py` 5件）→ 合計 183 passed（respx 除外時）
 
 - **完了した作業（前セッション）**:
   - **[F-29 タスク要件の明確化プロンプト — Gemini AI チェック]**
