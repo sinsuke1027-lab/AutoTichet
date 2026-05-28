@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api, { type Task, type TaskListResponse } from '../lib/api'
+import api, { type Task, type TaskListResponse, type HourEstimate, getEstimateHours } from '../lib/api'
 
 interface TaskFilters {
   status?: string
@@ -76,6 +76,33 @@ export function useDeleteTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
       queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
+    },
+  })
+}
+
+export function useEstimateHours(tags: string[]) {
+  return useQuery<HourEstimate>({
+    queryKey: ['tasks', 'estimate-hours', tags],
+    queryFn: () => getEstimateHours(tags),
+    enabled: tags.length > 0,
+    staleTime: 2 * 60 * 1000,
+  })
+}
+
+export function useRecordEstimatedHours() {
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      estimatedHours,
+    }: {
+      taskId: string
+      estimatedHours: number
+    }) => {
+      await api.post(`/tasks/${taskId}/work-hours`, {
+        date: new Date().toISOString().slice(0, 10),
+        planned_hours: estimatedHours,
+        actual_hours: null,
+      })
     },
   })
 }

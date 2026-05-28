@@ -67,6 +67,11 @@ export interface StaleTaskItem {
   days_stale: number
 }
 
+export interface HourEstimate {
+  avg_actual_hours: number | null
+  task_count: number
+}
+
 export interface Project {
   id: string
   name: string
@@ -200,4 +205,11 @@ export interface DailyWorkloadItem {
   capacity_hours: number
   overload: boolean
   task_count: number
+}
+
+export const getEstimateHours = async (tags: string[]): Promise<HourEstimate> => {
+  const params = new URLSearchParams()
+  tags.forEach(t => params.append('tags', t))
+  const { data } = await api.get<HourEstimate>(`/tasks/estimate-hours?${params.toString()}`)
+  return data
 }
