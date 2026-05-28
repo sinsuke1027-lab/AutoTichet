@@ -14,6 +14,18 @@ _SUBTASK_SYSTEM = (
     '{"subtasks": ["サブタスク名1", "サブタスク名2", "サブタスク名3"]}'
 )
 
+_MANUAL_SYSTEM = (
+    "あなたはプロジェクト管理の専門家です。"
+    "入力された手順書・マニュアルを読み、各手順・作業項目を実行可能なタスクとして抽出してください。"
+    "出力フォーマット（JSONのみ）:\n"
+    "[\n"
+    '  {"is_task": true, "title": "タスクタイトル（1〜200文字）", "assignee_name": null,\n'
+    '   "deadline": null, "priority": "high|medium|low", "category": "その他",\n'
+    '   "visibility": "team", "confidence_score": 0.0〜1.0の数値}\n'
+    "]\n"
+    "タスクがない場合は空リスト [] を返してください。"
+)
+
 _CLARIFY_SYSTEM = (
     "あなたはプロジェクト管理の専門家です。"
     "タスクのタイトルと説明を読み、完了条件が明確かどうかを判断してください。"
@@ -33,11 +45,17 @@ class GeminiProvider:
         self._model = model
 
     async def extract_tasks(self, text: str, source_type: str) -> list[ExtractedTask]:
+        system = _MANUAL_SYSTEM if source_type == "manual" else _EXTRACT_SYSTEM
+        prompt = (
+            f"以下のマニュアル・手順書からタスクを生成:\n\n{text}"
+            if source_type == "manual"
+            else f"以下のテキストからタスクを抽出:\n\n{text}"
+        )
         resp = await self._client.aio.models.generate_content(
             model=self._model,
-            contents=f"以下のテキストからタスクを抽出:\n\n{text}",
+            contents=prompt,
             config=types.GenerateContentConfig(
-                system_instruction=_EXTRACT_SYSTEM,
+                system_instruction=system,
                 response_mime_type="application/json",
             ),
         )

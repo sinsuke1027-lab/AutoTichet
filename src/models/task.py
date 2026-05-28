@@ -17,7 +17,7 @@ class ExtractedTask(BaseModel):
     category: Literal["HR", "IT", "総務", "その他"] = "その他"
     visibility: Literal["private", "team", "all"] = "team"
     confidence_score: float = Field(ge=0.0, le=1.0)
-    source_type: Literal["email", "meeting", "chat", "onenote", "teams_bot"]
+    source_type: Literal["email", "meeting", "chat", "onenote", "teams_bot", "manual"]
     source_id: str
 
 
