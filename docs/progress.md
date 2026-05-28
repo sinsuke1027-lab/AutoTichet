@@ -1,12 +1,17 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B-5（F-29 AI チェック・Admin 組織設定・DevLogin 刷新）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
-ステータス: F-29 clarify-requirements・Admin タブ（ユーザー/組織設定/アラート）・DevLogin カード選択 UI 実装完了・Graph API 申請中（承認待ち）
+**Phase: Web App Phase 2B-6（F-30 遅延リスク予測・F-31 自動棚卸し提案）✅ 完了 → F-21 Teams 通知 or F-12 工数自動算出へ**
+ステータス: F-30 リスクバッジ・F-31 棚卸しカード実装完了・Graph API 申請中（承認待ち）
 
 ## 最終更新
 - **日付**: 2026-05-28
 - **完了した作業**:
+  - **[F-30 遅延リスク AI 予測]** `_compute_risk_level()` 純粋関数・`TaskResponse.risk_level`・タスク一覧バッジ（高リスク/要注意）
+  - **[F-31 タスクの自動棚卸し提案]** `StaleTaskItem` モデル・`GET /dashboard/stale-tasks`・Dashboard 棚卸しカード・`useArchiveTask(PUT)` フック
+  - テスト 13 件追加（`test_delay_risk.py` 8件・`test_stale_tasks.py` 5件）→ 合計 183 passed
+
+- **完了した作業（前セッション）**:
   - **[F-29 タスク要件の明確化プロンプト — Gemini AI チェック]**
     - `GeminiProvider.clarify_requirements()` 追加（Gemini API でルール＋AI 複合チェック）
     - `POST /tasks/{id}/clarify-requirements` エンドポイント（`ClarifyIssue` Pydantic モデル）

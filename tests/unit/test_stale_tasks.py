@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from unittest.mock import AsyncMock, MagicMock
 
 from fastapi import FastAPI
@@ -31,7 +31,7 @@ def _stale_task(days_ago: int, status: str = "in_progress") -> MagicMock:
     t.title = f"放置タスク（{days_ago}日前）"
     t.assignee_id = "user-1"
     t.due_date = None
-    t.updated_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+    t.updated_at = datetime.now(UTC) - timedelta(days=days_ago)
     t.status = status
     return t
 

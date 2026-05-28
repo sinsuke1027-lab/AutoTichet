@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
-from datetime import time as time_type
+from datetime import time as time_type, UTC
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -297,7 +297,7 @@ async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[Daily
 @router.get("/stale-tasks", response_model=list[StaleTaskItem])
 async def get_stale_tasks(db: DbDep, current_user: CurrentUser) -> list[StaleTaskItem]:
     """14日以上更新のないアクティブタスク一覧（ロールスコープ適用）"""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+    cutoff = datetime.now(UTC) - timedelta(days=14)
     scope = await _scope_condition(db, current_user)
     query = (
         select(Task)
@@ -312,7 +312,7 @@ async def get_stale_tasks(db: DbDep, current_user: CurrentUser) -> list[StaleTas
         query = query.where(scope)
     result = await db.execute(query)
     tasks = result.scalars().all()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return [
         StaleTaskItem(
             id=t.id,
