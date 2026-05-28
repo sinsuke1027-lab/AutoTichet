@@ -489,3 +489,14 @@ class HourEstimate(BaseModel):
     min_actual_hours: float | None = None
     max_actual_hours: float | None = None
     task_count: int
+
+
+# --- 引き継ぎドキュメント生成 (F-33) ---
+
+
+class HandoverRequest(BaseModel):
+    assignee_id: str | None = None  # None = 自分自身
+
+
+class GenerateHandoverResponse(BaseModel):
+    document: str  # Markdown 形式の引き継ぎ書

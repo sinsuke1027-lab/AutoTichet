@@ -38,6 +38,17 @@ _CLARIFY_SYSTEM = (
     "上記に当てはまらない場合はhas_issue: falseを返してください。"
 )
 
+_HANDOVER_SYSTEM = (
+    "あなたはプロジェクト管理の専門家です。"
+    "以下の未完了タスク一覧（コメント付き）を読み、"
+    "引き継ぎ者が状況を即座に把握できる引き継ぎ書をMarkdown形式で作成してください。"
+    "以下を含めてください:\n"
+    "1. 概要（未完了タスク数・緊急度の高いもの）\n"
+    "2. タスク別の現状・残作業・注意事項\n"
+    "3. 引き継ぎ先へのメッセージ\n"
+    "簡潔かつ具体的に書いてください。"
+)
+
 
 class GeminiProvider:
     def __init__(self, api_key: str, model: str = "gemini-2.0-flash") -> None:
@@ -113,3 +124,13 @@ class GeminiProvider:
             return None
         except (json.JSONDecodeError, ValueError):
             return None
+
+    async def generate_handover_doc(self, tasks_text: str) -> str:
+        resp = await self._client.aio.models.generate_content(
+            model=self._model,
+            contents=f"以下の未完了タスク情報から引き継ぎ書を生成してください:\n\n{tasks_text}",
+            config=types.GenerateContentConfig(
+                system_instruction=_HANDOVER_SYSTEM,
+            ),
+        )
+        return resp.text or ""
