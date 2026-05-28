@@ -1,5 +1,5 @@
-import { Col, Row, Statistic, Card, List, Tag, Typography, Button, Space } from 'antd'
-import { SettingOutlined, UserOutlined, ApartmentOutlined, BellOutlined } from '@ant-design/icons'
+import { Col, Row, Statistic, Card, List, Tag, Typography, Button, Space, Popconfirm } from 'antd'
+import { SettingOutlined, UserOutlined, ApartmentOutlined, BellOutlined, InboxOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import {
   PieChart,
@@ -9,9 +9,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { useDashboardSummary, useTodayTasks, useOverdueTasks } from '../../hooks/useDashboard'
+import { useDashboardSummary, useTodayTasks, useOverdueTasks, useStaleTaskItems, useArchiveTask } from '../../hooks/useDashboard'
 import { useAuthStore } from '../../store/useAuthStore'
-import type { TodayTaskItem, OverdueTaskItem } from '../../lib/api'
+import type { TodayTaskItem, OverdueTaskItem, StaleTaskItem } from '../../lib/api'
 
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300']
 
@@ -23,6 +23,8 @@ export default function Dashboard() {
   const { data: summary, isLoading: summaryLoading } = useDashboardSummary()
   const { data: todayTasks } = useTodayTasks()
   const { data: overdueTasks } = useOverdueTasks()
+  const { data: staleTasks } = useStaleTaskItems()
+  const archiveTask = useArchiveTask()
 
   const pieData = summary
     ? [
@@ -108,6 +110,45 @@ export default function Dashboard() {
               <List.Item key={item.id}>
                 <Tag color="red">{item.due_date ?? '—'}</Tag>
                 {item.title}
+              </List.Item>
+            )}
+          />
+        </Card>
+      )}
+
+      {(staleTasks?.length ?? 0) > 0 && (
+        <Card
+          title={
+            <Space>
+              <InboxOutlined />
+              棚卸し提案
+              <Tag color="warning">{staleTasks?.length}件</Tag>
+            </Space>
+          }
+          style={{ marginBottom: 24 }}
+          extra={<Typography.Text type="secondary">14日以上更新なし</Typography.Text>}
+        >
+          <List
+            dataSource={staleTasks ?? []}
+            renderItem={(item: StaleTaskItem) => (
+              <List.Item
+                key={item.id}
+                actions={[
+                  <Popconfirm
+                    key="archive"
+                    title="このタスクをキャンセルにしますか？"
+                    onConfirm={() => archiveTask.mutate(item.id)}
+                    okText="キャンセルにする"
+                    cancelText="閉じる"
+                  >
+                    <Button size="small" danger>キャンセルにする</Button>
+                  </Popconfirm>,
+                ]}
+              >
+                <List.Item.Meta
+                  title={item.title}
+                  description={`${item.days_stale}日間放置${item.due_date ? ` / 期限: ${item.due_date}` : ''}`}
+                />
               </List.Item>
             )}
           />
