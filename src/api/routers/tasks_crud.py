@@ -13,7 +13,7 @@ from sqlalchemy.orm import selectinload
 
 from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.db.engine import get_db
-from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, UserProfile
+from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, TaskWorkHour, UserProfile
 from src.models.config import get_settings
 from src.models.task_web import (
     ClarifyIssue,
@@ -56,7 +56,7 @@ def _compute_risk_level(task: Task) -> str | None:
     if task.status == "not_started" and 0 <= days_until_due <= 14:
         score += 20
 
-    work_hours: list = task.work_hours or []
+    work_hours: list[TaskWorkHour] = task.work_hours or []
     estimated_total = sum(wh.estimated_hours for wh in work_hours if wh.estimated_hours)
     actual_total = sum(wh.actual_hours for wh in work_hours if wh.actual_hours)
     if estimated_total > 0 and actual_total > estimated_total * 1.2:

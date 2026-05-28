@@ -1,8 +1,6 @@
 from datetime import date, timedelta
 from unittest.mock import MagicMock
 
-import pytest
-
 
 def _task(
     status: str,
@@ -25,7 +23,7 @@ def _task(
 
 
 def test_overdue_task_is_high() -> None:
-    """期限超過タスクは high リスク（+40点）"""
+    """期限超過タスクは high リスク（+60点）"""
     from src.api.routers.tasks_crud import _compute_risk_level
     task = _task("in_progress", -1)
     assert _compute_risk_level(task) == "high"
@@ -35,7 +33,7 @@ def test_due_within_3days_and_not_started_is_medium_or_high() -> None:
     """残り2日 + not_started は 20+20=40点 → medium"""
     from src.api.routers.tasks_crud import _compute_risk_level
     task = _task("not_started", 2)
-    assert _compute_risk_level(task) in ("medium", "high")
+    assert _compute_risk_level(task) == "medium"
 
 
 def test_no_due_date_returns_none() -> None:
@@ -74,8 +72,7 @@ def test_hours_overrun_alone_no_risk() -> None:
 
 
 def test_overdue_plus_hours_overrun_is_high() -> None:
-    """期限超過(+40) + 工数超過(+15) = 55点 → high（60未満だがoverdue+hoursで判断）"""
+    """期限超過(+60) + 工数超過(+15) = 75点 → high"""
     from src.api.routers.tasks_crud import _compute_risk_level
     task = _task("in_progress", -2, estimated=5.0, actual=7.0)
-    # 40+15=55 → medium（30-59）が正確。high は60以上
-    assert _compute_risk_level(task) in ("medium", "high")
+    assert _compute_risk_level(task) == "high"
