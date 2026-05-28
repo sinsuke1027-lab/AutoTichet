@@ -19,8 +19,9 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
+import { CopyOutlined, FileTextOutlined, PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useMutation } from '@tanstack/react-query'
 import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours } from '../../hooks/useTasks'
 import { useProjects } from '../../hooks/useProjects'
 import { useSections } from '../../hooks/useSections'
@@ -29,6 +30,7 @@ import { useUsers } from '../../hooks/useUsers'
 import { useTemplates, useApplyTemplate } from '../../hooks/useTemplates'
 import { useAuthStore } from '../../store/useAuthStore'
 import type { Task } from '../../lib/api'
+import { generateHandover } from '../../lib/api'
 import ExtractModal from './ExtractModal'
 
 const ROLE_LEVEL: Record<string, number> = { member: 0, leader: 1, manager: 2, admin: 3 }
@@ -57,6 +59,12 @@ export default function TaskList() {
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
   const [extractModalOpen, setExtractModalOpen] = useState(false)
+  const [handoverOpen, setHandoverOpen] = useState(false)
+  const [handoverDoc, setHandoverDoc] = useState('')
+  const [handoverTarget, setHandoverTarget] = useState<string | undefined>()
+  const generateHandoverMutation = useMutation({
+    mutationFn: (assigneeId: string | undefined) => generateHandover(assigneeId),
+  })
   const [form] = Form.useForm()
   const watchedTags = (Form.useWatch('tags', form) as string[] | undefined) ?? []
   const { data: estimate } = useEstimateHours(watchedTags)
@@ -205,15 +213,39 @@ export default function TaskList() {
         <Typography.Title level={3} style={{ margin: 0 }}>
           タスク一覧
         </Typography.Title>
-        <Button
-          icon={<RobotOutlined />}
-          onClick={() => setExtractModalOpen(true)}
-        >
-          テキストから作成
-        </Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
-          新規タスク
-        </Button>
+        <Space>
+          {canFilterByAssignee && (
+            <Select
+              placeholder="引き継ぎ対象者（未選択 = 自分）"
+              allowClear
+              options={users.map((u) => ({ label: u.display_name, value: u.user_id }))}
+              value={handoverTarget}
+              onChange={setHandoverTarget}
+              style={{ width: 180 }}
+            />
+          )}
+          <Button
+            icon={<FileTextOutlined />}
+            loading={generateHandoverMutation.isPending}
+            onClick={async () => {
+              try {
+                const res = await generateHandoverMutation.mutateAsync(handoverTarget)
+                setHandoverDoc(res.document)
+                setHandoverOpen(true)
+              } catch {
+                void message.error('引き継ぎ書の生成に失敗しました')
+              }
+            }}
+          >
+            引き継ぎ書を生成
+          </Button>
+          <Button icon={<RobotOutlined />} onClick={() => setExtractModalOpen(true)}>
+            テキストから作成
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+            新規タスク
+          </Button>
+        </Space>
       </Space>
 
       <Space wrap>
@@ -405,6 +437,25 @@ export default function TaskList() {
             />
           </Form.Item>
         </Form>
+      </Modal>
+      <Modal
+        title="引き継ぎ書"
+        open={handoverOpen}
+        onCancel={() => setHandoverOpen(false)}
+        width={720}
+        footer={
+          <Button
+            icon={<CopyOutlined />}
+            onClick={() => {
+              void navigator.clipboard.writeText(handoverDoc)
+              void message.success('コピーしました')
+            }}
+          >
+            クリップボードにコピー
+          </Button>
+        }
+      >
+        <Input.TextArea value={handoverDoc} rows={20} readOnly style={{ fontFamily: 'monospace' }} />
       </Modal>
       <ExtractModal
         open={extractModalOpen}

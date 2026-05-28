@@ -243,3 +243,14 @@ export const extractTasksFromText = async (
   })
   return data
 }
+
+export interface HandoverResponse {
+  document: string
+}
+
+export const generateHandover = async (assigneeId?: string): Promise<HandoverResponse> => {
+  const { data } = await api.post<HandoverResponse>('/tasks/generate-handover', {
+    assignee_id: assigneeId ?? null,
+  })
+  return data
+}
