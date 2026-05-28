@@ -482,3 +482,8 @@ class StaleTaskItem(BaseModel):
     days_stale: int
 
     model_config = {"from_attributes": True}
+
+
+class HourEstimate(BaseModel):
+    avg_actual_hours: float | None
+    task_count: int

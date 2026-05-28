@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -19,6 +19,7 @@ from src.models.task_web import (
     ClarifyIssue,
     ClarifyRequirementsResponse,
     GenerateSubtasksResponse,
+    HourEstimate,
     RescheduleRequest,
     RescheduleResponse,
     SimilarTaskResponse,
@@ -279,6 +280,35 @@ async def similar_tasks(
         SimilarTaskResponse(id=task.id, title=task.title, status=task.status, score=sc)
         for sc, task in scored[:5]
     ]
+
+
+@router.get("/estimate-hours", response_model=HourEstimate)
+async def estimate_hours(
+    db: DbDep,
+    current_user: CurrentUser,
+    tags: list[str] = Query(default=[]),  # noqa: B008
+) -> HourEstimate:
+    if not tags:
+        return HourEstimate(avg_actual_hours=None, task_count=0)
+
+    similar_ids = select(TaskTag.task_id).where(TaskTag.tag.in_(tags)).distinct()
+    result = await db.execute(
+        select(
+            func.avg(TaskWorkHour.actual_hours).label("avg_hours"),
+            func.count(distinct(TaskWorkHour.task_id)).label("task_count"),
+        )
+        .join(Task, Task.id == TaskWorkHour.task_id)
+        .where(
+            TaskWorkHour.task_id.in_(similar_ids),
+            Task.status == "completed",
+            TaskWorkHour.actual_hours.is_not(None),
+        )
+    )
+    row = result.one()
+    return HourEstimate(
+        avg_actual_hours=float(row.avg_hours) if row.avg_hours is not None else None,
+        task_count=row.task_count or 0,
+    )
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
