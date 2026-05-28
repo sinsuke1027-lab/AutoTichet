@@ -441,7 +441,10 @@ export default function TaskList() {
       <Modal
         title="引き継ぎ書"
         open={handoverOpen}
-        onCancel={() => setHandoverOpen(false)}
+        onCancel={() => {
+          setHandoverOpen(false)
+          setHandoverDoc('')
+        }}
         width={720}
         footer={
           <Button
