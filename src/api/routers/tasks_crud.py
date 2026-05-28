@@ -291,13 +291,20 @@ async def estimate_hours(
     tags: list[str] = Query(default=[]),  # noqa: B008
 ) -> HourEstimate:
     if not tags:
-        return HourEstimate(avg_actual_hours=None, task_count=0)
+        return HourEstimate(
+            avg_actual_hours=None,
+            min_actual_hours=None,
+            max_actual_hours=None,
+            task_count=0,
+        )
 
     similar_ids = select(TaskTag.task_id).where(TaskTag.tag.in_(tags)).distinct()
     result = await db.execute(
         select(
-            func.avg(TaskWorkHour.actual_hours).label("avg_hours"),
-            func.count(distinct(TaskWorkHour.task_id)).label("task_count"),
+            func.avg(TaskWorkHour.actual_hours).label("avg"),
+            func.min(TaskWorkHour.actual_hours).label("min"),
+            func.max(TaskWorkHour.actual_hours).label("max"),
+            func.count(distinct(TaskWorkHour.task_id)).label("cnt"),
         )
         .join(Task, Task.id == TaskWorkHour.task_id)
         .where(
@@ -308,8 +315,10 @@ async def estimate_hours(
     )
     row = result.one()
     return HourEstimate(
-        avg_actual_hours=float(row.avg_hours) if row.avg_hours is not None else None,
-        task_count=row.task_count or 0,
+        avg_actual_hours=float(row.avg) if row.avg is not None else None,
+        min_actual_hours=float(row.min) if row.min is not None else None,
+        max_actual_hours=float(row.max) if row.max is not None else None,
+        task_count=row.cnt or 0,
     )
 
 
