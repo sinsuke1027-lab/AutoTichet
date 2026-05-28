@@ -102,11 +102,6 @@ export default function ExtractModal({ open, onClose }: Props) {
     )
   }
 
-  const handleForceExtract = async () => {
-    setPatternB(false)
-    await handleExtract()
-  }
-
   const toggleSelect = (id: string) => {
     setCandidates((prev) =>
       prev.map((c) => (c._id === id ? { ...c, selected: !c.selected } : c)),
@@ -229,16 +224,11 @@ export default function ExtractModal({ open, onClose }: Props) {
               <Alert
                 type="warning"
                 message="機密データが検知されました"
-                description="このテキストには社外秘キーワードが含まれています。外部 LLM には送信されません。"
+                description="社外秘キーワードが含まれているため、外部 LLM への送信をブロックしました。テキストを変更するか、担当者に相談してください。"
                 action={
-                  <Space direction="vertical">
-                    <Button size="small" danger onClick={handleForceExtract}>
-                      それでも送信
-                    </Button>
-                    <Button size="small" onClick={() => { setPatternB(false); extractTasks.reset() }}>
-                      キャンセル
-                    </Button>
-                  </Space>
+                  <Button size="small" onClick={() => { setPatternB(false); extractTasks.reset() }}>
+                    閉じる
+                  </Button>
                 }
               />
             )}
