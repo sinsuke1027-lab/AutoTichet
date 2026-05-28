@@ -334,12 +334,12 @@ async def extract_from_text(
     if sensitivity.label == "pattern_b":
         return ExtractResponse(tasks=[], skipped_reason="機密データ（Pattern B）")
 
-    if not settings.google_api_key:
+    if not settings.gemini_api_key:
         raise HTTPException(status_code=503, detail="LLM API が設定されていません")
 
     from src.providers.gemini import GeminiProvider
 
-    provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+    provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
     try:
         extracted = await provider.extract_tasks(body.text, body.source_type)
     except Exception:
@@ -561,10 +561,10 @@ async def generate_subtasks(
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
 
     settings = get_settings()
-    if not settings.google_api_key:
+    if not settings.gemini_api_key:
         raise HTTPException(status_code=503, detail="Gemini API キーが設定されていません")
 
-    provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+    provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
     try:
         titles = await provider.generate_subtasks(task.title, task.description)
     except Exception:
@@ -604,8 +604,8 @@ async def clarify_requirements_endpoint(
         )
 
     settings = get_settings()
-    if settings.google_api_key:
-        provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+    if settings.gemini_api_key:
+        provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
         try:
             suggestion = await provider.clarify_requirements(task.title, task.description)
             if suggestion:

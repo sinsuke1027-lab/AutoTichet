@@ -41,7 +41,7 @@ def test_clarify_due_date_missing() -> None:
     """due_date が null の場合 due_date issue が返る"""
     from src.models.config import Settings
 
-    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
+    fake_settings = Settings(gemini_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(due_date=None, sub_assignees=[MagicMock()])
     mock_db = AsyncMock()
     mock_result = MagicMock()
@@ -68,7 +68,7 @@ def test_clarify_assignees_missing() -> None:
 
     from src.models.config import Settings
 
-    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
+    fake_settings = Settings(gemini_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(due_date=date.today(), sub_assignees=[])
     mock_db = AsyncMock()
     mock_result = MagicMock()
@@ -95,7 +95,7 @@ def test_clarify_no_issues() -> None:
 
     from src.models.config import Settings
 
-    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
+    fake_settings = Settings(gemini_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(
         due_date=date.today(),
         sub_assignees=[MagicMock()],
@@ -136,7 +136,7 @@ def test_clarify_no_api_key_returns_rule_issues_only(
     from src.models.config import Settings
 
     empty_settings = Settings(
-        google_api_key="",
+        gemini_api_key="",
         database_url="postgresql+asyncpg://x:x@localhost/x",
     )
 
@@ -164,7 +164,7 @@ def test_clarify_gemini_detects_issue() -> None:
 
     from src.models.config import Settings
 
-    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
+    fake_settings = Settings(gemini_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(
         due_date=date.today(),
         sub_assignees=[MagicMock()],
@@ -196,7 +196,7 @@ def test_clarify_gemini_exception_returns_rule_issues() -> None:
     """Gemini が例外を発生させても 200 でルールチェック結果を返す"""
     from src.models.config import Settings
 
-    fake_settings = Settings(google_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
+    fake_settings = Settings(gemini_api_key="fake-key", database_url="postgresql+asyncpg://x:x@localhost/x")
     mock_task = _make_task(due_date=None, sub_assignees=[])
     mock_db = AsyncMock()
     mock_result = MagicMock()

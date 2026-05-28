@@ -24,7 +24,7 @@ def create_llm_provider(settings: Settings) -> LLMProvider:
         case "claude":
             return ClaudeProvider(api_key=settings.anthropic_api_key)
         case "gemini":
-            return GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+            return GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
         case "azure_openai":
             return AzureOpenAIProvider(
                 api_key=settings.azure_openai_api_key,
@@ -55,7 +55,7 @@ def create_vision_provider(settings: Settings) -> VisionLLMProvider:
         case "claude":
             return ClaudeProvider(api_key=settings.anthropic_api_key)
         case "gemini":
-            return GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+            return GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
         case "azure_openai":
             return AzureOpenAIProvider(
                 api_key=settings.azure_openai_api_key,

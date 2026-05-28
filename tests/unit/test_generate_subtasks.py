@@ -75,11 +75,11 @@ def test_generate_subtasks_requires_auth() -> None:
 
 
 def test_generate_subtasks_empty_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """google_api_key が空の場合は 503 を返す"""
+    """gemini_api_key が空の場合は 503 を返す"""
     from src.models.config import Settings, get_settings  # noqa: F401
 
     empty_settings = Settings(
-        google_api_key="",
+        gemini_api_key="",
         database_url="postgresql+asyncpg://x:x@localhost/x",
     )
 
