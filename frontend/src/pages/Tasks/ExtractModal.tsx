@@ -17,9 +17,10 @@ import {
   Space,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd'
-import { EditOutlined, RiseOutlined } from '@ant-design/icons'
+import { EditOutlined, RiseOutlined, UploadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useExtractTasks, useCreateTask } from '../../hooks/useTasks'
 import { useUsers } from '../../hooks/useUsers'
@@ -33,6 +34,7 @@ const SOURCE_OPTIONS = [
   { label: 'メール', value: 'email' },
   { label: '会議文字起こし', value: 'meeting' },
   { label: 'チャット', value: 'chat' },
+  { label: 'マニュアル', value: 'manual' },
 ]
 
 const PRIORITY_OPTIONS = [
@@ -76,6 +78,13 @@ export default function ExtractModal({ open, onClose }: Props) {
     setPatternB(false)
     setSourceType('email')
     onClose()
+  }
+
+  const handleFileUpload = (file: File): false => {
+    const reader = new FileReader()
+    reader.onload = (e) => setText(e.target?.result as string)
+    reader.readAsText(file, 'UTF-8')
+    return false
   }
 
   const handleExtract = async () => {
@@ -210,13 +219,28 @@ export default function ExtractModal({ open, onClose }: Props) {
                 style={{ display: 'flex', marginTop: 8 }}
               />
             </div>
+            {sourceType === 'manual' && (
+              <Upload
+                accept=".txt"
+                showUploadList={false}
+                beforeUpload={handleFileUpload}
+              >
+                <Button icon={<UploadOutlined />} size="small">
+                  .txt ファイルを読み込む
+                </Button>
+              </Upload>
+            )}
             <div style={{ flex: 1 }}>
               <Text strong>テキスト</Text>
               <TextArea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 rows={14}
-                placeholder="会議文字起こし・メール文面・チャットコメントを貼り付けてください"
+                placeholder={
+                  sourceType === 'manual'
+                    ? '手順書・マニュアルのテキストを貼り付けるか、.txt ファイルを読み込んでください'
+                    : '会議文字起こし・メール文面・チャットコメントを貼り付けてください'
+                }
                 style={{ marginTop: 8, resize: 'vertical' }}
               />
             </div>
