@@ -7,6 +7,7 @@ import {
   Divider,
   Form,
   Input,
+  InputNumber,
   message,
   Modal,
   Progress,
@@ -20,7 +21,7 @@ import {
 } from 'antd'
 import { PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { useTasks, useCreateTask } from '../../hooks/useTasks'
+import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours } from '../../hooks/useTasks'
 import { useProjects } from '../../hooks/useProjects'
 import { useSections } from '../../hooks/useSections'
 import { useSimilarTasks } from '../../hooks/useSimilarTasks'
@@ -55,6 +56,9 @@ export default function TaskList() {
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
+  const watchedTags = (Form.useWatch('tags', form) as string[] | undefined) ?? []
+  const { data: estimate } = useEstimateHours(watchedTags)
+  const recordEstimatedHours = useRecordEstimatedHours()
 
   const { data: taskList, isLoading } = useTasks({
     status: statusFilter || undefined,
@@ -78,18 +82,23 @@ export default function TaskList() {
 
   const handleSearch = () => setSearchQ(keyword)
 
-  const handleCreate = async () => {
-    const values = await form.validateFields()
-    try {
-      await createTask.mutateAsync(
-        values as { title: string; description?: string; visibility?: string },
-      )
-      form.resetFields()
-      setNewTitle('')
-      setOpen(false)
-    } catch {
-      void message.error('タスクの作成に失敗しました')
+  const handleCreate = async (values: Record<string, unknown>) => {
+    const { estimated_hours, ...taskValues } = values as {
+      estimated_hours?: number
+      [key: string]: unknown
     }
+    const created = await createTask.mutateAsync(
+      taskValues as Partial<import('../../lib/api').Task> & { title: string },
+    )
+    if (estimated_hours != null && created?.id) {
+      await recordEstimatedHours.mutateAsync({
+        taskId: created.id as string,
+        estimatedHours: estimated_hours,
+      })
+    }
+    setOpen(false)
+    form.resetFields()
+    setNewTitle('')
   }
 
   const handleApplyTemplate = async () => {
@@ -261,7 +270,14 @@ export default function TaskList() {
       <Modal
         title="新規タスク作成"
         open={open}
-        onOk={() => void handleCreate()}
+        onOk={async () => {
+          try {
+            const values = await form.validateFields()
+            await handleCreate(values as Record<string, unknown>)
+          } catch {
+            void message.error('タスクの作成に失敗しました')
+          }
+        }}
         onCancel={() => {
           setOpen(false)
           form.resetFields()
@@ -327,6 +343,34 @@ export default function TaskList() {
           )}
           <Form.Item name="description" label="説明">
             <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="tags" label="タグ">
+            <Select
+              mode="tags"
+              style={{ width: '100%' }}
+              placeholder="タグを入力（Enter で確定）"
+              tokenSeparators={[',']}
+            />
+          </Form.Item>
+
+          {estimate && estimate.task_count >= 1 && estimate.avg_actual_hours != null ? (
+            <Form.Item label=" " colon={false}>
+              <Tag
+                color="blue"
+                style={{ cursor: 'pointer' }}
+                onClick={() => form.setFieldValue('estimated_hours', estimate.avg_actual_hours)}
+              >
+                🤖 推奨工数: {estimate.avg_actual_hours}h（過去{estimate.task_count}件）
+              </Tag>
+            </Form.Item>
+          ) : watchedTags.length > 0 ? (
+            <Form.Item label=" " colon={false}>
+              <Tag color="default">🤖 データ不足（0件）</Tag>
+            </Form.Item>
+          ) : null}
+
+          <Form.Item name="estimated_hours" label="予定工数（h）">
+            <InputNumber min={0} step={0.5} style={{ width: '100%' }} placeholder="例: 2.0" />
           </Form.Item>
           <Form.Item name="visibility" label="公開範囲" initialValue="team">
             <Select
