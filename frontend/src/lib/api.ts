@@ -50,11 +50,21 @@ export interface Task {
   subtask_done_count?: number
   created_at: string
   updated_at: string
+  risk_level?: 'high' | 'medium' | null
 }
 
 export interface TaskListResponse {
   items: Task[]
   total: number
+}
+
+export interface StaleTaskItem {
+  id: string
+  title: string
+  assignee_id: string | null
+  due_date: string | null
+  updated_at: string
+  days_stale: number
 }
 
 export interface Project {

@@ -127,7 +127,11 @@ export default function TaskList() {
       dataIndex: 'title',
       key: 'title',
       render: (title: string, rec: Task) => (
-        <a onClick={() => navigate(`/tasks/${rec.id}`)}>{title}</a>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <a onClick={() => navigate(`/tasks/${rec.id}`)}>{title}</a>
+          {rec.risk_level === 'high' && <Tag color="red">高リスク</Tag>}
+          {rec.risk_level === 'medium' && <Tag color="orange">要注意</Tag>}
+        </span>
       ),
     },
     {
