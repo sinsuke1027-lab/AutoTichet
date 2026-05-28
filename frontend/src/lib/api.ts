@@ -69,6 +69,8 @@ export interface StaleTaskItem {
 
 export interface HourEstimate {
   avg_actual_hours: number | null
+  min_actual_hours: number | null
+  max_actual_hours: number | null
   task_count: number
 }
 
