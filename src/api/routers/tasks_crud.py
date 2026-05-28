@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +15,8 @@ from sqlalchemy.orm import selectinload
 from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.db.engine import get_db
 from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, TaskWorkHour, UserProfile
-from src.models.config import get_settings
+from src.models.config import Settings, get_settings
+from src.models.task import ExtractedTask
 from src.models.task_web import (
     ClarifyIssue,
     ClarifyRequirementsResponse,
@@ -309,6 +311,41 @@ async def estimate_hours(
         avg_actual_hours=float(row.avg_hours) if row.avg_hours is not None else None,
         task_count=row.task_count or 0,
     )
+
+
+class ExtractRequest(BaseModel):
+    text: str
+    source_type: str = "email"
+
+
+class ExtractResponse(BaseModel):
+    tasks: list[ExtractedTask]
+    skipped_reason: str | None = None
+
+
+@router.post("/extract", response_model=ExtractResponse)
+async def extract_from_text(
+    body: ExtractRequest,
+    settings: Settings = Depends(get_settings),  # noqa: B008
+) -> ExtractResponse:
+    from src.services.classifier import classify_sensitivity
+
+    sensitivity = classify_sensitivity(body.text)
+    if sensitivity.label == "pattern_b":
+        return ExtractResponse(tasks=[], skipped_reason="機密データ（Pattern B）")
+
+    if not settings.google_api_key:
+        raise HTTPException(status_code=503, detail="LLM API が設定されていません")
+
+    from src.providers.gemini import GeminiProvider
+
+    provider = GeminiProvider(api_key=settings.google_api_key, model=settings.gemini_model)
+    try:
+        extracted = await provider.extract_tasks(body.text, body.source_type)
+    except Exception:
+        logger.exception("extract_tasks failed")
+        raise HTTPException(status_code=503, detail="LLM によるタスク抽出に失敗しました")
+    return ExtractResponse(tasks=extracted)
 
 
 @router.get("/{task_id}", response_model=TaskResponse)

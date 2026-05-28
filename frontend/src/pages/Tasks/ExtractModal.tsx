@@ -235,7 +235,7 @@ export default function ExtractModal({ open, onClose }: Props) {
                     <Button size="small" danger onClick={handleForceExtract}>
                       それでも送信
                     </Button>
-                    <Button size="small" onClick={() => setPatternB(false)}>
+                    <Button size="small" onClick={() => { setPatternB(false); extractTasks.reset() }}>
                       キャンセル
                     </Button>
                   </Space>
