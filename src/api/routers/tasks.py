@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from src.models.config import Settings, get_settings
+from src.models.task import ExtractedTask
 from src.services.classifier import classify_sensitivity
 from src.services.langfuse_client import get_langfuse_client
 
@@ -15,11 +16,16 @@ class ExtractRequest(BaseModel):
     source_type: str = "email"
 
 
-@router.post("/extract")
+class ExtractResponse(BaseModel):
+    tasks: list[ExtractedTask]
+    skipped_reason: str | None = None
+
+
+@router.post("/extract", response_model=ExtractResponse)
 async def extract_from_text(
     body: ExtractRequest,
     settings: Settings = Depends(get_settings),  # noqa: B008
-) -> dict[str, object]:
+) -> ExtractResponse:
     langfuse = get_langfuse_client(settings)
     ctx = (
         langfuse.start_as_current_observation(
@@ -43,24 +49,24 @@ async def extract_from_text(
             )
 
         if sensitivity.label == "pattern_b":
-            result: dict[str, object] = {"tasks": [], "skipped_reason": "機密データ（Pattern B）"}
+            result = ExtractResponse(tasks=[], skipped_reason="機密データ（Pattern B）")
             if langfuse:
                 langfuse.set_current_trace_io(
                     input={"text": body.text, "source_type": body.source_type},
-                    output=result,
+                    output=result.model_dump(),
                 )
             return result
 
         from src.providers.factory import create_llm_provider
 
         provider = create_llm_provider(settings)
-        tasks = await provider.extract_tasks(body.text, body.source_type)
-        result = {"tasks": [t.model_dump() for t in tasks]}
+        extracted = await provider.extract_tasks(body.text, body.source_type)
+        result = ExtractResponse(tasks=extracted)
 
         if langfuse:
             langfuse.set_current_trace_io(
                 input={"text": body.text, "source_type": body.source_type},
-                output=result,
+                output=result.model_dump(),
             )
 
         return result
