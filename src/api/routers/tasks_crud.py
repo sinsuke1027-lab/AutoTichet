@@ -337,6 +337,7 @@ class ExtractResponse(BaseModel):
 @router.post("/extract", response_model=ExtractResponse)
 async def extract_from_text(
     body: ExtractRequest,
+    current_user: CurrentUser,
     settings: Settings = Depends(get_settings),  # noqa: B008
 ) -> ExtractResponse:
     from src.services.classifier import classify_sensitivity
