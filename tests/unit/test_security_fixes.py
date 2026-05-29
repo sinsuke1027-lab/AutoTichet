@@ -1,12 +1,12 @@
-import uuid
-from unittest.mock import AsyncMock, MagicMock
+import uuid  # noqa: F401
+from unittest.mock import AsyncMock, MagicMock  # noqa: F401
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api.auth import TokenPayload, get_current_user
 from src.api.routers.tasks_crud import router
-from src.db.engine import get_db
+from src.db.engine import get_db  # noqa: F401
 
 _member = TokenPayload(sub="user-1", name="Test", email="t@t.com", roles=["member"], tid="tid")
 _manager = TokenPayload(sub="mgr-1", name="Mgr", email="m@t.com", roles=["manager"], tid="tid")
