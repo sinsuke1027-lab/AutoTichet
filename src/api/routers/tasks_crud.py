@@ -449,6 +449,9 @@ async def update_task(
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+    if task.assignee_id != current_user.sub and user_role < ROLE_HIERARCHY.get("manager", 2):
+        raise HTTPException(status_code=403, detail="このタスクを操作する権限がありません")
     for field, value in body.model_dump(exclude_unset=True, exclude={"tags"}).items():
         setattr(task, field, value)
     if body.tags is not None:
@@ -486,6 +489,9 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
     original = result.scalar_one_or_none()
     if original is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+    if original.assignee_id != current_user.sub and user_role < ROLE_HIERARCHY.get("manager", 2):
+        raise HTTPException(status_code=403, detail="このタスクを操作する権限がありません")
 
     new_task = Task(
         title=f"{original.title}（コピー）",
@@ -520,6 +526,9 @@ async def delete_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) 
     task = result.scalar_one_or_none()
     if task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+    if task.assignee_id != current_user.sub and user_role < ROLE_HIERARCHY.get("manager", 2):
+        raise HTTPException(status_code=403, detail="このタスクを操作する権限がありません")
     await db.delete(task)
     await db.commit()
 
