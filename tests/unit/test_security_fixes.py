@@ -1,6 +1,6 @@
 import asyncio
 import uuid  # noqa: F401
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock  # noqa: F401
 
 from fastapi import FastAPI
@@ -87,8 +87,8 @@ def _make_mock_task(assignee_id: str = "owner-1") -> MagicMock:
     task.completed_at = None
     task.order_index = 0
     task.created_by = "owner-1"
-    task.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    task.updated_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    task.created_at = datetime(2026, 1, 1, tzinfo=UTC)
+    task.updated_at = datetime(2026, 1, 1, tzinfo=UTC)
     return task
 
 
