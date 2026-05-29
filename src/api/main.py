@@ -34,6 +34,7 @@ from src.services.routing import route_task
 from src.services.state import init_db, is_processed, mark_processed
 
 scheduler = AsyncIOScheduler()
+logger = logging.getLogger(__name__)
 
 
 async def _run_agent_and_route(
@@ -205,6 +206,8 @@ async def polling_job() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
     settings = get_settings()
+    if settings.dev_mode:
+        logger.critical("DEV_MODE=true が有効です。本番環境では絶対に使用しないでください。")
     scheduler.add_job(
         polling_job,
         "interval",
