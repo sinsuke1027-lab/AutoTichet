@@ -379,9 +379,8 @@ async def generate_handover(
 
     result = await db.execute(
         select(Task)
-        .join(TaskAssignee, TaskAssignee.task_id == Task.id)
         .where(
-            TaskAssignee.user_id == target_user_id,
+            Task.assignee_id == target_user_id,
             Task.status.notin_(["completed", "cancelled"]),
         )
         .options(selectinload(Task.comments))
