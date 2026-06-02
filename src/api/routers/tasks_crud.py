@@ -75,6 +75,8 @@ _CSV_HEADERS = [
     "更新日時",
 ]
 
+MAX_EXPORT_ROWS = 10_000
+
 
 def _compute_risk_level(task: Task) -> str | None:
     """due_date・status・work_hours から遅延リスクレベルを返す純粋関数。"""
@@ -537,7 +539,9 @@ async def export_tasks_csv(
             or_(Task.project_id.is_(None), Project.status != "archived")
         )
 
-    result = await db.execute(query.order_by(Task.due_date.asc().nulls_last()))
+    result = await db.execute(
+        query.order_by(Task.due_date.asc().nulls_last()).limit(MAX_EXPORT_ROWS)
+    )
     tasks = result.scalars().all()
 
     output = io.StringIO()
@@ -545,7 +549,9 @@ async def export_tasks_csv(
     writer = csv.writer(output)
     writer.writerow(_CSV_HEADERS)
     for task in tasks:
-        wh = task.work_hours[0] if task.work_hours else None
+        work_hours: list[TaskWorkHour] = task.work_hours or []
+        est_total = sum(w.estimated_hours for w in work_hours if w.estimated_hours is not None)
+        act_total = sum(w.actual_hours for w in work_hours if w.actual_hours is not None)
         writer.writerow(
             [
                 str(task.id),
@@ -561,8 +567,8 @@ async def export_tasks_csv(
                 task.section.name if task.section else "",
                 ",".join(t.tag for t in task.tags),
                 task.description or "",
-                str(wh.estimated_hours) if wh and wh.estimated_hours is not None else "",
-                str(wh.actual_hours) if wh and wh.actual_hours is not None else "",
+                str(est_total) if est_total else "",
+                str(act_total) if act_total else "",
                 _compute_risk_level(task) or "",
                 str(task.confidence_score) if task.confidence_score is not None else "",
                 task.source_type or "",
