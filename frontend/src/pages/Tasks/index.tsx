@@ -56,6 +56,7 @@ export default function TaskList() {
   const [keyword, setKeyword] = useState('')
   const [searchQ, setSearchQ] = useState('')
   const [myTasksOnly, setMyTasksOnly] = useState(false)
+  const [includeArchivedProjects, setIncludeArchivedProjects] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
   const [extractModalOpen, setExtractModalOpen] = useState(false)
@@ -87,6 +88,7 @@ export default function TaskList() {
     section_id: sectionFilter,
     q: searchQ || undefined,
     my_tasks_only: myTasksOnly || undefined,
+    include_archived_projects: includeArchivedProjects || undefined,
   })
   const { data: projects = [] } = useProjects()
   const { data: sections = [] } = useSections(projectFilter)
@@ -307,6 +309,13 @@ export default function TaskList() {
             }}
           />
           <span>自分の ToDo のみ</span>
+        </Space>
+        <Space>
+          <Switch
+            checked={includeArchivedProjects}
+            onChange={setIncludeArchivedProjects}
+          />
+          <span>アーカイブ済みプロジェクトを含む</span>
         </Space>
       </Space>
 
