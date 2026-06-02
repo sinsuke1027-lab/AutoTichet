@@ -51,6 +51,7 @@ export interface Task {
   created_at: string
   updated_at: string
   risk_level?: 'high' | 'medium' | null
+  order_index?: number
 }
 
 export interface TaskListResponse {

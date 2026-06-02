@@ -81,6 +81,30 @@ export function useDeleteTask() {
   })
 }
 
+export function useReorderTask() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      beforeId,
+      afterId,
+    }: {
+      taskId: string
+      beforeId: string | null
+      afterId: string | null
+    }) => {
+      await api.patch(`/tasks/${taskId}/order`, {
+        before_id: beforeId,
+        after_id: afterId,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
+    },
+  })
+}
+
 export function useEstimateHours(tags: string[]) {
   return useQuery<HourEstimate>({
     queryKey: ['tasks', 'estimate-hours', tags],
