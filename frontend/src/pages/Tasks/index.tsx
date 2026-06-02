@@ -57,6 +57,7 @@ export default function TaskList() {
   const [searchQ, setSearchQ] = useState('')
   const [myTasksOnly, setMyTasksOnly] = useState(false)
   const [includeArchivedProjects, setIncludeArchivedProjects] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
   const [extractModalOpen, setExtractModalOpen] = useState(false)
@@ -105,6 +106,8 @@ export default function TaskList() {
   const handleSearch = () => setSearchQ(keyword)
 
   const handleExportCsv = async () => {
+    if (exporting) return
+    setExporting(true)
     const params: Record<string, string> = {}
     if (statusFilter) params['status'] = statusFilter
     if (projectFilter) params['project_id'] = projectFilter
@@ -123,10 +126,17 @@ export default function TaskList() {
       const a = document.createElement('a')
       a.href = url
       a.download = `tasks_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
+      try {
+        document.body.appendChild(a)
+        a.click()
+      } finally {
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
     } catch {
       void message.error('CSV のエクスポートに失敗しました')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -252,7 +262,7 @@ export default function TaskList() {
               style={{ width: 180 }}
             />
           )}
-          <Button icon={<DownloadOutlined />} onClick={() => void handleExportCsv()}>
+          <Button icon={<DownloadOutlined />} loading={exporting} onClick={() => void handleExportCsv()}>
             CSV エクスポート
           </Button>
           <Button
