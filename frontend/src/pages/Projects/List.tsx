@@ -103,7 +103,7 @@ export default function ProjectList() {
                           onClick: ({ key, domEvent }) => {
                             domEvent.stopPropagation()
                             if (key === 'archive') void handleArchive(p.id)
-                            else void handleUnarchive(p.id)
+                            else if (key === 'unarchive') void handleUnarchive(p.id)
                           },
                         }}
                         trigger={['click']}

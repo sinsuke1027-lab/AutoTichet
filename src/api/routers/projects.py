@@ -94,6 +94,7 @@ async def update_project(
     project = result.scalar_one_or_none()
     if project is None:
         raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
+    _check_project_permission(project, current_user)
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(project, field, value)
     await db.commit()
