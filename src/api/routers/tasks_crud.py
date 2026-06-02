@@ -550,8 +550,8 @@ async def export_tasks_csv(
     writer.writerow(_CSV_HEADERS)
     for task in tasks:
         work_hours: list[TaskWorkHour] = task.work_hours or []
-        est_total = sum(w.estimated_hours for w in work_hours if w.estimated_hours is not None)
-        act_total = sum(w.actual_hours for w in work_hours if w.actual_hours is not None)
+        est_total = sum(w.estimated_hours for w in work_hours if w.estimated_hours)
+        act_total = sum(w.actual_hours for w in work_hours if w.actual_hours)
         writer.writerow(
             [
                 str(task.id),
