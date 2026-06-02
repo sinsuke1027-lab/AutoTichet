@@ -254,3 +254,13 @@ export const generateHandover = async (assigneeId?: string): Promise<HandoverRes
   })
   return data
 }
+
+export async function archiveProject(id: string): Promise<Project> {
+  const { data } = await api.patch<Project>(`/projects/${id}/archive`)
+  return data
+}
+
+export async function unarchiveProject(id: string): Promise<Project> {
+  const { data } = await api.patch<Project>(`/projects/${id}/unarchive`)
+  return data
+}

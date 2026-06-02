@@ -11,6 +11,7 @@ interface TaskFilters {
   limit?: number
   offset?: number
   my_tasks_only?: boolean
+  include_archived_projects?: boolean
 }
 
 export function useTasks(filters: TaskFilters = {}) {
