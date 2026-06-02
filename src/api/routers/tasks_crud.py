@@ -14,7 +14,15 @@ from sqlalchemy.orm import selectinload
 
 from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.db.engine import get_db
-from src.db.models import Task, TaskAssignee, TaskDependency, TaskTag, TaskWorkHour, UserProfile
+from src.db.models import (
+    Project,
+    Task,
+    TaskAssignee,
+    TaskDependency,
+    TaskTag,
+    TaskWorkHour,
+    UserProfile,
+)
 from src.models.config import Settings, get_settings
 from src.models.task import ExtractedTask
 from src.models.task_web import (
@@ -128,6 +136,7 @@ async def list_tasks(
     due_date_lte: date | None = Query(default=None),
     assignee_ids: list[str] | None = Query(default=None),
     my_tasks_only: bool = Query(default=False),
+    include_archived_projects: bool = Query(default=False),
 ) -> TaskListResponse:
     query = select(Task).options(
         selectinload(Task.tags),
@@ -194,6 +203,12 @@ async def list_tasks(
                 )
             )
     # manager / admin はフィルタなし（全件）
+
+    # アーカイブ済みプロジェクトのタスクを除外（project_id=None の個人 ToDo は対象外）
+    if not include_archived_projects:
+        query = query.outerjoin(Project, Task.project_id == Project.id).where(
+            or_(Task.project_id.is_(None), Project.status != "archived")
+        )
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
