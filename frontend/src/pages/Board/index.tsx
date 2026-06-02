@@ -4,17 +4,22 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Card, Select, Space, Spin, Tag, Typography } from 'antd'
 import { useProjects } from '../../hooks/useProjects'
 import { useTasksForView } from '../../hooks/useTasksForView'
-import { useUpdateTask } from '../../hooks/useTasks'
+import { useUpdateTask, useReorderTask } from '../../hooks/useTasks'
 import type { Task } from '../../lib/api'
 
 const { Title } = Typography
@@ -34,13 +39,14 @@ const PRIORITY_COLORS: Record<string, string> = {
 }
 
 function TaskCard({ task, onCardClick }: { task: Task; onCardClick: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
 
   return (
     <div
       ref={setNodeRef}
       style={{
         transform: CSS.Transform.toString(transform),
+        transition,
         opacity: isDragging ? 0.3 : 1,
         marginBottom: 8,
         cursor: isDragging ? 'grabbing' : 'grab',
@@ -107,9 +113,11 @@ function KanbanColumn({
         {label}{' '}
         <span style={{ color: '#888', fontSize: 13 }}>({tasks.length})</span>
       </div>
-      {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} onCardClick={() => onCardClick(task.id)} />
-      ))}
+      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        {tasks.map((task) => (
+          <TaskCard key={task.id} task={task} onCardClick={() => onCardClick(task.id)} />
+        ))}
+      </SortableContext>
     </div>
   )
 }
@@ -123,6 +131,7 @@ export default function Board() {
   const { data: projects = [] } = useProjects()
   const { data: tasks = [], isLoading } = useTasksForView({ project_id: projectId })
   const updateTask = useUpdateTask()
+  const reorderTask = useReorderTask()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -150,12 +159,44 @@ export default function Board() {
       dragOccurredRef.current = false
       return
     }
-    const overColKey = columns.find((c) => c.key === String(over.id))?.key
-    if (!overColKey) {
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    // active タスクが属するカラムを特定
+    const activeColKey = STATUS_COLUMNS.find((col) =>
+      (columnTasks[col.key] ?? []).some((t) => t.id === activeId)
+    )?.key
+
+    // over がカラムキーかタスク ID かを判定してカラムを特定
+    const overColKey =
+      STATUS_COLUMNS.find((col) => col.key === overId)?.key ??
+      STATUS_COLUMNS.find((col) => (columnTasks[col.key] ?? []).some((t) => t.id === overId))?.key
+
+    if (!activeColKey || !overColKey) {
       dragOccurredRef.current = false
       return
     }
-    updateTask.mutate({ id: String(active.id), status: overColKey })
+
+    if (activeColKey === overColKey) {
+      // 同一カラム内の並び替え
+      const colTasks = columnTasks[activeColKey] ?? []
+      const activeIndex = colTasks.findIndex((t) => t.id === activeId)
+      const overIndex = colTasks.findIndex((t) => t.id === overId)
+      if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
+        const newOrder = arrayMove(colTasks, activeIndex, overIndex)
+        const beforeTask = overIndex > 0 ? newOrder[overIndex - 1] : null
+        const afterTask = overIndex < newOrder.length - 1 ? newOrder[overIndex + 1] : null
+        reorderTask.mutate({
+          taskId: activeId,
+          beforeId: beforeTask?.id ?? null,
+          afterId: afterTask?.id ?? null,
+        })
+      }
+    } else {
+      // 別カラムへのドロップ → ステータス更新
+      updateTask.mutate({ id: activeId, status: overColKey })
+    }
+
     // dragOccurredRef は次の click イベントのタイミングでリセットするため setTimeout を使う
     setTimeout(() => { dragOccurredRef.current = false }, 100)
   }
