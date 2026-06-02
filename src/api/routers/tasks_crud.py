@@ -1,3 +1,5 @@
+import csv
+import io
 import logging
 import re
 import uuid
@@ -6,6 +8,7 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import distinct, func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
@@ -48,6 +51,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
+
+_CSV_HEADERS = [
+    "ID",
+    "タイトル",
+    "ステータス",
+    "優先度",
+    "担当者",
+    "サブ担当者",
+    "開始日",
+    "期限日",
+    "完了日時",
+    "プロジェクト名",
+    "セクション名",
+    "タグ",
+    "説明",
+    "見積工数(h)",
+    "実績工数(h)",
+    "リスクレベル",
+    "信頼スコア",
+    "ソース種別",
+    "作成日時",
+    "更新日時",
+]
 
 
 def _compute_risk_level(task: Task) -> str | None:
@@ -429,6 +455,128 @@ async def generate_handover(
         )
 
     return GenerateHandoverResponse(document=document)
+
+
+@router.get("/export/csv")
+async def export_tasks_csv(
+    db: DbDep,
+    current_user: CurrentUser,
+    status_filter: TaskStatus | None = Query(default=None, alias="status"),  # noqa: B008
+    assignee: str | None = None,
+    project_id: uuid.UUID | None = None,
+    section_id: uuid.UUID | None = None,
+    tag: str | None = None,
+    q: str | None = None,
+    due_date_gte: date | None = Query(default=None),
+    due_date_lte: date | None = Query(default=None),
+    assignee_ids: list[str] | None = Query(default=None),
+    my_tasks_only: bool = Query(default=False),
+    include_archived_projects: bool = Query(default=False),
+) -> StreamingResponse:
+    query = select(Task).options(
+        selectinload(Task.tags),
+        selectinload(Task.sub_assignees),
+        selectinload(Task.work_hours),
+        selectinload(Task.project),
+        selectinload(Task.section),
+    )
+    if status_filter:
+        query = query.where(Task.status == status_filter.value)
+    if assignee:
+        query = query.where(Task.assignee_id == assignee)
+    if project_id:
+        query = query.where(Task.project_id == project_id)
+    if section_id:
+        query = query.where(Task.section_id == section_id)
+    if tag:
+        query = query.where(Task.id.in_(select(TaskTag.task_id).where(TaskTag.tag == tag)))
+    if q:
+        like = f"%{q}%"
+        query = query.where(Task.title.ilike(like) | Task.description.ilike(like))
+    if due_date_gte:
+        query = query.where(Task.due_date >= due_date_gte)
+    if due_date_lte:
+        query = query.where(Task.due_date <= due_date_lte)
+    if assignee_ids:
+        query = query.where(Task.assignee_id.in_(assignee_ids))
+    if my_tasks_only:
+        query = query.where(
+            Task.assignee_id == current_user.sub,
+            Task.visibility == "private",
+        )
+    user_role = max(
+        (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
+        default=0,
+    )
+    if not my_tasks_only and user_role < ROLE_HIERARCHY["manager"]:
+        if user_role >= ROLE_HIERARCHY["leader"]:
+            if current_user.department_tags:
+                dept_result = await db.execute(
+                    select(UserProfile.user_id).where(
+                        UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags))
+                    )
+                )
+                dept_user_ids = list(dept_result.scalars().all())
+                query = query.where(
+                    or_(
+                        Task.assignee_id.in_(dept_user_ids),
+                        Task.visibility == "all",
+                    )
+                )
+            else:
+                query = query.where(Task.visibility == "all")
+        else:
+            query = query.where(
+                or_(
+                    Task.assignee_id == current_user.sub,
+                    Task.visibility == "all",
+                )
+            )
+    if not include_archived_projects:
+        query = query.outerjoin(Project, Task.project_id == Project.id).where(
+            or_(Task.project_id.is_(None), Project.status != "archived")
+        )
+
+    result = await db.execute(query.order_by(Task.due_date.asc().nulls_last()))
+    tasks = result.scalars().all()
+
+    output = io.StringIO()
+    output.write("﻿")  # UTF-8 BOM（Excel 文字化け防止）
+    writer = csv.writer(output)
+    writer.writerow(_CSV_HEADERS)
+    for task in tasks:
+        wh = task.work_hours[0] if task.work_hours else None
+        writer.writerow(
+            [
+                str(task.id),
+                task.title,
+                task.status,
+                task.priority,
+                task.assignee_id or "",
+                ",".join(a.user_id for a in task.sub_assignees),
+                str(task.start_date) if task.start_date else "",
+                str(task.due_date) if task.due_date else "",
+                task.completed_at.isoformat() if task.completed_at else "",
+                task.project.name if task.project else "",
+                task.section.name if task.section else "",
+                ",".join(t.tag for t in task.tags),
+                task.description or "",
+                str(wh.estimated_hours) if wh and wh.estimated_hours is not None else "",
+                str(wh.actual_hours) if wh and wh.actual_hours is not None else "",
+                _compute_risk_level(task) or "",
+                str(task.confidence_score) if task.confidence_score is not None else "",
+                task.source_type or "",
+                task.created_at.isoformat(),
+                task.updated_at.isoformat(),
+            ]
+        )
+
+    filename = f"tasks_{date.today().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
