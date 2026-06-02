@@ -28,6 +28,24 @@ def _check_project_permission(project: Project, current_user: CurrentUser) -> No
         raise HTTPException(status_code=403, detail="このプロジェクトを操作する権限がありません")
 
 
+async def _set_project_status(
+    project_id: uuid.UUID,
+    new_status: str,
+    db: AsyncSession,
+    current_user: CurrentUser,
+) -> ProjectResponse:
+    """プロジェクトのステータスを更新するヘルパー関数。"""
+    result = await db.execute(select(Project).where(Project.id == project_id))
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
+    _check_project_permission(project, current_user)
+    project.status = new_status
+    await db.commit()
+    await db.refresh(project)
+    return ProjectResponse.model_validate(project)
+
+
 @router.get("", response_model=list[ProjectResponse])
 async def list_projects(
     db: DbDep,
@@ -87,30 +105,14 @@ async def update_project(
 async def archive_project(
     project_id: uuid.UUID, db: DbDep, current_user: CurrentUser
 ) -> ProjectResponse:
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
-    _check_project_permission(project, current_user)
-    project.status = "archived"
-    await db.commit()
-    await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await _set_project_status(project_id, "archived", db, current_user)
 
 
 @router.patch("/{project_id}/unarchive", response_model=ProjectResponse)
 async def unarchive_project(
     project_id: uuid.UUID, db: DbDep, current_user: CurrentUser
 ) -> ProjectResponse:
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if project is None:
-        raise HTTPException(status_code=404, detail="プロジェクトが見つかりません")
-    _check_project_permission(project, current_user)
-    project.status = "active"
-    await db.commit()
-    await db.refresh(project)
-    return ProjectResponse.model_validate(project)
+    return await _set_project_status(project_id, "active", db, current_user)
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
