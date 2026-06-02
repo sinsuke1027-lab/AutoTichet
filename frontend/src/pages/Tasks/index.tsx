@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { CopyOutlined, FileTextOutlined, PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
+import { CopyOutlined, DownloadOutlined, FileTextOutlined, PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useMutation } from '@tanstack/react-query'
 import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours } from '../../hooks/useTasks'
@@ -30,7 +30,7 @@ import { useUsers } from '../../hooks/useUsers'
 import { useTemplates, useApplyTemplate } from '../../hooks/useTemplates'
 import { useAuthStore } from '../../store/useAuthStore'
 import type { Task } from '../../lib/api'
-import { generateHandover } from '../../lib/api'
+import api, { generateHandover } from '../../lib/api'
 import ExtractModal from './ExtractModal'
 
 const ROLE_LEVEL: Record<string, number> = { member: 0, leader: 1, manager: 2, admin: 3 }
@@ -103,6 +103,32 @@ export default function TaskList() {
   )
 
   const handleSearch = () => setSearchQ(keyword)
+
+  const handleExportCsv = async () => {
+    const params: Record<string, string> = {}
+    if (statusFilter) params['status'] = statusFilter
+    if (projectFilter) params['project_id'] = projectFilter
+    if (sectionFilter) params['section_id'] = sectionFilter
+    if (assigneeFilter) params['assignee'] = assigneeFilter
+    if (searchQ) params['q'] = searchQ
+    if (myTasksOnly) params['my_tasks_only'] = 'true'
+    if (includeArchivedProjects) params['include_archived_projects'] = 'true'
+
+    try {
+      const { data } = await api.get<Blob>('/tasks/export/csv', {
+        params,
+        responseType: 'blob',
+      })
+      const url = URL.createObjectURL(data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `tasks_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      void message.error('CSV のエクスポートに失敗しました')
+    }
+  }
 
   const handleCreate = async (values: Record<string, unknown>) => {
     const { estimated_hours, ...taskValues } = values as {
@@ -226,6 +252,9 @@ export default function TaskList() {
               style={{ width: 180 }}
             />
           )}
+          <Button icon={<DownloadOutlined />} onClick={() => void handleExportCsv()}>
+            CSV エクスポート
+          </Button>
           <Button
             icon={<FileTextOutlined />}
             loading={generateHandoverMutation.isPending}
