@@ -40,6 +40,7 @@ from src.models.task_web import (
     SimilarTaskResponse,
     TaskCreate,
     TaskListResponse,
+    TaskReorderRequest,
     TaskResponse,
     TaskStatus,
     TaskUpdate,
@@ -242,7 +243,9 @@ async def list_tasks(
     total = count_result.scalar_one()
 
     result = await db.execute(
-        query.order_by(Task.due_date.asc().nulls_last()).limit(limit).offset(offset)
+        query.order_by(Task.order_index.asc().nulls_last(), Task.due_date.asc().nulls_last())
+        .limit(limit)
+        .offset(offset)
     )
     items = [_task_to_response(t) for t in result.scalars().all()]
     return TaskListResponse(items=items, total=total)
@@ -257,6 +260,27 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     # （閲覧フィルター: assignee_id==me OR visibility==all に合致させるため）
     if data.get("visibility") == "private" and not data.get("assignee_id"):
         data["assignee_id"] = current_user.sub
+    # セクション内末尾に追加（order_index = 現在の最大値 + 1000.0）
+    section_id_val = data.get("section_id")
+    project_id_val = data.get("project_id")
+    if section_id_val is not None:
+        max_result = await db.execute(
+            select(func.max(Task.order_index)).where(Task.section_id == section_id_val)
+        )
+    elif project_id_val is not None:
+        max_result = await db.execute(
+            select(func.max(Task.order_index)).where(
+                Task.section_id.is_(None), Task.project_id == project_id_val
+            )
+        )
+    else:
+        max_result = await db.execute(
+            select(func.max(Task.order_index)).where(
+                Task.section_id.is_(None), Task.project_id.is_(None)
+            )
+        )
+    max_order = max_result.scalar_one_or_none()
+    data["order_index"] = (float(max_order) if max_order is not None else 0.0) + 1000.0
     task = Task(**data)
     db.add(task)
     await db.flush()
@@ -457,6 +481,81 @@ async def generate_handover(
         )
 
     return GenerateHandoverResponse(document=document)
+
+
+async def _renormalize_section(
+    db: AsyncSession, section_id: uuid.UUID | None, project_id: uuid.UUID | None
+) -> None:
+    """セクション（またはプロジェクト）内の全タスクを 1000.0 刻みで再採番する。"""
+    if section_id is not None:
+        q = select(Task).where(Task.section_id == section_id).order_by(Task.order_index.asc())
+    elif project_id is not None:
+        q = (
+            select(Task)
+            .where(Task.section_id.is_(None), Task.project_id == project_id)
+            .order_by(Task.order_index.asc())
+        )
+    else:
+        q = (
+            select(Task)
+            .where(Task.section_id.is_(None), Task.project_id.is_(None))
+            .order_by(Task.order_index.asc())
+        )
+    result = await db.execute(q)
+    tasks = result.scalars().all()
+    for i, t in enumerate(tasks):
+        t.order_index = float((i + 1) * 1000)
+    await db.flush()
+
+
+@router.patch("/{task_id}/order", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_task(
+    task_id: uuid.UUID,
+    body: TaskReorderRequest,
+    db: DbDep,
+    current_user: CurrentUser,
+) -> None:
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+
+    before_index: float | None = None
+    after_index: float | None = None
+
+    if body.before_id is not None:
+        r = await db.execute(select(Task).where(Task.id == body.before_id))
+        before_task = r.scalar_one_or_none()
+        if before_task:
+            before_index = float(before_task.order_index)
+
+    if body.after_id is not None:
+        r = await db.execute(select(Task).where(Task.id == body.after_id))
+        after_task = r.scalar_one_or_none()
+        if after_task:
+            after_index = float(after_task.order_index)
+
+    if before_index is not None and after_index is not None:
+        if abs(after_index - before_index) < 0.001:
+            await _renormalize_section(db, task.section_id, task.project_id)
+            r2 = await db.execute(select(Task).where(Task.id == body.before_id))
+            b2 = r2.scalar_one_or_none()
+            r3 = await db.execute(select(Task).where(Task.id == body.after_id))
+            a2 = r3.scalar_one_or_none()
+            new_index = (
+                (float(b2.order_index) if b2 else 0.0) + (float(a2.order_index) if a2 else 0.0)
+            ) / 2.0
+        else:
+            new_index = (before_index + after_index) / 2.0
+    elif before_index is not None:
+        new_index = before_index + 1000.0
+    elif after_index is not None:
+        new_index = after_index - 1000.0
+    else:
+        new_index = 1000.0
+
+    task.order_index = new_index
+    await db.commit()
 
 
 @router.get("/export/csv")
