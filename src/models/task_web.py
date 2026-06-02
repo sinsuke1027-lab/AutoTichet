@@ -106,7 +106,7 @@ class TaskResponse(BaseModel):
     confidence_score: float | None = None
     route: str | None = None
     completed_at: datetime | None = None
-    order_index: int = 0
+    order_index: float = 0.0
     created_by: str
     created_at: datetime
     updated_at: datetime
@@ -208,6 +208,11 @@ class SectionResponse(BaseModel):
 class SectionReorderItem(BaseModel):
     id: uuid.UUID
     order_index: int
+
+
+class TaskReorderRequest(BaseModel):
+    before_id: uuid.UUID | None = None
+    after_id: uuid.UUID | None = None
 
 
 # --- TaskAssignee ---
