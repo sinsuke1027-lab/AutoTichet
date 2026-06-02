@@ -19,10 +19,24 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { CopyOutlined, DownloadOutlined, FileTextOutlined, PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
+import { CopyOutlined, DownloadOutlined, FileTextOutlined, HolderOutlined, PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useMutation } from '@tanstack/react-query'
-import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours } from '../../hooks/useTasks'
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours, useReorderTask } from '../../hooks/useTasks'
 import { useProjects } from '../../hooks/useProjects'
 import { useSections } from '../../hooks/useSections'
 import { useSimilarTasks } from '../../hooks/useSimilarTasks'
@@ -43,6 +57,29 @@ const STATUS_OPTIONS = [
   { label: 'キャンセル', value: 'cancelled' },
 ]
 
+interface DraggableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+  'data-row-key': string
+}
+
+function DraggableRow({ 'data-row-key': id, style, ...props }: DraggableRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <tr
+      ref={setNodeRef}
+      style={{
+        ...style,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        background: isDragging ? '#f0f5ff' : undefined,
+      }}
+      {...props}
+      {...attributes}
+      {...listeners}
+    />
+  )
+}
+
 export default function TaskList() {
   const navigate = useNavigate()
   const roles = useAuthStore((s) => s.roles)
@@ -58,6 +95,9 @@ export default function TaskList() {
   const [myTasksOnly, setMyTasksOnly] = useState(false)
   const [includeArchivedProjects, setIncludeArchivedProjects] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const [localItems, setLocalItems] = useState<Task[]>([])
+  const reorderTask = useReorderTask()
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
   const [extractModalOpen, setExtractModalOpen] = useState(false)
@@ -104,6 +144,33 @@ export default function TaskList() {
   )
 
   const handleSearch = () => setSearchQ(keyword)
+
+  useEffect(() => {
+    if (taskList?.items) setLocalItems(taskList.items)
+  }, [taskList?.items])
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    const oldIndex = localItems.findIndex((t) => t.id === activeId)
+    const newIndex = localItems.findIndex((t) => t.id === overId)
+    if (oldIndex === -1 || newIndex === -1) return
+    const newItems = arrayMove(localItems, oldIndex, newIndex)
+    const prevItems = localItems
+    setLocalItems(newItems)
+    const beforeTask = newIndex > 0 ? newItems[newIndex - 1] : null
+    const afterTask = newIndex < newItems.length - 1 ? newItems[newIndex + 1] : null
+    reorderTask.mutate(
+      { taskId: activeId, beforeId: beforeTask?.id ?? null, afterId: afterTask?.id ?? null },
+      {
+        onError: () => {
+          setLocalItems(prevItems)
+          void message.error('並び替えに失敗しました')
+        },
+      }
+    )
+  }
 
   const handleExportCsv = async () => {
     if (exporting) return
@@ -190,6 +257,11 @@ export default function TaskList() {
   }
 
   const columns = [
+    {
+      key: 'drag-handle',
+      width: 40,
+      render: () => <HolderOutlined style={{ color: '#bbb', cursor: 'grab' }} />,
+    },
     {
       title: 'タスク名',
       dataIndex: 'title',
@@ -358,13 +430,18 @@ export default function TaskList() {
         </Space>
       </Space>
 
-      <Table
-        rowKey="id"
-        loading={isLoading}
-        dataSource={taskList?.items ?? []}
-        columns={columns}
-        pagination={{ pageSize: 20, total: taskList?.total, showSizeChanger: false }}
-      />
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <SortableContext items={localItems.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <Table
+            rowKey="id"
+            loading={isLoading}
+            dataSource={localItems}
+            columns={columns}
+            pagination={{ pageSize: 20, total: taskList?.total, showSizeChanger: false }}
+            components={{ body: { row: DraggableRow } }}
+          />
+        </SortableContext>
+      </DndContext>
 
       <Modal
         title="新規タスク作成"
