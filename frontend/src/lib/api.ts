@@ -366,3 +366,24 @@ export async function toggleMilestoneComplete(
 export async function deleteMilestone(projectId: string, milestoneId: string): Promise<void> {
   await api.delete(`/projects/${projectId}/milestones/${milestoneId}`)
 }
+
+// --- Search ---
+
+export interface SearchResultItem {
+  task_id: string
+  project_id: string
+  project_name: string
+  title: string
+  snippet: string
+  match_type: 'title' | 'description' | 'comment'
+}
+
+export interface SearchResponse {
+  items: SearchResultItem[]
+  total: number
+}
+
+export async function searchAll(q: string, limit = 20): Promise<SearchResponse> {
+  const { data } = await api.get<SearchResponse>('/search', { params: { q, limit } })
+  return data
+}
