@@ -7,6 +7,23 @@
 ## 最終更新
 - **日付**: 2026-06-03
 - **完了した作業**:
+  - **[繰り返しタスク]**
+    - **Alembic 0007**: `tasks` テーブルに `recurrence_rule`（daily/weekly/monthly）・`recurrence_end_date`・`recurrence_origin_id`（自己参照 FK）を追加
+    - **SQLAlchemy モデル修正**: `Task` に 3 列追加・`subtasks`/`parent_task` リレーションに `foreign_keys` 明示（FK 曖昧性解消）
+    - **Pydantic モデル拡張**: `TaskCreate` に `recurrence_rule`/`recurrence_end_date` 追加・`TaskResponse` に 3 フィールド追加
+    - **`_spawn_next_recurrence` ヘルパー**: 完了/キャンセル時に次回インスタンスを生成（endDate 超過チェック・重複チェック・タグ引き継ぎ）
+    - **`create_task` 修正**: 初回作成時に `recurrence_origin_id = task.id`（自己参照）をセット
+    - **`update_task` 修正**: ステータスが completed/cancelled になったとき `_spawn_next_recurrence` を呼び出し
+    - **`DELETE /{task_id}/recurrence` エンドポイント**: 繰り返しルールを単体タスクに解除
+    - **`recurrence_backfill_job` APScheduler**: 毎日 02:00 JST に完了済み繰り返しタスクの後継未生成分を補完
+    - **ユニットテスト 7 件**: `test_task_recurrence.py`（daily/weekly/monthly/endDate/重複防止/ルールなし/start_date オフセット保持）→ 合計 228 passed
+    - **フロントエンド**:
+      - `api.ts`: `Task` インターフェースに 3 フィールド追加・`deleteRecurrence()` 関数追加
+      - `useTasks.ts`: `useDeleteRecurrence` フック追加
+      - `Tasks/index.tsx`: タイトル横に `RedoOutlined` アイコン（繰り返し表示）・作成フォームに繰り返し Select + 終了日 DatePicker 追加
+      - `TaskDetail.tsx`: 詳細タブに繰り返し情報行（ルール・終了日・「解除」Popconfirm ボタン）追加
+    - コミット: `20e610c`・`d131f6c`・`aeac735`・`1442ca0`・`f9f07c4`
+
   - **[CSV エクスポート]**
     - `GET /api/v1/tasks/export/csv` エンドポイント追加（フィルタ結果を UTF-8 BOM CSV でストリーム）
     - タスク一覧ページに「CSV エクスポート」ボタン追加（loading 状態・blob ダウンロード処理）
@@ -232,7 +249,13 @@
 | test_sections_router.py | 4 | ✅ |
 | test_similar_tasks.py | 4 | ✅ |
 | test_visibility.py | 4 | ✅ |
-| **合計** | **170** | ✅ 全 passed |
+| test_security_fixes.py | 5 | ✅ |
+| test_estimate_hours.py | 5 | ✅ |
+| test_delay_risk.py | 8 | ✅ |
+| test_stale_tasks.py | 5 | ✅ |
+| test_reorder.py | 5 | ✅ |
+| test_task_recurrence.py | 7 | ✅ |
+| **合計** | **228** | ✅ 全 passed |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
