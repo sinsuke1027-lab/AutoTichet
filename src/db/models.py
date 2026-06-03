@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     UUID,
+    Boolean,
     Date,
     DateTime,
     Float,
@@ -176,6 +177,8 @@ class Milestone(Base):
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     project: Mapped["Project"] = relationship("Project", back_populates="milestones")
 
