@@ -16,6 +16,108 @@
 
 ---
 
+## 本番 URL（2026-06-04 時点）
+
+| レイヤー | URL |
+|---------|-----|
+| フロントエンド（Vercel） | https://auto-tichet.vercel.app/ |
+| バックエンド（HuggingFace Spaces） | https://shinsukei-autotichet.hf.space |
+| DB（Supabase） | Session pooler: `aws-1-ap-south-1.pooler.supabase.com:5432` |
+
+---
+
+## 日常的な変更・デプロイ手順
+
+### 変更の種類とデプロイコマンド
+
+| 変更の種類 | フロントエンド push | バックエンド push |
+|-----------|-----------------|----------------|
+| フロント only（`frontend/` 以下） | 必要 | 不要 |
+| バックエンド only（`src/` 以下） | 不要 | 必要 |
+| 両方変更 | 必要 | 必要 |
+| DB マイグレーション（`alembic/`） | 不要 | 必要（再起動で自動実行） |
+
+### フロントエンドのデプロイ（Vercel）
+
+```powershell
+git push origin master
+```
+
+Vercel は GitHub の master ブランチに push されると **自動でビルド・デプロイ** する。  
+数分後に https://auto-tichet.vercel.app/ に反映される。
+
+### バックエンドのデプロイ（HuggingFace Spaces）
+
+```powershell
+# 1. まず GitHub に push
+git push origin master
+
+# 2. 次に HuggingFace Spaces に push
+#    ※ HF_TOKEN は HuggingFace Settings → Access Tokens で発行したトークン
+git push https://ShinsukeI:HF_TOKEN@huggingface.co/spaces/ShinsukeI/AutoTichet master:main
+```
+
+> **セキュリティ注意:** HF_TOKEN をコマンドに直打ちするとチャット履歴に残る。  
+> 使用後は HuggingFace の Settings → Access Tokens で **トークンを再発行**（Regenerate）すること。  
+> 代替案: `$env:HF_TOKEN = "..."` と環境変数に入れてからコマンドを実行する。
+
+HuggingFace は push を検知してコンテナをリビルドする。`entrypoint.sh` が：
+1. `alembic upgrade head`（DB マイグレーション）を実行
+2. `uvicorn` を起動
+
+するため、マイグレーションファイルを追加した場合も手動実行は不要。
+
+---
+
+### DB マイグレーション手順
+
+```powershell
+# 1. Alembic マイグレーションファイルを生成
+cd C:\...\AutoTicket  # プロジェクトルート
+alembic revision --autogenerate -m "変更内容の説明"
+
+# 2. 生成されたファイルを確認してコミット
+git add alembic/versions/
+git commit -m "db: add migration for ..."
+
+# 3. GitHub と HF の両方に push
+git push origin master
+git push https://ShinsukeI:HF_TOKEN@huggingface.co/spaces/ShinsukeI/AutoTichet master:main
+```
+
+HF Spaces が再起動すると `entrypoint.sh` が自動で `alembic upgrade head` を実行する。
+
+---
+
+### 新しいメンバーの追加
+
+1. ブラウザで https://auto-tichet.vercel.app/ にアクセス
+2. DevLogin ページから `田中 一郎`（管理者権限あり）でログイン
+3. 右上アイコン → **管理設定** → **ユーザー管理**
+4. 「ユーザー追加」でメンバーのメールアドレス・名前・ロールを入力
+5. 追加後、そのメールアドレスで DevLogin 可能になる
+
+> **現状の認証方式:** `VITE_DEV_BYPASS_AUTH=true` + `DEV_MODE=true` による開発者ログイン（Azure AD なし）。  
+> チームメンバーはどのネットワーク環境からでも https://auto-tichet.vercel.app/ にアクセスできる。  
+> ただし、DBに登録されているユーザーのみログイン可能（上記手順で事前登録が必要）。
+
+---
+
+### シードデータ投入（本番 DB）
+
+```powershell
+# 本番 DB に対して実行する場合は SEED_BASE_URL を設定
+$env:SEED_BASE_URL = "https://shinsukei-autotichet.hf.space/api/v1"
+python scripts/seed_dummy_data.py
+
+# ローカル DB に投入する場合（デフォルト）は設定不要
+python scripts/seed_dummy_data.py
+```
+
+スクリプトは既存タスクを SKIP するため、重複投入しても安全。
+
+---
+
 ## 作業ステータス
 
 | タスク | 状態 |
@@ -28,11 +130,11 @@
 | A-6. .env.example 更新 | ✅ 完了（2026-06-03） |
 | A-7. entrypoint.sh 作成（alembic + uvicorn） | ✅ 完了（2026-06-03） |
 | A-8. README.md HF Spaces フロントマター追加 | ✅ 完了（2026-06-03） |
-| C-1. Supabase セットアップ | ⬜ 未着手 |
-| C-2. HuggingFace Space 作成・push | ⬜ 未着手 |
-| C-3. Alembic マイグレーション（entrypoint.sh で自動実行） | ⬜ C-2 完了後に自動実行 |
-| C-4. Vercel デプロイ | ⬜ 未着手 |
-| C-5. 仕上げ（URI 登録・動作確認） | ⬜ 未着手 |
+| C-1. Supabase セットアップ | ✅ 完了（2026-06-04） |
+| C-2. HuggingFace Space 作成・push | ✅ 完了（2026-06-04） |
+| C-3. Alembic マイグレーション（entrypoint.sh で自動実行） | ✅ 完了（2026-06-04・自動） |
+| C-4. Vercel デプロイ | ✅ 完了（2026-06-04） |
+| C-5. 仕上げ（URI 登録・動作確認） | ✅ 完了（2026-06-04） |
 
 ---
 
