@@ -49,8 +49,8 @@ export default function ProfileCard() {
   }
 
   const handleSave = async () => {
-    const values = await form.validateFields()
     try {
+      const values = await form.validateFields()
       await updateProfile.mutateAsync(values)
       void message.success('プロフィールを更新しました')
       setOpen(false)
@@ -96,8 +96,8 @@ export default function ProfileCard() {
       <Modal
         title="プロフィールを編集"
         open={open}
-        onOk={handleSave}
-        onCancel={() => setOpen(false)}
+        onOk={() => void handleSave()}
+        onCancel={() => { form.resetFields(); setOpen(false) }}
         confirmLoading={updateProfile.isPending}
         okText="保存"
         cancelText="キャンセル"
