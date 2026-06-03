@@ -1,12 +1,37 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: Web App Phase 2B（Should 機能）✅ ほぼ完了（F-21 Teams 通知のみ残・Graph API 承認待ち）**
-ステータス: タスク一括操作完了・F-21 は Graph API 承認待ちのためブロック中
+**Phase: 追加改善バックログ実装中（F-35 マイルストーン設定 完了）**
+ステータス: F-35 完了・F-21 は Graph API 承認待ちのためブロック中
 
 ## 最終更新
 - **日付**: 2026-06-03
 - **完了した作業**:
+  - **[F-35 マイルストーン設定]**（2026-06-03）
+    - **バックエンド**:
+      - `src/db/models.py`: `Milestone` クラスに `completed`（Boolean, NOT NULL, default=False）と `completed_at`（DateTime timezone, nullable）を追加・`Boolean` import 追加
+      - `alembic/versions/0008_milestone_complete.py`: Alembic 0008 マイグレーション作成・`alembic upgrade head` 適用済み
+      - `src/models/task_web.py`: `MilestoneCreate` / `MilestoneUpdate` / `MilestoneResponse` Pydantic v2 モデル追加
+      - `src/api/routers/milestones.py`: 新規ルーター作成（5 エンドポイント）
+        - `GET /api/v1/projects/{project_id}/milestones` — 一覧（due_date 昇順）
+        - `POST /api/v1/projects/{project_id}/milestones` → 201
+        - `PUT /api/v1/projects/{project_id}/milestones/{milestone_id}` → 200
+        - `PATCH /api/v1/projects/{project_id}/milestones/{milestone_id}/complete` — 完了トグル（completed/completed_at 管理）
+        - `DELETE /api/v1/projects/{project_id}/milestones/{milestone_id}` → 204
+        - 権限: 閲覧=全認証済み / 変更=プロジェクト作成者 or leader ロール以上
+      - `src/api/main.py`: milestones ルーター登録
+      - `tests/unit/test_milestones_router.py`: テスト 5 件追加 → **合計 245 passed**
+    - **フロントエンド**:
+      - `frontend/src/lib/api.ts`: `Milestone` / `MilestoneCreate` / `MilestoneUpdate` 型 + 5 API 関数追加
+      - `frontend/src/hooks/useMilestones.ts`: 5 フック新規作成（useMilestones / useCreateMilestone / useUpdateMilestone / useToggleComplete / useDeleteMilestone）
+      - `frontend/src/pages/Projects/MilestoneTimeline.tsx`: 横軸タイムライン UI 新規作成
+        - ひし形マーカー（rotate 45deg CSS）・色分け（完了=緑 / 未来=青 / 期限超過=赤）
+        - Tooltip（タイトル・期日・残日数 / 期限超過日数 / 完了済み）
+        - 作成モーダル（タイトル + DatePicker）・編集モーダル（完了トグルボタン + 削除 Popconfirm + 保存）
+        - タイムライン範囲: 最小 due_date−7日 〜 最大 due_date+7日
+      - `frontend/src/pages/Projects/index.tsx`: `<MilestoneTimeline>` を Collapse 上部に統合
+    - コミット: `902efd2`・`3fcdd97`・`871e10a`・`d49d73e`・`e866869`・`8a65c55`・`e17b832` → origin/master にプッシュ済み
+
   - **[タスク一括操作]**（2026-06-03）
     - **バックエンド**:
       - `TaskBulkUpdate` / `BulkUpdateResponse` Pydantic v2 モデル追加（`src/models/task_web.py`）
@@ -293,7 +318,8 @@
 | test_update_me.py | 4 | ✅ |
 | test_my_weekly_summary.py | 4 | ✅ |
 | test_bulk_update.py | 4 | ✅ |
-| **合計** | **240** | ✅ 全 passed |
+| test_milestones_router.py | 5 | ✅ |
+| **合計** | **245** | ✅ 全 passed |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
@@ -322,6 +348,8 @@
    - **追加 UI 機能**: 必要に応じて `docs/requirements.md` の未着手機能から選択
 
 ## 実装計画ファイル
+- `docs/superpowers/specs/2026-06-03-milestone-design.md`（F-35 マイルストーン設定 設計書）
+- `docs/superpowers/plans/2026-06-03-milestone.md`（F-35 マイルストーン設定 実装計画・全完了）
 - `docs/superpowers/specs/2026-06-03-bulk-task-update-design.md`（タスク一括操作 設計書）
 - `docs/superpowers/plans/2026-06-03-bulk-task-update.md`（タスク一括操作 実装計画・全完了）
 - `docs/superpowers/plans/2026-05-27-f15-template.md`（F-15 テンプレート機能 実装計画・全完了）
