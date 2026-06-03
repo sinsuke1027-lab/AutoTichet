@@ -13,6 +13,7 @@ import {
   BarChartOutlined,
   SettingOutlined,
   FileTextOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
 import { loginRequest } from './lib/msal'
 import { useAuthStore } from './store/useAuthStore'
@@ -29,6 +30,7 @@ import CalendarView from './pages/Calendar'
 import GanttView from './pages/Gantt'
 import AdminPage from './pages/Admin'
 import TemplatesPage from './pages/Templates'
+import MyPage from './pages/MyPage'
 import WorkloadAlertBadge from './components/WorkloadAlertBadge'
 import DevLogin, { DEV_USER_KEY } from './pages/DevLogin'
 
@@ -50,6 +52,7 @@ function LoginPage() {
 
 const NAV_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: 'ダッシュボード' },
+  { key: '/mypage', icon: <UserOutlined />, label: 'マイページ' },
   { key: '/tasks', icon: <CheckSquareOutlined />, label: 'タスク一覧' },
   { key: '/projects', icon: <ProjectOutlined />, label: 'プロジェクト' },
   { key: '/board', icon: <AppstoreOutlined />, label: 'カンバン' },
@@ -127,6 +130,7 @@ function AppLayout() {
         <Content style={{ padding: 24 }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/mypage" element={<MyPage />} />
             <Route path="/tasks" element={<TaskList />} />
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/projects" element={<ProjectList />} />
