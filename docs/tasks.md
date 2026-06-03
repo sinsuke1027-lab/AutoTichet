@@ -231,24 +231,26 @@ Graph API 承認待ち・Phase 3 前提の機能とは独立して着手でき�
 
 ---
 
-## デプロイ（Vercel + Koyeb + Supabase）
+## デプロイ（Vercel + HuggingFace Spaces + Supabase）
 
-詳細手順: `docs/deploy-vercel-koyeb.md`
+詳細手順: `docs/deploy-vercel-hf.md`
 
-### A. コード修正（デプロイ前に必須）
+### A. コード修正（完了済み）
 - [x] **A-1**: `frontend/src/lib/api.ts` の `baseURL` を `VITE_API_URL` 環境変数で切り替え（2026-06-03）
 - [x] **A-2**: `frontend/vercel.json` 作成（SPA ルーティング）（2026-06-03）
-- [x] **A-3**: `Dockerfile` をリポジトリルートに配置・修正（2026-06-03）
+- [x] **A-3**: `Dockerfile` をリポジトリルートに配置・HuggingFace Spaces 対応（uid 1000）（2026-06-03）
 - [x] **A-4**: `src/api/main.py` の CORS を `FRONTEND_URL` 環境変数のみで制御（2026-06-03）
 - [x] **A-5**: SQLite 処理済みID → テスト環境はそのまま（再起動リセット許容）確認済み
 - [x] **A-6**: `.env.example` に `DATABASE_URL` / `VITE_API_URL` コメント追加（2026-06-03）
+- [x] **A-7**: `entrypoint.sh` 作成（alembic upgrade head → uvicorn 起動）（2026-06-03）
+- [x] **A-8**: `README.md` に HuggingFace Spaces フロントマター追加（2026-06-03）
 
 ### C. デプロイ作業（コード修正完了後）
 - [ ] **C-1**: Supabase プロジェクト作成・`DATABASE_URL` 取得
-- [ ] **C-2**: Koyeb にバックエンドをデプロイ・環境変数設定
-- [ ] **C-3**: Koyeb 上で `alembic upgrade head` 実行
+- [ ] **C-2**: HuggingFace Space（Docker）作成・`git push hf master`・環境変数設定
+- [ ] **C-3**: Alembic マイグレーション（`entrypoint.sh` が起動時に自動実行）
 - [ ] **C-4**: Vercel にフロントエンドをデプロイ・`VITE_API_URL` 設定
-- [ ] **C-5**: Azure Entra ID に Vercel URL を追加・動作確認
+- [ ] **C-5**: HuggingFace Space の `FRONTEND_URL` 更新・Azure Entra ID URI 登録・動作確認
 
 ---
 

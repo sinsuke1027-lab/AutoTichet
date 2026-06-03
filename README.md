@@ -1,3 +1,13 @@
+---
+title: AutoTicket Backend
+emoji: 🎫
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # AutoTicket — 自動タスク起票システム
 
 Outlook メール・Teams 会議議事録・Teams チャット・OneNote から AI がタスクを自動抽出し、Microsoft Planner / To Do へ自動起票するシステムです。
