@@ -29,12 +29,12 @@ export default function CommandPalette() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
-        setOpen(true)
+        setOpen(!open)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [setOpen])
+  }, [open, setOpen])
 
   const handleClose = () => {
     setOpen(false)
@@ -65,7 +65,7 @@ export default function CommandPalette() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           suffix={isFetching ? <Spin size="small" /> : null}
-          bordered={false}
+          variant="borderless"
           style={{ fontSize: 16 }}
         />
       </div>
@@ -78,7 +78,10 @@ export default function CommandPalette() {
               renderItem={(item) => (
                 <List.Item
                   onClick={() => handleSelect(item)}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSelect(item) }}
                   style={{ padding: '10px 16px', cursor: 'pointer' }}
+                  className="search-result-item"
                 >
                   <List.Item.Meta
                     avatar={
