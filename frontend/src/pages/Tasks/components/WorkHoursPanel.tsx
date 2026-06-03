@@ -18,7 +18,7 @@ function PastPerformanceSection({ taskId }: Props) {
 
   return (
     <div>
-      <Divider orientation={'left' as const} plain>
+      <Divider orientation={'left' as any} plain>
         過去の類似タスク実績
       </Divider>
       {isLoading ? (
