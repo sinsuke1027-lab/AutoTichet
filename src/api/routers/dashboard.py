@@ -18,6 +18,7 @@ from src.models.task_web import (
     TaskStatus,
     TodayTaskItem,
     TrendPoint,
+    WeeklyWorkSummary,
     WorkloadItem,
 )
 
@@ -324,3 +325,70 @@ async def get_stale_tasks(db: DbDep, current_user: CurrentUser) -> list[StaleTas
         )
         for t in tasks
     ]
+
+
+@router.get("/my-weekly-summary", response_model=list[WeeklyWorkSummary])
+async def get_my_weekly_summary(db: DbDep, current_user: CurrentUser) -> list[WeeklyWorkSummary]:
+    today = date.today()
+    this_monday = today - timedelta(days=today.weekday())
+
+    results: list[WeeklyWorkSummary] = []
+    for i in range(3, -1, -1):  # 3週前 → 今週（古い順）
+        week_start = this_monday - timedelta(weeks=i)
+        week_end = week_start + timedelta(days=6)
+
+        # タスク集計
+        task_result = await db.execute(
+            select(Task.status, func.count(Task.id))
+            .where(
+                Task.assignee_id == current_user.sub,
+                Task.due_date >= week_start,
+                Task.due_date <= week_end,
+                Task.due_date.isnot(None),
+            )
+            .group_by(Task.status)
+        )
+        status_counts: dict[str, int] = {row[0]: row[1] for row in task_result.all()}
+        task_count = sum(status_counts.values())
+        completed_count = status_counts.get("completed", 0)
+
+        # 工数集計
+        wh_result = await db.execute(
+            select(
+                func.coalesce(func.sum(TaskWorkHour.estimated_hours), 0.0),
+                func.coalesce(func.sum(TaskWorkHour.actual_hours), 0.0),
+            )
+            .join(Task, Task.id == TaskWorkHour.task_id)
+            .where(
+                TaskWorkHour.user_id == current_user.sub,
+                Task.due_date >= week_start,
+                Task.due_date <= week_end,
+                Task.due_date.isnot(None),
+            )
+        )
+        planned_hours, actual_hours = wh_result.one()
+
+        # 期限超過（最新週のみ）
+        overdue_count = 0
+        if i == 0:
+            overdue_result = await db.execute(
+                select(func.count(Task.id)).where(
+                    Task.assignee_id == current_user.sub,
+                    Task.due_date < today,
+                    Task.status.notin_(["completed", "cancelled"]),
+                )
+            )
+            overdue_count = overdue_result.scalar_one()
+
+        results.append(
+            WeeklyWorkSummary(
+                week_start=week_start,
+                planned_hours=float(planned_hours),
+                actual_hours=float(actual_hours),
+                task_count=task_count,
+                completed_count=completed_count,
+                overdue_count=overdue_count,
+            )
+        )
+
+    return results
