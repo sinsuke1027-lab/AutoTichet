@@ -308,3 +308,61 @@ export async function bulkUpdateTasks(body: TaskBulkUpdate): Promise<{ updated_c
   const { data } = await api.patch<{ updated_count: number }>('/tasks/bulk', body)
   return data
 }
+
+// --- Milestone ---
+
+export interface Milestone {
+  id: string
+  project_id: string
+  title: string
+  due_date: string        // "YYYY-MM-DD"
+  completed: boolean
+  completed_at: string | null
+  created_at: string
+}
+
+export interface MilestoneCreate {
+  title: string
+  due_date: string
+}
+
+export interface MilestoneUpdate {
+  title?: string
+  due_date?: string
+}
+
+export async function getMilestones(projectId: string): Promise<Milestone[]> {
+  const { data } = await api.get<Milestone[]>(`/projects/${projectId}/milestones`)
+  return data
+}
+
+export async function createMilestone(projectId: string, body: MilestoneCreate): Promise<Milestone> {
+  const { data } = await api.post<Milestone>(`/projects/${projectId}/milestones`, body)
+  return data
+}
+
+export async function updateMilestone(
+  projectId: string,
+  milestoneId: string,
+  body: MilestoneUpdate,
+): Promise<Milestone> {
+  const { data } = await api.put<Milestone>(
+    `/projects/${projectId}/milestones/${milestoneId}`,
+    body,
+  )
+  return data
+}
+
+export async function toggleMilestoneComplete(
+  projectId: string,
+  milestoneId: string,
+): Promise<Milestone> {
+  const { data } = await api.patch<Milestone>(
+    `/projects/${projectId}/milestones/${milestoneId}/complete`,
+  )
+  return data
+}
+
+export async function deleteMilestone(projectId: string, milestoneId: string): Promise<void> {
+  await api.delete(`/projects/${projectId}/milestones/${milestoneId}`)
+}
