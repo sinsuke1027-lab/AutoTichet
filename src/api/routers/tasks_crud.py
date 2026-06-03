@@ -31,6 +31,7 @@ from src.db.models import (
 from src.models.config import Settings, get_settings
 from src.models.task import ExtractedTask
 from src.models.task_web import (
+    BulkUpdateResponse,
     ClarifyIssue,
     ClarifyRequirementsResponse,
     GenerateHandoverResponse,
@@ -40,6 +41,7 @@ from src.models.task_web import (
     RescheduleRequest,
     RescheduleResponse,
     SimilarTaskResponse,
+    TaskBulkUpdate,
     TaskCreate,
     TaskListResponse,
     TaskReorderRequest,
@@ -763,6 +765,35 @@ async def export_tasks_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
+
+
+@router.patch("/bulk", response_model=BulkUpdateResponse)
+async def bulk_update_tasks(
+    body: TaskBulkUpdate, db: DbDep, current_user: CurrentUser
+) -> BulkUpdateResponse:
+    if not body.task_ids:
+        raise HTTPException(status_code=422, detail="task_ids は1件以上必要です")
+    if len(body.task_ids) > 100:
+        raise HTTPException(status_code=422, detail="task_ids は100件以内にしてください")
+    if body.status is None and body.assignee_id is None:
+        raise HTTPException(
+            status_code=422, detail="status または assignee_id のいずれかを指定してください"
+        )
+    result = await db.execute(select(Task).where(Task.id.in_(body.task_ids)))
+    tasks = result.scalars().all()
+    user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
+    for task in tasks:
+        if task.assignee_id != current_user.sub and user_role < ROLE_HIERARCHY.get("manager", 2):
+            raise HTTPException(status_code=403, detail="操作権限のないタスクが含まれています")
+    for task in tasks:
+        if body.status is not None:
+            task.status = body.status
+        if body.assignee_id is not None:
+            task.assignee_id = body.assignee_id
+        if body.status in (TaskStatus.COMPLETED, TaskStatus.CANCELLED):
+            await _spawn_next_recurrence(task, db)
+    await db.commit()
+    return BulkUpdateResponse(updated_count=len(tasks))
 
 
 @router.get("/{task_id}", response_model=TaskResponse)
