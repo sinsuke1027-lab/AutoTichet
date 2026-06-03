@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd'
-import { CopyOutlined, DownloadOutlined, FileTextOutlined, HolderOutlined, PlusOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
+import { CopyOutlined, DownloadOutlined, FileTextOutlined, HolderOutlined, PlusOutlined, RedoOutlined, RobotOutlined, SearchOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useMutation } from '@tanstack/react-query'
 import {
@@ -208,12 +208,19 @@ export default function TaskList() {
   }
 
   const handleCreate = async (values: Record<string, unknown>) => {
-    const { estimated_hours, ...taskValues } = values as {
+    const { estimated_hours, recurrence_end_date, ...taskValues } = values as {
       estimated_hours?: number
+      recurrence_end_date?: import('dayjs').Dayjs
       [key: string]: unknown
     }
+    const payload = {
+      ...taskValues,
+      ...(recurrence_end_date
+        ? { recurrence_end_date: recurrence_end_date.format('YYYY-MM-DD') }
+        : {}),
+    }
     const created = await createTask.mutateAsync(
-      taskValues as Partial<import('../../lib/api').Task> & { title: string },
+      payload as Partial<import('../../lib/api').Task> & { title: string },
     )
     if (estimated_hours != null && created?.id) {
       await recordEstimatedHours.mutateAsync({
@@ -271,6 +278,11 @@ export default function TaskList() {
           <a onClick={() => navigate(`/tasks/${rec.id}`)}>{title}</a>
           {rec.risk_level === 'high' && <Tag color="red">高リスク</Tag>}
           {rec.risk_level === 'medium' && <Tag color="orange">要注意</Tag>}
+          {rec.recurrence_rule && (
+            <Tooltip title={`繰り返し: ${rec.recurrence_rule === 'daily' ? '毎日' : rec.recurrence_rule === 'weekly' ? '毎週' : '毎月'}`}>
+              <RedoOutlined style={{ color: '#1677ff', fontSize: 12 }} />
+            </Tooltip>
+          )}
         </span>
       ),
     },
@@ -551,6 +563,30 @@ export default function TaskList() {
               placeholder="例: 2.0"
               onChange={() => { autoFilledRef.current = false }}
             />
+          </Form.Item>
+          <Form.Item name="recurrence_rule" label="繰り返し">
+            <Select
+              allowClear
+              placeholder="なし"
+              style={{ width: 160 }}
+              options={[
+                { label: '毎日', value: 'daily' },
+                { label: '毎週', value: 'weekly' },
+                { label: '毎月', value: 'monthly' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev: Record<string, unknown>, curr: Record<string, unknown>) => prev.recurrence_rule !== curr.recurrence_rule}
+          >
+            {({ getFieldValue }: { getFieldValue: (name: string) => unknown }) =>
+              getFieldValue('recurrence_rule') ? (
+                <Form.Item name="recurrence_end_date" label="繰り返し終了日">
+                  <DatePicker style={{ width: 160 }} />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
           <Form.Item name="visibility" label="公開範囲" initialValue="team">
             <Select

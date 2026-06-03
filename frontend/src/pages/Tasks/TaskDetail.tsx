@@ -13,8 +13,8 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { CopyOutlined, DeleteOutlined } from '@ant-design/icons'
-import { useTask, useUpdateTask, useDeleteTask } from '../../hooks/useTasks'
+import { CopyOutlined, DeleteOutlined, RedoOutlined } from '@ant-design/icons'
+import { useTask, useUpdateTask, useDeleteTask, useDeleteRecurrence } from '../../hooks/useTasks'
 import { useSections } from '../../hooks/useSections'
 import { useClarifyRequirements } from '../../hooks/useTaskDetails'
 import CommentsPanel from './components/CommentsPanel'
@@ -45,6 +45,7 @@ export default function TaskDetail() {
   const { data: sections = [] } = useSections(task?.project_id ?? undefined)
   const [duplicating, setDuplicating] = useState(false)
   const clarify = useClarifyRequirements(id ?? '')
+  const deleteRecurrenceMutation = useDeleteRecurrence()
 
   if (isLoading) return <Spin />
   if (!task) return <Typography.Text>タスクが見つかりません</Typography.Text>
@@ -113,6 +114,28 @@ export default function TaskDetail() {
               />
             </Descriptions.Item>
             <Descriptions.Item label="期限">{task.due_date ?? '—'}</Descriptions.Item>
+            {task.recurrence_rule && (
+              <Descriptions.Item label="繰り返し">
+                <Space>
+                  <RedoOutlined />
+                  {task.recurrence_rule === 'daily' ? '毎日' : task.recurrence_rule === 'weekly' ? '毎週' : '毎月'}
+                  {task.recurrence_end_date && `（${task.recurrence_end_date} まで）`}
+                  <Popconfirm
+                    title="繰り返しを解除しますか？"
+                    onConfirm={async () => {
+                      try {
+                        await deleteRecurrenceMutation.mutateAsync(id ?? '')
+                        void message.success('繰り返しを解除しました')
+                      } catch {
+                        void message.error('解除に失敗しました')
+                      }
+                    }}
+                  >
+                    <Button size="small" danger>解除</Button>
+                  </Popconfirm>
+                </Space>
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="公開範囲">{task.visibility}</Descriptions.Item>
             <Descriptions.Item label="タグ">
               {task.tags.map((t) => (

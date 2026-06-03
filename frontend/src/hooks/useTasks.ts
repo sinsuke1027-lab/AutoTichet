@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api, { type Task, type TaskListResponse, type HourEstimate, type ExtractResult, getEstimateHours, extractTasksFromText } from '../lib/api'
+import api, { type Task, type TaskListResponse, type HourEstimate, type ExtractResult, getEstimateHours, extractTasksFromText, deleteRecurrence } from '../lib/api'
 
 interface TaskFilters {
   status?: string
@@ -128,6 +128,18 @@ export function useRecordEstimatedHours() {
         planned_hours: estimatedHours,
         actual_hours: null,
       })
+    },
+  })
+}
+
+export function useDeleteRecurrence() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (taskId: string) => deleteRecurrence(taskId),
+    onSuccess: (_, taskId) => {
+      queryClient.invalidateQueries({ queryKey: ['task', taskId] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
     },
   })
 }

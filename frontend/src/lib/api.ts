@@ -52,6 +52,9 @@ export interface Task {
   updated_at: string
   risk_level?: 'high' | 'medium' | null
   order_index?: number
+  recurrence_rule?: 'daily' | 'weekly' | 'monthly' | null
+  recurrence_end_date?: string | null
+  recurrence_origin_id?: string | null
 }
 
 export interface TaskListResponse {
@@ -264,4 +267,8 @@ export async function archiveProject(id: string): Promise<Project> {
 export async function unarchiveProject(id: string): Promise<Project> {
   const { data } = await api.patch<Project>(`/projects/${id}/unarchive`)
   return data
+}
+
+export async function deleteRecurrence(taskId: string): Promise<void> {
+  await api.delete(`/tasks/${taskId}/recurrence`)
 }
