@@ -1,6 +1,6 @@
 # AutoTicket タスク一覧
 
-最終更新: 2026-06-03
+最終更新: 2026-06-04
 
 凡例: `[x]` 完了 / `[ ]` 未着手 / `[-]` 承認待ちでブロック中
 
@@ -246,11 +246,12 @@ Graph API 承認待ち・Phase 3 前提の機能とは独立して着手でき�
 - [x] **A-8**: `README.md` に HuggingFace Spaces フロントマター追加（2026-06-03）
 
 ### C. デプロイ作業（コード修正完了後）
-- [ ] **C-1**: Supabase プロジェクト作成・`DATABASE_URL` 取得
-- [ ] **C-2**: HuggingFace Space（Docker）作成・`git push hf master`・環境変数設定
-- [ ] **C-3**: Alembic マイグレーション（`entrypoint.sh` が起動時に自動実行）
-- [ ] **C-4**: Vercel にフロントエンドをデプロイ・`VITE_API_URL` 設定
-- [ ] **C-5**: HuggingFace Space の `FRONTEND_URL` 更新・Azure Entra ID URI 登録・動作確認
+- [x] **C-1**: Supabase プロジェクト作成・`DATABASE_URL` 取得（Session pooler URL）
+- [x] **C-2**: HuggingFace Space（Docker）作成・`git push hf master:main --force`・環境変数設定
+- [x] **C-3**: Alembic マイグレーション（`entrypoint.sh` が起動時に自動実行）
+- [x] **C-4**: Vercel にフロントエンドをデプロイ・`VITE_API_URL` 設定（`frontend/.env.production` 経由）
+- [x] **C-5**: 動作確認完了（Playwright）・シードデータ投入済み（2026-06-04）
+- [x] **バグ修正**: タスク作成500エラー（`work_hours` eager load 不足）修正（commit: `b5bb4e5`）
 
 ---
 
@@ -267,5 +268,6 @@ Graph API 承認待ち・Phase 3 前提の機能とは独立して着手でき�
 | Web App Phase 2B-2（ユーザー管理・権限制御・UX 強化） | ✅ 全完了（2026-05-20） | — | — |
 | Web App Phase 2B（Should 機能 残タスク） | 10 / 10 | 1 タスク（F-21 残） | Phase 2B-6 完了 ✅ → 着手可能 |
 | 追加改善バックログ | 8 / 14 | 6 項目 | なし（随時着手可能） |
+| デプロイ（Vercel + HF + Supabase） | ✅ 全完了（2026-06-04） | — | — |
 | Phase 3（ローカル LLM + Bot） | 0 / 4 | 4 タスク | Phase 2 完了 + Ollama + Bot 登録 |
 | Phase 4（音声） | 0 / 3 | 3 タスク | Phase 3 完了 + Whisper 方式決定 |

@@ -1,10 +1,34 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: 追加改善バックログ実装中 → デプロイ準備フェーズへ**
-ステータス: 横断全文検索完了・デプロイ（Vercel + Koyeb + Supabase）コード修正未着手・F-21 は Graph API 承認待ちのためブロック中
+**Phase: 本番デプロイ完了 → Phase 1B（Graph API 統合）または追加改善バックログ**
+ステータス: Vercel + HuggingFace Spaces + Supabase デプロイ完了・シードデータ投入済み・動作確認済み・F-21 は Graph API 承認待ちでブロック中
 
 ## 最終更新
+- **日付**: 2026-06-04
+- **完了した作業**:
+  - **[バグ修正: タスク作成・更新・複製で 500 エラー]**（2026-06-04）
+    - 原因: `create_task` / `update_task` / `duplicate_task` で `db.commit()` 後の `db.refresh()` / `selectinload` に `work_hours` が含まれていなかった。`_task_to_response()` → `_compute_risk_level()` → `task.work_hours` で async SQLAlchemy の lazy load 例外が発生し plain-text 500 を返していた
+    - 修正: `src/api/routers/tasks_crud.py` の 3 箇所で `"work_hours"` を eager load に追加（commit: `b5bb4e5`）
+
+  - **[本番デプロイ完了: Vercel + HuggingFace Spaces + Supabase]**（2026-06-04）
+    - フロントエンド: https://auto-tichet.vercel.app/ （Vercel, master ブランチ追跡）
+    - バックエンド: https://shinsukei-autotichet.hf.space （HuggingFace Spaces Docker SDK）
+    - DB: Supabase PostgreSQL（Session pooler: aws-1-ap-south-1.pooler.supabase.com:5432）
+    - `frontend/.env.production` に `VITE_API_URL` 設定、DevLogin の fetch URL 修正済み
+    - `scripts/seed_dummy_data.py` に `SEED_BASE_URL` 環境変数対応追加（commit: `f736547`）
+    - シードデータ（32 件タスク・工数・依存関係）を HF 本番 DB に投入済み
+
+  - **[Playwright 動作確認 — 全項目 PASS]**（2026-06-04）
+    - 開発用ログイン（8 ユーザー選択 UI）✅
+    - タスク一覧（32 件+表示・高リスクバッジ）✅
+    - 新規タスク作成（500 エラーなし・DB に保存確認）✅
+    - ガントチャート（人事業務管理・採用タスク依存関係 3 件表示）✅
+    - F-14 負荷アラート（石川 智代 9h > 8h・ベルに「1」バッジ・赤タグ）✅
+    - ワークロード工数表示（9h / 40h = 23%）✅
+
+---
+
 - **日付**: 2026-06-03
 - **完了した作業**:
   - **[F-35 マイルストーン設定]**（2026-06-03）
