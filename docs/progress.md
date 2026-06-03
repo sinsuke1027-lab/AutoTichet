@@ -2,11 +2,29 @@
 
 ## 現在のフェーズ
 **Phase: Web App Phase 2B（Should 機能）✅ ほぼ完了（F-21 Teams 通知のみ残・Graph API 承認待ち）**
-ステータス: F-12 工数自動算出完了・F-21 は Graph API 承認待ちのためブロック中
+ステータス: タスク一括操作完了・F-21 は Graph API 承認待ちのためブロック中
 
 ## 最終更新
 - **日付**: 2026-06-03
 - **完了した作業**:
+  - **[タスク一括操作]**（2026-06-03）
+    - **バックエンド**:
+      - `TaskBulkUpdate` / `BulkUpdateResponse` Pydantic v2 モデル追加（`src/models/task_web.py`）
+      - `PATCH /api/v1/tasks/bulk` エンドポイント追加（`src/api/routers/tasks_crud.py`）
+        - `task_ids` 1〜100件バリデーション（422）
+        - `status`/`assignee_id` 両方 None → 422
+        - 存在しない task_id → 404
+        - 非オーナー + member ロール → 403
+        - 1トランザクション一括更新・`_spawn_next_recurrence` 呼び出し（completed/cancelled 時）
+        - `PATCH /bulk` を `GET /{task_id}` の前に配置（パスパラメータ競合回避）
+      - テスト 4 件追加（`tests/unit/test_bulk_update.py`）→ 合計 240 passed
+    - **フロントエンド**:
+      - `api.ts`: `TaskBulkUpdate` インターフェース・`bulkUpdateTasks` 関数追加
+      - `useTasks.ts`: `useBulkUpdateTasks` フック追加（`tasks` + `tasks-view` 両方 invalidate）
+      - `pages/Tasks/index.tsx`: Ant Design `rowSelection` チェックボックス追加・画面下部固定の一括操作バー（ステータス Select・担当者 Select・適用ボタン・選択解除ボタン）追加
+      - D&D 並び替えと rowSelection は独立して共存
+    - コミット: `64ce3d2`・`4978c06`・`dc95510`・`633e20c`・`bea32c3`・`9e94796` → origin/master にプッシュ済み
+
   - **[マイページ `/mypage`]**（2026-06-03）
     - **バックエンド**:
       - `UserProfileUpdate` / `WeeklyWorkSummary` Pydantic モデル追加（`src/models/task_web.py`）
@@ -274,7 +292,8 @@
 | test_task_recurrence.py | 7 | ✅ |
 | test_update_me.py | 4 | ✅ |
 | test_my_weekly_summary.py | 4 | ✅ |
-| **合計** | **236** | ✅ 全 passed |
+| test_bulk_update.py | 4 | ✅ |
+| **合計** | **240** | ✅ 全 passed |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
@@ -303,6 +322,8 @@
    - **追加 UI 機能**: 必要に応じて `docs/requirements.md` の未着手機能から選択
 
 ## 実装計画ファイル
+- `docs/superpowers/specs/2026-06-03-bulk-task-update-design.md`（タスク一括操作 設計書）
+- `docs/superpowers/plans/2026-06-03-bulk-task-update.md`（タスク一括操作 実装計画・全完了）
 - `docs/superpowers/plans/2026-05-27-f15-template.md`（F-15 テンプレート機能 実装計画・全完了）
 - `docs/superpowers/specs/2026-05-27-f15-template-design.md`（F-15 テンプレート機能 設計書）
 - `docs/superpowers/plans/2026-05-27-f32-generate-subtasks.md`（F-32 サブタスク自動生成 実装計画・全完了）
