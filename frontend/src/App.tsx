@@ -14,6 +14,7 @@ import {
   SettingOutlined,
   FileTextOutlined,
   UserOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import { loginRequest } from './lib/msal'
 import { useAuthStore } from './store/useAuthStore'
@@ -32,6 +33,8 @@ import AdminPage from './pages/Admin'
 import TemplatesPage from './pages/Templates'
 import MyPage from './pages/MyPage'
 import WorkloadAlertBadge from './components/WorkloadAlertBadge'
+import CommandPalette from './components/CommandPalette'
+import { useSearchStore } from './store/useSearchStore'
 import DevLogin, { DEV_USER_KEY } from './pages/DevLogin'
 
 const { Header, Content, Sider } = Layout
@@ -81,6 +84,8 @@ function AppLayout() {
     navItemsWithAdmin.find((item) => item.key !== '/' && location.pathname.startsWith(item.key))
       ?.key ?? '/'
 
+  const { setOpen: openSearch } = useSearchStore()
+
   function handleDevLogout() {
     sessionStorage.removeItem(DEV_USER_KEY)
     clearUser()
@@ -114,6 +119,13 @@ function AppLayout() {
               </Button>
             </>
           )}
+          <Button
+            icon={<SearchOutlined />}
+            type="text"
+            style={{ color: 'white' }}
+            title="検索 (Ctrl+K)"
+            onClick={() => openSearch(true)}
+          />
           <WorkloadAlertBadge />
         </div>
       </Header>
@@ -147,6 +159,7 @@ function AppLayout() {
           </Routes>
         </Content>
       </Layout>
+      <CommandPalette />
     </Layout>
   )
 }
