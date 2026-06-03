@@ -6,6 +6,7 @@ from typing import Any
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 
 from src.agents.graph import AgentState, build_graph
 from src.api.routers import (
@@ -28,6 +29,9 @@ from src.connectors.onenote import OneNoteConnector
 from src.connectors.planner import PlannerConnector
 from src.connectors.teams_chat import TeamsChatConnector
 from src.connectors.todo import TodoConnector
+from src.api.routers.tasks_crud import _spawn_next_recurrence
+from src.db.engine import AsyncSessionLocal
+from src.db.models import Task
 from src.models.config import get_settings
 from src.providers.factory import create_llm_provider
 from src.services.routing import route_task
@@ -69,6 +73,24 @@ async def _run_agent_and_route(
                 company_plan_id=company_plan_id,
                 dept_plan_map=dept_plan_map,
             )
+
+
+async def recurrence_backfill_job() -> None:
+    """繰り返しタスクのうち後継インスタンスが未生成のものを補完生成する（深夜バックフィル）。"""
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(Task).where(
+                Task.recurrence_rule.is_not(None),
+                Task.status.in_(["completed", "cancelled"]),
+            )
+        )
+        tasks = result.scalars().all()
+        for task in tasks:
+            try:
+                await _spawn_next_recurrence(task, db)
+            except Exception as e:
+                logger.warning("繰り返しバックフィルエラー task_id=%s: %s", task.id, e)
+        await db.commit()
 
 
 async def polling_job() -> None:
@@ -213,6 +235,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         "interval",
         seconds=settings.polling_interval_seconds,
         id="polling",
+    )
+    scheduler.add_job(
+        recurrence_backfill_job,
+        "cron",
+        hour=2,
+        minute=0,
+        timezone="Asia/Tokyo",
+        id="recurrence_backfill",
     )
     scheduler.start()
     yield
