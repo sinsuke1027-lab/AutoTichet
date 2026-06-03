@@ -73,6 +73,8 @@ class TaskCreate(BaseModel):
     confidence_score: float | None = None
     route: str | None = None
     tags: list[str] = Field(default_factory=list)
+    recurrence_rule: Literal["daily", "weekly", "monthly"] | None = None
+    recurrence_end_date: date | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -115,6 +117,9 @@ class TaskResponse(BaseModel):
     subtask_count: int = 0
     subtask_done_count: int = 0
     risk_level: str | None = None  # "high" | "medium" | None
+    recurrence_rule: str | None = None
+    recurrence_end_date: date | None = None
+    recurrence_origin_id: uuid.UUID | None = None
 
     model_config = {"from_attributes": True}
 

@@ -72,6 +72,11 @@ class Task(Base):
     external_id: Mapped[str | None] = mapped_column(String(100))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     order_index: Mapped[float] = mapped_column(Float, default=0.0)
+    recurrence_rule: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    recurrence_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    recurrence_origin_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
+    )
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
