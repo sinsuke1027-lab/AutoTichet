@@ -1,5 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api, { type Task, type TaskListResponse, type HourEstimate, type ExtractResult, getEstimateHours, extractTasksFromText, deleteRecurrence } from '../lib/api'
+import api, {
+  type Task, type TaskListResponse, type HourEstimate, type ExtractResult,
+  type TaskBulkUpdate,
+  getEstimateHours, extractTasksFromText, deleteRecurrence, bulkUpdateTasks,
+} from '../lib/api'
 
 interface TaskFilters {
   status?: string
@@ -155,5 +159,15 @@ export function useExtractTasks() {
       text: string
       sourceType: string
     }): Promise<ExtractResult> => extractTasksFromText(text, sourceType),
+  })
+}
+
+export function useBulkUpdateTasks() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: TaskBulkUpdate) => bulkUpdateTasks(body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] })
+    },
   })
 }

@@ -297,3 +297,14 @@ export async function getMyWeeklySummary(): Promise<WeeklyWorkSummary[]> {
   const { data } = await api.get<WeeklyWorkSummary[]>('/dashboard/my-weekly-summary')
   return data
 }
+
+export interface TaskBulkUpdate {
+  task_ids: string[]
+  status?: string | null
+  assignee_id?: string | null
+}
+
+export async function bulkUpdateTasks(body: TaskBulkUpdate): Promise<{ updated_count: number }> {
+  const { data } = await api.patch<{ updated_count: number }>('/tasks/bulk', body)
+  return data
+}
