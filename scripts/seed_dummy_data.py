@@ -10,8 +10,10 @@ import json
 import httpx
 from datetime import date, timedelta
 
+import os
+
 TODAY = date.today()
-BASE = "http://localhost:8000/api/v1"
+BASE = os.environ.get("SEED_BASE_URL", "http://localhost:8000/api/v1")
 
 ADMIN_HEADER = {
     "X-Dev-User": json.dumps({
