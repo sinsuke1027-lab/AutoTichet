@@ -36,7 +36,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours, useReorderTask } from '../../hooks/useTasks'
+import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours, useReorderTask, useBulkUpdateTasks } from '../../hooks/useTasks'
 import { useProjects } from '../../hooks/useProjects'
 import { useSections } from '../../hooks/useSections'
 import { useSimilarTasks } from '../../hooks/useSimilarTasks'
@@ -97,6 +97,10 @@ export default function TaskList() {
   const [exporting, setExporting] = useState(false)
   const [localItems, setLocalItems] = useState<Task[]>([])
   const reorderTask = useReorderTask()
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
+  const [bulkStatus, setBulkStatus] = useState<string | undefined>()
+  const [bulkAssignee, setBulkAssignee] = useState<string | undefined>()
+  const bulkUpdate = useBulkUpdateTasks()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const [newTitle, setNewTitle] = useState('')
   const [open, setOpen] = useState(false)
@@ -144,6 +148,22 @@ export default function TaskList() {
   )
 
   const handleSearch = () => setSearchQ(keyword)
+
+  const handleBulkApply = async () => {
+    try {
+      const res = await bulkUpdate.mutateAsync({
+        task_ids: selectedRowKeys,
+        ...(bulkStatus ? { status: bulkStatus } : {}),
+        ...(bulkAssignee ? { assignee_id: bulkAssignee } : {}),
+      })
+      void message.success(`${res.updated_count}件を更新しました`)
+      setSelectedRowKeys([])
+      setBulkStatus(undefined)
+      setBulkAssignee(undefined)
+    } catch {
+      void message.error('一括更新に失敗しました')
+    }
+  }
 
   useEffect(() => {
     if (taskList?.items) setLocalItems(taskList.items)
@@ -451,6 +471,10 @@ export default function TaskList() {
             columns={columns}
             pagination={{ pageSize: 20, total: taskList?.total, showSizeChanger: false }}
             components={{ body: { row: DraggableRow } }}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: (keys) => setSelectedRowKeys(keys as string[]),
+            }}
           />
         </SortableContext>
       </DndContext>
@@ -625,6 +649,48 @@ export default function TaskList() {
         open={extractModalOpen}
         onClose={() => setExtractModalOpen(false)}
       />
+      {selectedRowKeys.length > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          background: '#fff', borderTop: '1px solid #f0f0f0',
+          padding: '12px 24px', zIndex: 100,
+          display: 'flex', alignItems: 'center', gap: 12,
+          boxShadow: '0 -2px 8px rgba(0,0,0,0.08)',
+        }}>
+          <Typography.Text strong>{selectedRowKeys.length}件選択中</Typography.Text>
+          <Select
+            placeholder="ステータスを変更"
+            allowClear
+            style={{ width: 160 }}
+            options={STATUS_OPTIONS.filter((o) => o.value !== '')}
+            value={bulkStatus}
+            onChange={setBulkStatus}
+          />
+          <Select
+            placeholder="担当者を変更"
+            allowClear
+            style={{ width: 160 }}
+            options={users.map((u) => ({ label: u.display_name, value: u.user_id }))}
+            value={bulkAssignee}
+            onChange={setBulkAssignee}
+          />
+          <Button
+            type="primary"
+            loading={bulkUpdate.isPending}
+            disabled={!bulkStatus && !bulkAssignee}
+            onClick={() => void handleBulkApply()}
+          >
+            適用
+          </Button>
+          <Button onClick={() => {
+            setSelectedRowKeys([])
+            setBulkStatus(undefined)
+            setBulkAssignee(undefined)
+          }}>
+            選択解除
+          </Button>
+        </div>
+      )}
     </Space>
   )
 }
