@@ -1,8 +1,8 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: 追加改善バックログ実装中（F-35 マイルストーン設定 完了）**
-ステータス: F-35 完了・F-21 は Graph API 承認待ちのためブロック中
+**Phase: 追加改善バックログ実装中（横断全文検索 完了）**
+ステータス: 横断全文検索完了・F-21 は Graph API 承認待ちのためブロック中
 
 ## 最終更新
 - **日付**: 2026-06-03
@@ -31,6 +31,28 @@
         - タイムライン範囲: 最小 due_date−7日 〜 最大 due_date+7日
       - `frontend/src/pages/Projects/index.tsx`: `<MilestoneTimeline>` を Collapse 上部に統合
     - コミット: `902efd2`・`3fcdd97`・`871e10a`・`d49d73e`・`e866869`・`8a65c55`・`e17b832` → origin/master にプッシュ済み
+
+  - **[横断全文検索（Cmd+K コマンドパレット）]**（2026-06-03）
+    - **バックエンド**:
+      - `src/models/task_web.py`: `SearchResultItem` / `SearchResponse` Pydantic v2 モデル追加
+      - `src/api/routers/search.py`: 新規ルーター作成 — `GET /api/v1/search?q=&limit=20`
+        - Task（title・description）+ TaskComment（content）を 2 クエリで検索・task_id 単位重複排除（title > description > comment）
+        - スニペット生成（前後 50 文字・`…` 付与）・LIKE ワイルドカードエスケープ
+        - `_scope_condition` によるロール別アクセス制御（`dashboard.py` 共用）
+        - q < 2文字 → 422・未認証 → 401
+      - `src/api/main.py`: search ルーター登録
+      - `tests/unit/test_search_router.py`: テスト 5 件追加 → **合計 250 passed**
+    - **フロントエンド**:
+      - `frontend/src/lib/api.ts`: `SearchResultItem` / `SearchResponse` 型 + `searchAll()` 関数追加
+      - `frontend/src/hooks/useSearch.ts`: 300ms デバウンス + TanStack Query フック新規作成
+      - `frontend/src/store/useSearchStore.ts`: Zustand 開閉状態ストア新規作成
+      - `frontend/src/components/CommandPalette.tsx`: モーダル UI 新規作成
+        - Ctrl+K / Cmd+K トグル（useEffect + document keydown）
+        - Input.Search（autoFocus・Spin suffix）+ List（match_type タグ・project_name バッジ・スニペット）
+        - 2文字未満はリスト非表示・0件時「一致するタスクが見つかりません」
+        - タブ/Enter キーボードアクセシビリティ対応
+      - `frontend/src/App.tsx`: SearchOutlined ボタン（WorkloadAlertBadge 左隣）+ `<CommandPalette />` 追加
+    - コミット: `46921fd`・`66670f1`・`506ed3c`・`a412f35`・`d24b4e1` → origin/master にプッシュ済み
 
   - **[タスク一括操作]**（2026-06-03）
     - **バックエンド**:
