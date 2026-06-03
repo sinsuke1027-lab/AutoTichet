@@ -322,6 +322,16 @@ class UserProfileUpdate(BaseModel):
     department_tags: list[str] | None = None
 
 
+class TaskBulkUpdate(BaseModel):
+    task_ids: list[uuid.UUID]
+    status: TaskStatus | None = None
+    assignee_id: str | None = None
+
+
+class BulkUpdateResponse(BaseModel):
+    updated_count: int
+
+
 # --- Weekly Summary ---
 
 
