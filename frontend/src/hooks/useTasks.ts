@@ -168,6 +168,7 @@ export function useBulkUpdateTasks() {
     mutationFn: (body: TaskBulkUpdate) => bulkUpdateTasks(body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['tasks'] })
+      void queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
     },
   })
 }
