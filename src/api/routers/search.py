@@ -2,10 +2,11 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import CurrentUser
+from src.api.routers.dashboard import _scope_condition
 from src.db.engine import get_db
 from src.db.models import Project, Task, TaskComment
 from src.models.task_web import SearchResponse, SearchResultItem
@@ -37,23 +38,23 @@ async def search(
     if len(q) < 2:
         raise HTTPException(status_code=422, detail="検索キーワードは2文字以上で入力してください")
 
-    like = f"%{q}%"
-    visibility_cond = or_(
-        Task.visibility != "private",
-        Task.assignee_id == current_user.sub,
-        Task.created_by == current_user.sub,
-    )
+    # Escape LIKE wildcards
+    escaped_q = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    like = f"%{escaped_q}%"
+
+    scope = await _scope_condition(db, current_user)
 
     # タスク検索（title + description）
     task_q = (
         select(Task, Project.name)
         .join(Project, Task.project_id == Project.id)
         .where(
-            Task.title.ilike(like) | Task.description.ilike(like),
-            visibility_cond,
+            Task.title.ilike(like, escape="\\") | Task.description.ilike(like, escape="\\"),
         )
         .limit(limit * 2)
     )
+    if scope is not None:
+        task_q = task_q.where(scope)
     task_rows = (await db.execute(task_q)).all()
 
     # コメント検索
@@ -62,11 +63,12 @@ async def search(
         .join(Task, TaskComment.task_id == Task.id)
         .join(Project, Task.project_id == Project.id)
         .where(
-            TaskComment.content.ilike(like),
-            visibility_cond,
+            TaskComment.content.ilike(like, escape="\\"),
         )
         .limit(limit * 2)
     )
+    if scope is not None:
+        comment_q = comment_q.where(scope)
     comment_rows = (await db.execute(comment_q)).all()
 
     # task_id 単位で重複排除（title > description > comment）
@@ -75,9 +77,8 @@ async def search(
     for task, project_name in task_rows:
         if task.id in seen:
             continue
-        title_match = q.lower() in (task.title or "").lower()
-        match_type = "title" if title_match else "description"
-        text = task.title if title_match else (task.description or task.title)
+        match_type = "title" if q.lower() in (task.title or "").lower() else "description"
+        text = task.title if match_type == "title" else (task.description or task.title)
         seen[task.id] = SearchResultItem(
             task_id=task.id,
             project_id=task.project_id,
@@ -100,4 +101,4 @@ async def search(
         )
 
     items = list(seen.values())[:limit]
-    return SearchResponse(items=items, total=len(seen))
+    return SearchResponse(items=items, total=len(items))

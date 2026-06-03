@@ -59,9 +59,9 @@ def test_search_task_title(mock_db: AsyncMock) -> None:
     resp = client.get("/api/v1/search?q=面接")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total"] >= 1
+    assert data["total"] == 1
     assert data["items"][0]["title"] == "テスト面接"
-    assert data["items"][0]["match_type"] in ("title", "description")
+    assert data["items"][0]["match_type"] == "title"
 
 
 def test_search_comment(mock_db: AsyncMock) -> None:
@@ -80,6 +80,7 @@ def test_search_comment(mock_db: AsyncMock) -> None:
     resp = client.get("/api/v1/search?q=面接")
     assert resp.status_code == 200
     data = resp.json()
+    assert data["total"] == 1
     assert len(data["items"]) == 1
     assert data["items"][0]["match_type"] == "comment"
 
@@ -100,6 +101,7 @@ def test_search_deduplication(mock_db: AsyncMock) -> None:
     resp = client.get("/api/v1/search?q=面接")
     assert resp.status_code == 200
     data = resp.json()
+    assert data["total"] == 1
     assert len(data["items"]) == 1
     assert data["items"][0]["match_type"] == "title"
 
