@@ -81,4 +81,4 @@ def test_bulk_unauthenticated() -> None:
         "/api/v1/tasks/bulk",
         json={"task_ids": [str(uuid.uuid4())], "status": "completed"},
     )
-    assert resp.status_code in (401, 422)
+    assert resp.status_code == 401

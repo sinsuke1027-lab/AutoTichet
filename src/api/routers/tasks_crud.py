@@ -781,6 +781,8 @@ async def bulk_update_tasks(
         )
     result = await db.execute(select(Task).where(Task.id.in_(body.task_ids)))
     tasks = result.scalars().all()
+    if len(tasks) != len(body.task_ids):
+        raise HTTPException(status_code=404, detail="指定されたタスクの一部が見つかりません")
     user_role = max((ROLE_HIERARCHY.get(r, 0) for r in current_user.roles), default=0)
     for task in tasks:
         if task.assignee_id != current_user.sub and user_role < ROLE_HIERARCHY.get("manager", 2):
@@ -790,7 +792,9 @@ async def bulk_update_tasks(
             task.status = body.status
         if body.assignee_id is not None:
             task.assignee_id = body.assignee_id
-        if body.status in (TaskStatus.COMPLETED, TaskStatus.CANCELLED):
+
+    for task in tasks:
+        if task.status in (TaskStatus.COMPLETED, TaskStatus.CANCELLED):
             await _spawn_next_recurrence(task, db)
     await db.commit()
     return BulkUpdateResponse(updated_count=len(tasks))
