@@ -17,6 +17,7 @@ from src.api.routers import (
     import_router,
     milestones,
     projects,
+    search,
     sections,
     task_details,
     tasks,
@@ -274,3 +275,4 @@ app.include_router(import_router.router)
 app.include_router(admin.router)
 app.include_router(templates.router)
 app.include_router(milestones.router)
+app.include_router(search.router)

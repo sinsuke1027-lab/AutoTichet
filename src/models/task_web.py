@@ -357,6 +357,25 @@ class MilestoneResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- Search ---
+
+
+class SearchResultItem(BaseModel):
+    task_id: uuid.UUID
+    project_id: uuid.UUID
+    project_name: str
+    title: str
+    snippet: str
+    match_type: Literal["title", "description", "comment"]
+
+    model_config = {"from_attributes": True}
+
+
+class SearchResponse(BaseModel):
+    items: list[SearchResultItem]
+    total: int
+
+
 # --- Weekly Summary ---
 
 
