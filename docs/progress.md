@@ -7,6 +7,23 @@
 ## 最終更新
 - **日付**: 2026-06-03
 - **完了した作業**:
+  - **[マイページ `/mypage`]**（2026-06-03）
+    - **バックエンド**:
+      - `UserProfileUpdate` / `WeeklyWorkSummary` Pydantic モデル追加（`src/models/task_web.py`）
+      - `GET /api/v1/users/me/profile` — DB から自分のプロフィールを取得（`AdminUserResponse` 返却）
+      - `PATCH /api/v1/users/me` — 表示名・稼働時間・部門タグを部分更新
+      - `GET /api/v1/dashboard/my-weekly-summary` — 過去4週分の工数・タスク・完了数・期限超過集計
+      - テスト 8 件追加（`test_update_me.py` 4件・`test_my_weekly_summary.py` 4件）→ 合計 236 passed
+    - **フロントエンド**:
+      - `api.ts`: `UserProfileUpdate`・`WeeklyWorkSummary` 型定義・`updateMyProfile`・`getMyWeeklySummary` 関数追加
+      - `useTasks.ts`: `TaskFilters` に `due_date_gte`/`due_date_lte` 追加
+      - `useMyPage.ts`: 5 フック新規作成（useMyProfile / useUpdateMyProfile / useMyWeeklySummary / useMyWeeklyTasks / useMyOverdueTasks）
+      - `pages/MyPage/ProfileCard.tsx`: プロフィール表示 + 編集 Modal（表示名・稼働時間・部門タグ）
+      - `pages/MyPage/WeeklySummary.tsx`: KPI カード4枚 + recharts 工数 BarChart（過去4週）
+      - `pages/MyPage/index.tsx`: 今週タスク一覧 + 期限超過タスク一覧
+      - `App.tsx`: `/mypage` ルート・ナビ（`UserOutlined`）追加
+    - コミット: `6a18f65`・`15e544f`・`2ea3f1b`・`f25f665`・`e877b99`・`be25217`・`033e2da` → origin/master にプッシュ済み
+
   - **[繰り返しタスク]**
     - **Alembic 0007**: `tasks` テーブルに `recurrence_rule`（daily/weekly/monthly）・`recurrence_end_date`・`recurrence_origin_id`（自己参照 FK）を追加
     - **SQLAlchemy モデル修正**: `Task` に 3 列追加・`subtasks`/`parent_task` リレーションに `foreign_keys` 明示（FK 曖昧性解消）
@@ -255,7 +272,9 @@
 | test_stale_tasks.py | 5 | ✅ |
 | test_reorder.py | 5 | ✅ |
 | test_task_recurrence.py | 7 | ✅ |
-| **合計** | **228** | ✅ 全 passed |
+| test_update_me.py | 4 | ✅ |
+| test_my_weekly_summary.py | 4 | ✅ |
+| **合計** | **236** | ✅ 全 passed |
 
 ## 前提条件ステータス
 | 項目 | ステータス | 備考 |
