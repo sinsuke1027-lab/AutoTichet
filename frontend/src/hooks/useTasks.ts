@@ -12,6 +12,8 @@ interface TaskFilters {
   offset?: number
   my_tasks_only?: boolean
   include_archived_projects?: boolean
+  due_date_gte?: string
+  due_date_lte?: string
 }
 
 export function useTasks(filters: TaskFilters = {}) {

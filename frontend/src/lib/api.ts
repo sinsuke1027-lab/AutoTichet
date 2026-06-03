@@ -272,3 +272,28 @@ export async function unarchiveProject(id: string): Promise<Project> {
 export async function deleteRecurrence(taskId: string): Promise<void> {
   await api.delete(`/tasks/${taskId}/recurrence`)
 }
+
+export interface UserProfileUpdate {
+  display_name?: string | null
+  capacity_hours_per_day?: number | null
+  department_tags?: string[] | null
+}
+
+export interface WeeklyWorkSummary {
+  week_start: string
+  planned_hours: number
+  actual_hours: number
+  task_count: number
+  completed_count: number
+  overdue_count: number
+}
+
+export async function updateMyProfile(body: UserProfileUpdate): Promise<AdminUser> {
+  const { data } = await api.patch<AdminUser>('/users/me', body)
+  return data
+}
+
+export async function getMyWeeklySummary(): Promise<WeeklyWorkSummary[]> {
+  const { data } = await api.get<WeeklyWorkSummary[]>('/dashboard/my-weekly-summary')
+  return data
+}
