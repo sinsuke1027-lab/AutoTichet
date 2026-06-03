@@ -231,6 +231,27 @@ Graph API 承認待ち・Phase 3 前提の機能とは独立して着手でき�
 
 ---
 
+## デプロイ（Vercel + Koyeb + Supabase）
+
+詳細手順: `docs/deploy-vercel-koyeb.md`
+
+### A. コード修正（デプロイ前に必須）
+- [ ] **A-1**: `frontend/src/lib/api.ts` の `baseURL` を `VITE_API_URL` 環境変数で切り替え
+- [ ] **A-2**: `frontend/vercel.json` 作成（SPA ルーティング）
+- [ ] **A-3**: `Dockerfile` をリポジトリルートに配置・修正
+- [ ] **A-4**: `src/api/main.py` の CORS を `FRONTEND_URL` 環境変数のみで制御
+- [x] **A-5**: SQLite 処理済みID → テスト環境はそのまま（再起動リセット許容）確認済み
+- [ ] **A-6**: `.env.example` に `DATABASE_URL` / `FRONTEND_URL` / `SECRET_KEY` を追加
+
+### C. デプロイ作業（コード修正完了後）
+- [ ] **C-1**: Supabase プロジェクト作成・`DATABASE_URL` 取得
+- [ ] **C-2**: Koyeb にバックエンドをデプロイ・環境変数設定
+- [ ] **C-3**: Koyeb 上で `alembic upgrade head` 実行
+- [ ] **C-4**: Vercel にフロントエンドをデプロイ・`VITE_API_URL` 設定
+- [ ] **C-5**: Azure Entra ID に Vercel URL を追加・動作確認
+
+---
+
 ## 全体進捗サマリー
 
 | フェーズ | 完了 | 残り | ブロッカー |
