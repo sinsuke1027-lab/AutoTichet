@@ -4,8 +4,10 @@ import { msalInstance, loginRequest } from './msal'
 const DEV_BYPASS = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
 const DEV_USER_KEY = 'autoticket_dev_user'
 
+const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${API_BASE}/api/v1`,
   headers: { 'Content-Type': 'application/json' },
 })
 

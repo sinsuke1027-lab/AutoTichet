@@ -254,9 +254,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(title="AutoTicket API", lifespan=lifespan)
 
 _settings = get_settings()
+_cors_origins = [_settings.frontend_url]
+if _settings.frontend_url != "http://localhost:5173":
+    _cors_origins.append("http://localhost:5173")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[_settings.frontend_url, "http://localhost:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
