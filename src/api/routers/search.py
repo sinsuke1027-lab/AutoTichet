@@ -76,9 +76,8 @@ async def search(
         if task.id in seen:
             continue
         title_match = q.lower() in (task.title or "").lower()
-        desc_match = q.lower() in (task.description or "").lower()
         match_type = "title" if title_match else "description"
-        text = task.title if title_match else (task.description if desc_match else task.title)
+        text = task.title if title_match else (task.description or task.title)
         seen[task.id] = SearchResultItem(
             task_id=task.id,
             project_id=task.project_id,
