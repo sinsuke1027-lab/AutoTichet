@@ -316,6 +316,24 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserProfileUpdate(BaseModel):
+    display_name: str | None = None
+    capacity_hours_per_day: float | None = None
+    department_tags: list[str] | None = None
+
+
+# --- Weekly Summary ---
+
+
+class WeeklyWorkSummary(BaseModel):
+    week_start: date
+    planned_hours: float
+    actual_hours: float
+    task_count: int
+    completed_count: int
+    overdue_count: int
+
+
 # --- Reschedule ---
 
 
