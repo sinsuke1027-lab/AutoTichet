@@ -332,6 +332,31 @@ class BulkUpdateResponse(BaseModel):
     updated_count: int
 
 
+# --- Milestone ---
+
+
+class MilestoneCreate(BaseModel):
+    title: str
+    due_date: date
+
+
+class MilestoneUpdate(BaseModel):
+    title: str | None = None
+    due_date: date | None = None
+
+
+class MilestoneResponse(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    title: str
+    due_date: date
+    completed: bool
+    completed_at: datetime | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # --- Weekly Summary ---
 
 
