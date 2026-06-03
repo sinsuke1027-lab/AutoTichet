@@ -84,9 +84,11 @@ class Task(Base):
     )
 
     project: Mapped["Project | None"] = relationship("Project", back_populates="tasks")
-    subtasks: Mapped[list["Task"]] = relationship("Task", back_populates="parent_task")
+    subtasks: Mapped[list["Task"]] = relationship(
+        "Task", back_populates="parent_task", foreign_keys="Task.parent_task_id"
+    )
     parent_task: Mapped["Task | None"] = relationship(
-        "Task", back_populates="subtasks", remote_side="Task.id"
+        "Task", back_populates="subtasks", remote_side="Task.id", foreign_keys="Task.parent_task_id"
     )
     comments: Mapped[list["TaskComment"]] = relationship("TaskComment", back_populates="task")
     work_hours: Mapped[list["TaskWorkHour"]] = relationship("TaskWorkHour", back_populates="task")

@@ -7,6 +7,8 @@ from collections import deque
 from datetime import date, timedelta
 from typing import Annotated
 
+from dateutil.relativedelta import relativedelta
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -481,6 +483,80 @@ async def generate_handover(
         )
 
     return GenerateHandoverResponse(document=document)
+
+
+async def _spawn_next_recurrence(task: Task, db: AsyncSession) -> None:
+    """繰り返しタスクの次インスタンスを生成する。条件を満たさない場合は何もしない。"""
+    if not task.recurrence_rule:
+        return
+
+    base_due: date = task.due_date or date.today()
+    if task.recurrence_rule == "daily":
+        next_due: date = base_due + timedelta(days=1)
+    elif task.recurrence_rule == "weekly":
+        next_due = base_due + timedelta(days=7)
+    else:
+        next_due = base_due + relativedelta(months=1)
+
+    if task.recurrence_end_date and next_due > task.recurrence_end_date:
+        return
+
+    origin_id: uuid.UUID = task.recurrence_origin_id or task.id
+    existing = await db.execute(
+        select(Task).where(
+            Task.recurrence_origin_id == origin_id,
+            Task.status.notin_(["completed", "cancelled"]),
+            Task.id != task.id,
+        )
+    )
+    if existing.scalar_one_or_none() is not None:
+        return
+
+    next_start: date | None = None
+    if task.start_date and task.due_date:
+        next_start = next_due - (task.due_date - task.start_date)
+
+    if task.section_id is not None:
+        max_result = await db.execute(
+            select(func.max(Task.order_index)).where(Task.section_id == task.section_id)
+        )
+    elif task.project_id is not None:
+        max_result = await db.execute(
+            select(func.max(Task.order_index)).where(
+                Task.section_id.is_(None), Task.project_id == task.project_id
+            )
+        )
+    else:
+        max_result = await db.execute(
+            select(func.max(Task.order_index)).where(
+                Task.section_id.is_(None), Task.project_id.is_(None)
+            )
+        )
+    max_order = max_result.scalar_one_or_none()
+    order_index = (float(max_order) if max_order is not None else 0.0) + 1000.0
+
+    new_task = Task(
+        title=task.title,
+        description=task.description,
+        status="not_started",
+        priority=task.priority,
+        assignee_id=task.assignee_id,
+        due_date=next_due,
+        start_date=next_start,
+        visibility=task.visibility,
+        project_id=task.project_id,
+        section_id=task.section_id,
+        parent_task_id=task.parent_task_id,
+        created_by=task.created_by,
+        recurrence_rule=task.recurrence_rule,
+        recurrence_end_date=task.recurrence_end_date,
+        recurrence_origin_id=origin_id,
+        order_index=order_index,
+    )
+    db.add(new_task)
+    for tag in task.tags or []:
+        db.add(TaskTag(task_id=new_task.id, tag=tag.tag if hasattr(tag, "tag") else tag))
+    await db.flush()
 
 
 async def _renormalize_section(
