@@ -5,8 +5,64 @@
 ステータス: F-12 工数自動算出完了・F-21 は Graph API 承認待ちのためブロック中
 
 ## 最終更新
-- **日付**: 2026-05-28
+- **日付**: 2026-06-03
 - **完了した作業**:
+  - **[CSV エクスポート]**
+    - `GET /api/v1/tasks/export/csv` エンドポイント追加（フィルタ結果を UTF-8 BOM CSV でストリーム）
+    - タスク一覧ページに「CSV エクスポート」ボタン追加（loading 状態・blob ダウンロード処理）
+    - コミット: `c886368`, `eb00411`
+
+  - **[手動並び替え（Fractional Indexing）]**
+    - `Task.order_index` を Integer → Float に変更（Alembic 0006 マイグレーション）
+    - `TaskReorderRequest` Pydantic モデル追加
+    - `PATCH /api/v1/tasks/{task_id}/order` エンドポイント追加（中点計算・gap < 0.001 で再採番）
+    - `list_tasks` の ORDER BY を `order_index ASC` に変更・`create_task` で末尾追加
+    - ユニットテスト 5 件追加（合計 221 passed）
+    - `useReorderTask` フック追加（`frontend/src/hooks/useTasks.ts`）
+    - タスク一覧（`Tasks/index.tsx`）: `DraggableRow` + `DndContext` + 楽観的更新
+    - ボード（`Board/index.tsx`）: `SortableContext` + カラム内並び替え/カラム間ステータス変更の二重モード
+    - コミット: `cba60b7`, `bae026e`, `8f76487`, `ce09c98`, `76dc423`
+
+- **完了した作業（前セッション: 2026-05-28 セッション 2）**:
+- **完了した作業**:
+  - **[バグ修正: gemini_api_key リネーム]** `google_api_key` → `gemini_api_key` に統一
+    - 原因: OS 環境変数 `GOOGLE_API_KEY`（Google Cloud SA キー）が pydantic-settings に優先されて Gemini 400 エラーが発生
+    - 修正ファイル: `src/models/config.py`・`src/providers/factory.py`・`src/api/routers/tasks_crud.py`・`tests/unit/test_clarify_requirements.py`・`tests/unit/test_generate_subtasks.py`・`.env`
+    - コミット: `d1102a3`
+
+  - **[バグ修正: useAuthStore ログイン状態の永続化]**
+    - `loadDevUser()` 関数を追加し、`sessionStorage` からログイン情報をリロード時に復元
+    - 対象: `frontend/src/store/useAuthStore.ts`
+
+  - **[バグ修正: ExtractModal Pattern B キャンセルボタン]**
+    - キャンセル後も `isPending` が残る問題を `extractTasks.reset()` 呼び出しで修正
+
+  - **[動作確認 8 項目実施]**（Playwright MCP ブラウザ検証）
+    - 1-5 ✅: 起票ボタンで DB にタスクが登録される
+    - 2-1 ✅: Pattern B 警告 Alert が表示される
+    - 2-2 ✅: キャンセルボタンで `isPending` がリセットされる
+    - 2-3 ❌→方針決定: 「それでも送信」ボタンが機能せず → 削除方針に決定
+    - 4-1 ✅: ページリロード後もログイン状態が維持される
+    - 4-2 ✅: ブラウザ「戻る」操作後もログイン状態が維持される
+    - 5-1 ✅: F-32 サブタスク自動生成 が動作する（5 件提案を確認）
+    - 5-2 ✅: F-29 AI チェック が動作する（担当者未設定・完了条件不明確を検知）
+
+  - **[Pattern B 方針: 「それでも送信」ボタン削除]**
+    - 背景: サーバーが Pattern B を常にブロックするため「それでも送信」は機能しない Dead Feature
+    - 対応: Alert の action を「閉じる」1 ボタンのみに変更・説明文を「担当者に相談してください」に更新
+    - 中長期方針: Azure OpenAI（M365 テナント内）移行後に Pattern B を解禁予定
+    - コミット: `de0e1c2`
+
+  - **[新規ドキュメント: docs/deployment-roadmap.md 作成]**
+    - D-Ph0: 環境整備・IT 承認（1〜2 週間）
+    - D-Ph1: パイロット展開 — Pattern A のみ・非機密部署（〜2 ヶ月）
+    - D-Ph2: Azure OpenAI 移行 — Pattern B 解禁・人事財務へ拡大（〜6 ヶ月）
+    - D-Ph3: 全社展開・Entra ID グループ連携（〜12 ヶ月）
+    - D-Ph4: Ollama on-prem — 法務等の高機密部署（必要時）
+    - LLM 選定フローチャート（M365 あり/なし/高機密の 3 分岐）収録
+    - コミット: `6f8e760`
+
+- **完了した作業（前セッション: 2026-05-28 セッション 1）**:
   - **[F-33 テキスト抽出 UI]**
     - `POST /tasks/extract` を JSON ボディ対応に修正・`ExtractResponse` Pydantic モデル追加
     - `ExtractedTask`・`ExtractResult` 型追加（`frontend/src/lib/api.ts`）
@@ -197,10 +253,12 @@
 1. `docs/progress.md`（このファイル）を確認
 2. Graph API 承認状況を確認
    - **承認済み** → `docs/tasks.md` の Phase 1B タスクから開始
-   - **未承認** → Web App Phase 2B 残タスク（F-21 Teams 通知・F-12 工数自動算出）から開始
+   - **未承認** → 残機能の実装または品質向上（下記候補）
 3. 残タスク候補:
-   - **F-21 Teams 通知**: コメント投稿時に担当者へ Teams メッセージ送信
-   - **F-12 工数自動算出**: 蓄積データから目標工数を自動算出・提案
+   - **F-21 Teams 通知**: コメント投稿時に担当者へ Teams メッセージ送信（Graph API 承認後）
+   - **デプロイ準備**: `docs/deployment-roadmap.md` の D-Ph0（本番環境構築・IT 部門承認資料作成）
+   - **E2E テスト拡充**: Playwright テストスイートを CI に組み込む
+   - **追加 UI 機能**: 必要に応じて `docs/requirements.md` の未着手機能から選択
 
 ## 実装計画ファイル
 - `docs/superpowers/plans/2026-05-27-f15-template.md`（F-15 テンプレート機能 実装計画・全完了）
