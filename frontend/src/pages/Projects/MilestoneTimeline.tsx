@@ -51,8 +51,8 @@ export default function MilestoneTimeline({ projectId }: Props) {
   const [editForm] = Form.useForm()
 
   const handleCreate = async () => {
-    const values = await createForm.validateFields()
     try {
+      const values = await createForm.validateFields()
       await createMilestone.mutateAsync({
         title: values.title as string,
         due_date: (values.due_date as dayjs.Dayjs).format('YYYY-MM-DD'),
@@ -66,8 +66,8 @@ export default function MilestoneTimeline({ projectId }: Props) {
 
   const handleEdit = async () => {
     if (!editTarget) return
-    const values = await editForm.validateFields()
     try {
+      const values = await editForm.validateFields()
       await updateMilestone.mutateAsync({
         milestoneId: editTarget.id,
         body: {
