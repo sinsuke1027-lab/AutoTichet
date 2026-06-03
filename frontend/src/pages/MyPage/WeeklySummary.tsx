@@ -55,7 +55,7 @@ export default function WeeklySummary() {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="week" tick={{ fontSize: 12 }} />
           <YAxis unit="h" tick={{ fontSize: 12 }} />
-          <Tooltip formatter={(v: number) => `${v}h`} />
+          <Tooltip formatter={(v) => `${v}h`} />
           <Legend />
           <Bar dataKey="予定" fill="#1677ff" />
           <Bar dataKey="実績" fill="#52c41a" />

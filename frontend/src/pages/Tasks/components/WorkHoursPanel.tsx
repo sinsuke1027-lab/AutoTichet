@@ -12,20 +12,13 @@ interface PastPerformanceSimilarTaskItem {
   actual_hours: number
 }
 
-interface PastPerformanceData {
-  avg_actual_hours: number | null
-  min_actual_hours: number | null
-  max_actual_hours: number | null
-  task_count: number
-  similar_tasks: PastPerformanceSimilarTaskItem[]
-}
 
 function PastPerformanceSection({ taskId }: Props) {
   const { data, isLoading } = usePastPerformance(taskId)
 
   return (
     <div>
-      <Divider orientation="left" plain>
+      <Divider orientation={'left' as const} plain>
         過去の類似タスク実績
       </Divider>
       {isLoading ? (
