@@ -296,7 +296,7 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     for tag in tags:
         db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
-    await db.refresh(task, ["tags", "sub_assignees", "subtasks"])
+    await db.refresh(task, ["tags", "sub_assignees", "subtasks", "work_hours"])
     return _task_to_response(task)
 
 
@@ -855,6 +855,7 @@ async def update_task(
             selectinload(Task.tags),
             selectinload(Task.sub_assignees),
             selectinload(Task.subtasks),
+            selectinload(Task.work_hours),
         )
     )
     return _task_to_response(refreshed.scalar_one())
@@ -901,7 +902,7 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
     for sa_obj in original.sub_assignees:
         db.add(TaskAssignee(task_id=new_task.id, user_id=sa_obj.user_id, role=sa_obj.role))
     await db.commit()
-    await db.refresh(new_task, ["tags", "sub_assignees", "subtasks"])
+    await db.refresh(new_task, ["tags", "sub_assignees", "subtasks", "work_hours"])
     return _task_to_response(new_task)
 
 
