@@ -168,17 +168,19 @@ SECRET_KEY=your-secret-key-here  # JWT 署名用・32文字以上のランダム
 
 ---
 
-## B. Azure 将来対応（先行確認）
+## B. Azure 将来対応（先行確認）✅ 確認完了（2026-06-03）
 
 | 項目 | 状態 | 備考 |
 |------|------|------|
 | Dockerfile 非 root ユーザー | ✅ 対応済み | `USER autoticket` |
-| ポート 8000 公開 | ✅ 対応済み | `EXPOSE 8000` |
-| ヘルスチェック `/health` | ✅ 対応済み | エンドポイント存在 |
-| 全設定を環境変数化 | ✅ ほぼ対応 | A-4 の CORS 修正で完了 |
+| ポート 8000 公開 | ✅ 対応済み | `EXPOSE 8000` + `--host 0.0.0.0` |
+| ヘルスチェック `/health` | ✅ 対応済み | `HEALTHCHECK` + エンドポイント存在 |
+| alembic 同梱 | ✅ 対応済み | `COPY alembic/ alembic/` + `alembic.ini` |
+| 全設定を環境変数化 | ✅ 対応済み | config.py のデフォルトはすべて env var で上書き可能 |
 | PostgreSQL ドライバー（asyncpg） | ✅ 対応済み | Supabase・Azure DB for PG 両対応 |
 | Alembic マイグレーション | ✅ 対応済み | 0001〜0008 |
-| SQLite 処理済みID | ⚠️ 将来要対応 | A-5 参照 |
+| localhost ハードコード（B-8） | ✅ 問題なし | config.py はデフォルト値のみ・CORS は将来本番化時に要見直し |
+| SQLite 処理済みID | ⚠️ 将来要対応 | Azure 移行時に PostgreSQL テーブル化が必要 |
 
 **Azure 移行時の追加作業（将来）:**
 - Azure Container Registry に Docker イメージを push
