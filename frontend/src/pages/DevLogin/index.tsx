@@ -33,8 +33,10 @@ export default function DevLogin() {
   const setUser = useAuthStore((s) => s.setUser)
   const navigate = useNavigate()
 
+  const API_BASE = import.meta.env.VITE_API_URL ?? ''
+
   useEffect(() => {
-    fetch('/api/v1/dev/users')
+    fetch(`${API_BASE}/api/v1/dev/users`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json() as Promise<DevUser[]>
