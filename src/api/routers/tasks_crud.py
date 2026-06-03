@@ -148,6 +148,9 @@ def _task_to_response(task: Task) -> TaskResponse:
         subtask_count=len(subtasks),
         subtask_done_count=sum(1 for s in subtasks if s.status == "completed"),
         risk_level=_compute_risk_level(task),
+        recurrence_rule=task.recurrence_rule,
+        recurrence_end_date=task.recurrence_end_date,
+        recurrence_origin_id=task.recurrence_origin_id,
     )
 
 
@@ -286,6 +289,8 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     task = Task(**data)
     db.add(task)
     await db.flush()
+    if task.recurrence_rule:
+        task.recurrence_origin_id = task.id
     for tag in tags:
         db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
@@ -803,6 +808,8 @@ async def update_task(
         await db.flush()  # flush deletes before inserting new tags
         for tag in body.tags:
             db.add(TaskTag(task_id=task.id, tag=tag))
+    if body.status in (TaskStatus.COMPLETED, TaskStatus.CANCELLED):
+        await _spawn_next_recurrence(task, db)
     await db.commit()
     # flush(タグ削除)でUPDATEが発行されupdated_atがexpireするため、
     # commit後に再クエリして全属性を確実にロードする
@@ -861,6 +868,22 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
     await db.commit()
     await db.refresh(new_task, ["tags", "sub_assignees", "subtasks"])
     return _task_to_response(new_task)
+
+
+@router.delete("/{task_id}/recurrence", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_recurrence(
+    task_id: uuid.UUID,
+    db: DbDep,
+    current_user: CurrentUser,
+) -> None:
+    result = await db.execute(select(Task).where(Task.id == task_id))
+    task = result.scalar_one_or_none()
+    if task is None:
+        raise HTTPException(status_code=404, detail="タスクが見つかりません")
+    task.recurrence_rule = None
+    task.recurrence_end_date = None
+    task.recurrence_origin_id = None
+    await db.commit()
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

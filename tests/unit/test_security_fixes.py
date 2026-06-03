@@ -89,6 +89,9 @@ def _make_mock_task(assignee_id: str = "owner-1") -> MagicMock:
     task.created_by = "owner-1"
     task.created_at = datetime(2026, 1, 1, tzinfo=UTC)
     task.updated_at = datetime(2026, 1, 1, tzinfo=UTC)
+    task.recurrence_rule = None
+    task.recurrence_end_date = None
+    task.recurrence_origin_id = None
     return task
 
 
