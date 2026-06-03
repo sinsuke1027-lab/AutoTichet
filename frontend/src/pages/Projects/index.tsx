@@ -17,6 +17,7 @@ import { useProjects } from '../../hooks/useProjects'
 import { useSections, useCreateSection, useDeleteSection } from '../../hooks/useSections'
 import { useTasks, useCreateTask } from '../../hooks/useTasks'
 import type { Section, Task } from '../../lib/api'
+import MilestoneTimeline from './MilestoneTimeline'
 
 export default function ProjectDetail() {
   const { id: projectId } = useParams<{ id: string }>()
@@ -158,6 +159,8 @@ export default function ProjectDetail() {
           セクション追加
         </Button>
       </Space>
+
+      <MilestoneTimeline projectId={projectId ?? ''} />
 
       <Collapse items={sectionItems} defaultActiveKey={sections.map((s) => s.id)} />
 
