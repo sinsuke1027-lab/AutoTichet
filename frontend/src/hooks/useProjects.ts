@@ -1,12 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { type Project, archiveProject, unarchiveProject } from '../lib/api'
 
-export function useProjects(includeArchived = false) {
+export function useProjects(params: { includeArchived?: boolean; scope?: 'mine' | 'all' } = {}) {
+  const { includeArchived = false, scope = 'mine' } = params
   return useQuery<Project[]>({
-    queryKey: ['projects', { includeArchived }],
+    queryKey: ['projects', { includeArchived, scope }],
     queryFn: async () => {
       const { data } = await api.get('/projects', {
-        params: includeArchived ? { include_archived: true } : {},
+        params: {
+          ...(includeArchived ? { include_archived: true } : {}),
+          scope,
+        },
       })
       return data
     },

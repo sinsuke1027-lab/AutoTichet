@@ -26,7 +26,7 @@ import {
 export default function ProjectList() {
   const navigate = useNavigate()
   const [includeArchived, setIncludeArchived] = useState(false)
-  const { data: projects = [], isLoading } = useProjects(includeArchived)
+  const { data: projects = [], isLoading } = useProjects({ includeArchived })
   const createProject = useCreateProject()
   const archiveProject = useArchiveProject()
   const unarchiveProject = useUnarchiveProject()

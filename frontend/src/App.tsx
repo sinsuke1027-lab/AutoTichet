@@ -37,6 +37,7 @@ import HelpPage from './pages/Help'
 import WorkloadAlertBadge from './components/WorkloadAlertBadge'
 import CommandPalette from './components/CommandPalette'
 import HelpDrawer from './components/HelpDrawer'
+import ProjectContextSelector from './components/ProjectContextSelector'
 import { useSearchStore } from './store/useSearchStore'
 import DevLogin, { DEV_USER_KEY } from './pages/DevLogin'
 
@@ -151,7 +152,8 @@ function AppLayout() {
         </div>
       </Header>
       <Layout>
-        <Sider width={200} theme="light">
+        <Sider width={220} theme="light">
+          <ProjectContextSelector />
           <Menu
             mode="inline"
             selectedKeys={[selectedKey]}
