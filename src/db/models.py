@@ -40,7 +40,9 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    tasks: Mapped[list["Task"]] = relationship("Task", back_populates="project")
+    tasks: Mapped[list["Task"]] = relationship(
+        "Task", back_populates="project", foreign_keys="Task.project_id"
+    )
     milestones: Mapped[list["Milestone"]] = relationship("Milestone", back_populates="project")
     sections: Mapped[list["Section"]] = relationship("Section", back_populates="project")
     members: Mapped[list["ProjectMember"]] = relationship(
@@ -81,13 +83,21 @@ class Task(Base):
     recurrence_origin_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
+    visibility_tag: Mapped[str | None] = mapped_column(Text, nullable=True)
+    visibility_project_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_by: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    project: Mapped["Project | None"] = relationship("Project", back_populates="tasks")
+    project: Mapped["Project | None"] = relationship(
+        "Project", back_populates="tasks", foreign_keys="Task.project_id"
+    )
     subtasks: Mapped[list["Task"]] = relationship(
         "Task", back_populates="parent_task", foreign_keys="Task.parent_task_id"
     )
