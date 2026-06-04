@@ -101,6 +101,9 @@ def test_update_tag_rename(client: TestClient, mock_db: AsyncMock) -> None:
     existing = DepartmentTag(name="営業部", description="説明")
     tag_result = MagicMock()
     tag_result.scalar_one_or_none.return_value = existing
+    # duplicate check: no conflict
+    no_conflict = MagicMock()
+    no_conflict.scalar_one_or_none.return_value = None
     # user update query (no users with this tag)
     user_result = MagicMock()
     user_result.scalars.return_value.all.return_value = []
@@ -108,7 +111,7 @@ def test_update_tag_rename(client: TestClient, mock_db: AsyncMock) -> None:
     renamed = DepartmentTag(name="営業グループ", description="説明")
     refetch_result = MagicMock()
     refetch_result.scalar_one.return_value = renamed
-    mock_db.execute = AsyncMock(side_effect=[tag_result, user_result, refetch_result])
+    mock_db.execute = AsyncMock(side_effect=[tag_result, no_conflict, user_result, refetch_result])
     mock_db.commit = AsyncMock()
     mock_db.delete = AsyncMock()
     mock_db.flush = AsyncMock()
@@ -121,6 +124,23 @@ def test_update_tag_rename(client: TestClient, mock_db: AsyncMock) -> None:
 
     assert resp.status_code == 200
     assert resp.json()["name"] == "営業グループ"
+
+
+def test_update_tag_rename_conflict_returns_409(client: TestClient, mock_db: AsyncMock) -> None:
+    """PATCH でリネーム先名が既存タグと重複するとき 409"""
+    existing = DepartmentTag(name="営業部", description="説明")
+    tag_result = MagicMock()
+    tag_result.scalar_one_or_none.return_value = existing
+    conflict_result = MagicMock()
+    conflict_result.scalar_one_or_none.return_value = DepartmentTag(name="人事部", description=None)
+    mock_db.execute = AsyncMock(side_effect=[tag_result, conflict_result])
+
+    resp = client.patch(
+        "/api/v1/admin/tags/%E5%96%B6%E6%A5%AD%E9%83%A8",
+        json={"new_name": "人事部"},
+    )
+
+    assert resp.status_code == 409
 
 
 def test_delete_tag_returns_204(client: TestClient, mock_db: AsyncMock) -> None:

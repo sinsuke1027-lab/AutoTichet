@@ -107,6 +107,12 @@ async def update_tag(
     new_name = body.new_name if body.new_name is not None else tag
 
     if new_name != tag:
+        # 変更先の名前が既存タグと重複していないか確認
+        dup = await db.execute(select(DepartmentTag).where(DepartmentTag.name == new_name))
+        if dup.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="タグ名が既に使用されています"
+            )
         # タグ名変更: 全ユーザーの department_tags 配列も更新
         user_result = await db.execute(
             select(UserProfile).where(UserProfile.department_tags.op("@>")(pg_array([tag])))
