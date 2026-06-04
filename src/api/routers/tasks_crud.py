@@ -158,6 +158,8 @@ def _task_to_response(task: Task) -> TaskResponse:
         recurrence_origin_id=task.recurrence_origin_id,
         assignee_name=task.assignee.display_name if task.assignee else None,
         project_name=task.project.name if task.project else None,
+        visibility_tag=task.visibility_tag,
+        visibility_project_id=task.visibility_project_id,
     )
 
 

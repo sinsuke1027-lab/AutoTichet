@@ -3,7 +3,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class TaskStatus(str, Enum):
@@ -99,6 +99,16 @@ class TaskCreate(BaseModel):
     tags: list[str] = Field(default_factory=list)
     recurrence_rule: Literal["daily", "weekly", "monthly"] | None = None
     recurrence_end_date: date | None = None
+    visibility_tag: str | None = None
+    visibility_project_id: uuid.UUID | None = None
+
+    @model_validator(mode="after")
+    def validate_visibility_fields(self) -> "TaskCreate":
+        if self.visibility == "tag" and not self.visibility_tag:
+            raise ValueError("visibility='tag' の場合は visibility_tag が必要です")
+        if self.visibility == "project" and not self.visibility_project_id:
+            raise ValueError("visibility='project' の場合は visibility_project_id が必要です")
+        return self
 
 
 class TaskUpdate(BaseModel):
@@ -113,6 +123,8 @@ class TaskUpdate(BaseModel):
     project_id: uuid.UUID | None = None
     section_id: uuid.UUID | None = None
     tags: list[str] | None = None
+    visibility_tag: str | None = None
+    visibility_project_id: uuid.UUID | None = None
 
 
 class TaskResponse(BaseModel):
@@ -146,6 +158,8 @@ class TaskResponse(BaseModel):
     recurrence_origin_id: uuid.UUID | None = None
     assignee_name: str | None = None
     project_name: str | None = None
+    visibility_tag: str | None = None
+    visibility_project_id: uuid.UUID | None = None
 
     model_config = {"from_attributes": True}
 
