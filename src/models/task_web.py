@@ -3,7 +3,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TaskStatus(str, Enum):
@@ -49,6 +49,30 @@ class ProjectResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# --- ProjectMember ---
+
+
+class ProjectMemberAdd(BaseModel):
+    user_id: str
+    role: str = "member"
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, v: str) -> str:
+        if v not in ("owner", "member"):
+            raise ValueError("role は 'owner' または 'member' のみ有効です")
+        return v
+
+
+class ProjectMemberResponse(BaseModel):
+    project_id: uuid.UUID
+    user_id: str
+    role: str
+    joined_at: datetime
 
     model_config = {"from_attributes": True}
 

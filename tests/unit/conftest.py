@@ -25,6 +25,7 @@ from src.db.models import (
     TaskAssignee,
     TaskTag,
     TaskWorkHour,
+    UserProfile,
 )
 
 # ---------------------------------------------------------------------------
@@ -47,6 +48,18 @@ _MEMBER_TEST_TABLES = [
 # Tables required by the tasks router (in dependency order)
 _TASK_TEST_TABLES = [
     Project.__table__,
+    Section.__table__,
+    Task.__table__,
+    TaskTag.__table__,
+    TaskWorkHour.__table__,
+    TaskAssignee.__table__,
+    ProjectMember.__table__,
+]
+
+# Tables required by scope tests (tasks + users + projects)
+_SCOPE_TEST_TABLES = [
+    Project.__table__,
+    UserProfile.__table__,
     Section.__table__,
     Task.__table__,
     TaskTag.__table__,
@@ -212,3 +225,54 @@ _DEV_USER: dict[str, Any] = {
 def auth_headers() -> dict[str, str]:
     """Return X-Dev-User header that dev_mode auth accepts."""
     return {"X-Dev-User": json.dumps(_DEV_USER)}
+
+
+@pytest.fixture()
+async def scope_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Yield a fresh in-memory SQLite session with tasks + users + projects tables."""
+    engine = create_async_engine(_SQLITE_URL, echo=False)
+    meta = _sqlite_metadata(tables=_SCOPE_TEST_TABLES)
+    async with engine.begin() as conn:
+        await conn.run_sync(meta.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+
+    async with engine.begin() as conn:
+        await conn.run_sync(meta.drop_all)
+    await engine.dispose()
+
+
+@pytest.fixture()
+async def scope_client(scope_db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """AsyncClient with tasks + users + projects routers for scope filter tests."""
+    from fastapi import FastAPI
+
+    from src.api.routers import projects, tasks_crud, users
+    from src.db.engine import get_db
+    from src.models.config import Settings
+
+    test_settings = Settings(
+        dev_mode=True,
+        database_url=_SQLITE_URL,
+    )
+
+    app = FastAPI()
+    app.include_router(projects.router)
+    app.include_router(tasks_crud.router)
+    app.include_router(users.router)
+
+    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield scope_db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    with patch("src.api.auth.get_settings", return_value=test_settings), patch(
+        "src.models.config.get_settings", return_value=test_settings
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as ac:
+            yield ac

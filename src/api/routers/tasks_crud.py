@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.api.auth import ROLE_HIERARCHY, CurrentUser
+from src.api.routers._scope import visible_user_ids as _visible_user_ids
 from src.db.engine import get_db
 from src.db.models import (
     Project,
