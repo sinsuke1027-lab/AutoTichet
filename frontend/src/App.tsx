@@ -134,7 +134,7 @@ function AppLayout() {
               <Button
                 size="small"
                 onClick={handleDevLogout}
-                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)' }}
+                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)', background: 'transparent' }}
               >
                 ログアウト
               </Button>
