@@ -17,6 +17,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Card, Select, Space, Spin, Tag, Typography } from 'antd'
+import { UserOutlined } from '@ant-design/icons'
+import { useQueryClient } from '@tanstack/react-query'
 import { useProjects } from '../../hooks/useProjects'
 import { useTasksForView } from '../../hooks/useTasksForView'
 import { useUpdateTask, useReorderTask } from '../../hooks/useTasks'
@@ -70,6 +72,12 @@ function TaskCard({ task, onCardClick }: { task: Task; onCardClick: () => void }
             <span style={{ fontSize: 11, color: '#888' }}>{task.due_date}</span>
           )}
         </Space>
+        {task.assignee_name && (
+          <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            <UserOutlined style={{ marginRight: 4 }} />
+            {task.assignee_name}
+          </div>
+        )}
       </Card>
     </div>
   )
@@ -130,6 +138,7 @@ export default function Board() {
 
   const { data: projects = [] } = useProjects()
   const { data: tasks = [], isLoading } = useTasksForView({ project_id: projectId })
+  const queryClient = useQueryClient()
   const updateTask = useUpdateTask()
   const reorderTask = useReorderTask()
 
@@ -193,8 +202,23 @@ export default function Board() {
         })
       }
     } else {
-      // 別カラムへのドロップ → ステータス更新
-      updateTask.mutate({ id: activeId, status: overColKey })
+      // 別カラムへのドロップ → ステータス更新（楽観的更新）
+      const queryKey = ['tasks-view', { project_id: projectId }]
+      const previous = queryClient.getQueryData<Task[]>(queryKey)
+      queryClient.setQueryData<Task[]>(queryKey, (old = []) =>
+        old.map((t) => (t.id === activeId ? { ...t, status: overColKey } : t))
+      )
+      updateTask.mutate(
+        { id: activeId, status: overColKey },
+        {
+          onError: () => {
+            queryClient.setQueryData(queryKey, previous)
+          },
+          onSettled: () => {
+            void queryClient.invalidateQueries({ queryKey: ['tasks-view'] })
+          },
+        }
+      )
     }
 
     // dragOccurredRef は次の click イベントのタイミングでリセットするため setTimeout を使う
