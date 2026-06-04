@@ -22,10 +22,12 @@
     "date-fns": "^4.2.1",
     "dayjs": "^1.11.20",
     "gantt-task-react": "^0.3.9",
+    "marked": "^18.0.4",
     "react": "^19.2.6",
     "react-big-calendar": "^1.19.4",
     "react-dom": "^19.2.6",
     "react-is": "^19.2.6",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.15.1",
     "recharts": "^3.8.1",
     "zustand": "^5.0.13"

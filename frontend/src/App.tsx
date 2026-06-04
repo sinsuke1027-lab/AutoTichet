@@ -15,6 +15,7 @@ import {
   FileTextOutlined,
   UserOutlined,
   SearchOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons'
 import { loginRequest } from './lib/msal'
 import { useAuthStore } from './store/useAuthStore'
@@ -32,8 +33,10 @@ import GanttView from './pages/Gantt'
 import AdminPage from './pages/Admin'
 import TemplatesPage from './pages/Templates'
 import MyPage from './pages/MyPage'
+import HelpPage from './pages/Help'
 import WorkloadAlertBadge from './components/WorkloadAlertBadge'
 import CommandPalette from './components/CommandPalette'
+import HelpDrawer from './components/HelpDrawer'
 import { useSearchStore } from './store/useSearchStore'
 import DevLogin, { DEV_USER_KEY } from './pages/DevLogin'
 
@@ -65,7 +68,23 @@ const NAV_ITEMS = [
   { key: '/workload', icon: <TeamOutlined />, label: 'ワークロード' },
   { key: '/templates', icon: <FileTextOutlined />, label: 'テンプレート' },
   { key: '/import', icon: <UploadOutlined />, label: 'データインポート' },
+  { key: '/help', icon: <QuestionCircleOutlined />, label: 'ヘルプ' },
 ]
+
+const PAGE_HELP_KEY: Record<string, string> = {
+  '/': 'dashboard',
+  '/mypage': 'mypage',
+  '/tasks': 'tasks',
+  '/projects': 'projects',
+  '/board': 'board',
+  '/calendar': 'calendar',
+  '/gantt': 'gantt',
+  '/schedule': 'schedule',
+  '/workload': 'workload',
+  '/templates': 'templates',
+  '/import': 'import',
+  '/admin': 'admin',
+}
 
 function AppLayout() {
   const navigate = useNavigate()
@@ -83,6 +102,8 @@ function AppLayout() {
   const selectedKey =
     navItemsWithAdmin.find((item) => item.key !== '/' && location.pathname.startsWith(item.key))
       ?.key ?? '/'
+
+  const helpPageKey = PAGE_HELP_KEY[selectedKey] ?? PAGE_HELP_KEY[location.pathname] ?? ''
 
   const { setOpen: openSearch } = useSearchStore()
 
@@ -155,11 +176,13 @@ function AppLayout() {
             <Route path="/templates" element={<TemplatesPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/help" element={<HelpPage />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Content>
       </Layout>
       <CommandPalette />
+      {helpPageKey && location.pathname !== '/help' && <HelpDrawer pageKey={helpPageKey} />}
     </Layout>
   )
 }
