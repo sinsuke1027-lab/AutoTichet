@@ -16,7 +16,16 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import JSON, MetaData, Table
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.db.models import Base, Project, ProjectMember
+from src.db.models import (
+    Base,
+    Project,
+    ProjectMember,
+    Section,
+    Task,
+    TaskAssignee,
+    TaskTag,
+    TaskWorkHour,
+)
 
 # ---------------------------------------------------------------------------
 # In-memory SQLite engine (per test function)
@@ -35,15 +44,29 @@ _MEMBER_TEST_TABLES = [
     ProjectMember.__table__,
 ]
 
+# Tables required by the tasks router (in dependency order)
+_TASK_TEST_TABLES = [
+    Project.__table__,
+    Section.__table__,
+    Task.__table__,
+    TaskTag.__table__,
+    TaskWorkHour.__table__,
+    TaskAssignee.__table__,
+    ProjectMember.__table__,
+]
 
-def _sqlite_metadata() -> MetaData:
-    """Return a MetaData that contains only the tables needed for project-member tests,
+
+def _sqlite_metadata(tables: list | None = None) -> MetaData:
+    """Return a MetaData that contains only the requested tables,
     with any PostgreSQL-specific column types replaced by SQLite equivalents."""
     from sqlalchemy import Column, DateTime, Float, String, Text, UUID as SA_UUID
     from sqlalchemy.dialects.postgresql import JSONB
 
+    target_tables = tables if tables is not None else _MEMBER_TEST_TABLES
     meta = MetaData()
-    for src_table in _MEMBER_TEST_TABLES:
+    for src_table in target_tables:
+        if src_table.name in meta.tables:
+            continue  # skip already-registered tables
         cols: list[Column] = []  # type: ignore[type-arg]
         for col in src_table.columns:
             # Clone, replacing JSONB → JSON
@@ -66,6 +89,23 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """Yield a fresh in-memory SQLite session for each test."""
     engine = create_async_engine(_SQLITE_URL, echo=False)
     meta = _sqlite_metadata()
+    async with engine.begin() as conn:
+        await conn.run_sync(meta.create_all)
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
+        yield session
+
+    async with engine.begin() as conn:
+        await conn.run_sync(meta.drop_all)
+    await engine.dispose()
+
+
+@pytest.fixture()
+async def task_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """Yield a fresh in-memory SQLite session with tasks + projects tables."""
+    engine = create_async_engine(_SQLITE_URL, echo=False)
+    meta = _sqlite_metadata(tables=_TASK_TEST_TABLES)
     async with engine.begin() as conn:
         await conn.run_sync(meta.create_all)
 
@@ -111,6 +151,40 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_db] = _override_get_db
 
     # Patch get_settings so dev_mode=True is visible inside get_current_user
+    with patch("src.api.auth.get_settings", return_value=test_settings), patch(
+        "src.models.config.get_settings", return_value=test_settings
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as ac:
+            yield ac
+
+
+@pytest.fixture()
+async def task_client(task_db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """AsyncClient backed by the FastAPI app including tasks + projects routers."""
+    from fastapi import FastAPI
+
+    from src.api.routers import projects
+    from src.api.routers import tasks_crud
+    from src.db.engine import get_db
+    from src.models.config import Settings
+
+    test_settings = Settings(
+        dev_mode=True,
+        database_url=_SQLITE_URL,
+    )
+
+    app = FastAPI()
+    app.include_router(projects.router)
+    app.include_router(tasks_crud.router)
+
+    async def _override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield task_db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
     with patch("src.api.auth.get_settings", return_value=test_settings), patch(
         "src.models.config.get_settings", return_value=test_settings
     ):
