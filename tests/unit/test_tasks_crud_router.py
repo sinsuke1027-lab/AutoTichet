@@ -128,3 +128,57 @@ def test_list_tasks_with_section_filter(client, mock_db) -> None:
     resp = client.get(f"/api/v1/tasks?section_id={sid}")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
+
+
+def test_task_response_has_assignee_name(client: TestClient, mock_db: AsyncMock) -> None:
+    """タスク一覧レスポンスに assignee_name と project_name が含まれる。"""
+    from datetime import datetime, timezone
+    from src.db.models import Task as TaskModel
+
+    task_obj = MagicMock(spec=TaskModel)
+    task_obj.id = uuid.uuid4()
+    task_obj.project_id = None
+    task_obj.parent_task_id = None
+    task_obj.section_id = None
+    task_obj.title = "テストタスク"
+    task_obj.description = None
+    task_obj.status = "not_started"
+    task_obj.priority = "medium"
+    task_obj.assignee_id = "user-1"
+    task_obj.due_date = None
+    task_obj.start_date = None
+    task_obj.visibility = "team"
+    task_obj.source_type = None
+    task_obj.confidence_score = None
+    task_obj.route = None
+    task_obj.completed_at = None
+    task_obj.order_index = 0.0
+    task_obj.created_by = "user-1"
+    task_obj.created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    task_obj.updated_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+    task_obj.tags = []
+    task_obj.sub_assignees = []
+    task_obj.subtasks = []
+    task_obj.work_hours = []
+    task_obj.recurrence_rule = None
+    task_obj.recurrence_end_date = None
+    task_obj.recurrence_origin_id = None
+    task_obj.assignee = MagicMock()
+    task_obj.assignee.display_name = "石川 太郎"
+    task_obj.project = MagicMock()
+    task_obj.project.name = "テストプロジェクト"
+
+    count_mock = MagicMock()
+    count_mock.scalar_one.return_value = 1
+    result_mock = MagicMock()
+    result_mock.scalars.return_value.all.return_value = [task_obj]
+    mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
+
+    resp = client.get("/api/v1/tasks")
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert "assignee_name" in items[0]
+    assert "project_name" in items[0]
+    assert items[0]["assignee_name"] == "石川 太郎"
+    assert items[0]["project_name"] == "テストプロジェクト"

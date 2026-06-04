@@ -153,6 +153,8 @@ def _task_to_response(task: Task) -> TaskResponse:
         recurrence_rule=task.recurrence_rule,
         recurrence_end_date=task.recurrence_end_date,
         recurrence_origin_id=task.recurrence_origin_id,
+        assignee_name=task.assignee.display_name if task.assignee else None,
+        project_name=task.project.name if task.project else None,
     )
 
 
@@ -179,6 +181,8 @@ async def list_tasks(
         selectinload(Task.sub_assignees),
         selectinload(Task.subtasks),
         selectinload(Task.work_hours),
+        selectinload(Task.assignee),
+        selectinload(Task.project),
     )
     if status_filter:
         query = query.where(Task.status == status_filter.value)
@@ -296,7 +300,9 @@ async def create_task(body: TaskCreate, db: DbDep, current_user: CurrentUser) ->
     for tag in tags:
         db.add(TaskTag(task_id=task.id, tag=tag))
     await db.commit()
-    await db.refresh(task, ["tags", "sub_assignees", "subtasks", "work_hours"])
+    await db.refresh(
+        task, ["tags", "sub_assignees", "subtasks", "work_hours", "assignee", "project"]
+    )
     return _task_to_response(task)
 
 
@@ -663,6 +669,7 @@ async def export_tasks_csv(
         selectinload(Task.work_hours),
         selectinload(Task.project),
         selectinload(Task.section),
+        selectinload(Task.assignee),
     )
     if status_filter:
         query = query.where(Task.status == status_filter.value)
@@ -810,6 +817,8 @@ async def get_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUser) -> 
             selectinload(Task.sub_assignees),
             selectinload(Task.subtasks),
             selectinload(Task.work_hours),
+            selectinload(Task.assignee),
+            selectinload(Task.project),
         )
     )
     task = result.scalar_one_or_none()
@@ -826,7 +835,11 @@ async def update_task(
         select(Task)
         .where(Task.id == task_id)
         .options(
-            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+            selectinload(Task.tags),
+            selectinload(Task.sub_assignees),
+            selectinload(Task.subtasks),
+            selectinload(Task.assignee),
+            selectinload(Task.project),
         )
     )
     task = result.scalar_one_or_none()
@@ -856,6 +869,8 @@ async def update_task(
             selectinload(Task.sub_assignees),
             selectinload(Task.subtasks),
             selectinload(Task.work_hours),
+            selectinload(Task.assignee),
+            selectinload(Task.project),
         )
     )
     return _task_to_response(refreshed.scalar_one())
@@ -869,7 +884,11 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
         select(Task)
         .where(Task.id == task_id)
         .options(
-            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+            selectinload(Task.tags),
+            selectinload(Task.sub_assignees),
+            selectinload(Task.subtasks),
+            selectinload(Task.assignee),
+            selectinload(Task.project),
         )
     )
     original = result.scalar_one_or_none()
@@ -902,7 +921,9 @@ async def duplicate_task(task_id: uuid.UUID, db: DbDep, current_user: CurrentUse
     for sa_obj in original.sub_assignees:
         db.add(TaskAssignee(task_id=new_task.id, user_id=sa_obj.user_id, role=sa_obj.role))
     await db.commit()
-    await db.refresh(new_task, ["tags", "sub_assignees", "subtasks", "work_hours"])
+    await db.refresh(
+        new_task, ["tags", "sub_assignees", "subtasks", "work_hours", "assignee", "project"]
+    )
     return _task_to_response(new_task)
 
 

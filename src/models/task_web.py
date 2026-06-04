@@ -120,6 +120,8 @@ class TaskResponse(BaseModel):
     recurrence_rule: str | None = None
     recurrence_end_date: date | None = None
     recurrence_origin_id: uuid.UUID | None = None
+    assignee_name: str | None = None
+    project_name: str | None = None
 
     model_config = {"from_attributes": True}
 
