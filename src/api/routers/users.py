@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import CurrentUser
+from src.api.routers._scope import visible_user_ids as _visible_user_ids
 from src.db.engine import get_db
 from src.db.models import UserProfile
 from src.models.task_web import AdminUserResponse, MeResponse, UserProfileUpdate, UserResponse
@@ -47,10 +48,16 @@ async def update_my_profile(
     return AdminUserResponse.model_validate(profile)
 
 
-@router.get("", response_model=list[UserResponse])
+@router.get("", response_model=list[AdminUserResponse])
 async def list_users(
     db: DbDep,
     current_user: CurrentUser,
-) -> list[UserResponse]:
-    result = await db.execute(select(UserProfile).order_by(UserProfile.display_name))
-    return [UserResponse.model_validate(u) for u in result.scalars().all()]
+    scope: str = Query(default="all"),  # "all" | "visible"
+) -> list[AdminUserResponse]:
+    query = select(UserProfile).order_by(UserProfile.display_name)
+    if scope == "visible":
+        allowed_uids = await _visible_user_ids(db, current_user)
+        if allowed_uids is not None:
+            query = query.where(UserProfile.user_id.in_(allowed_uids))
+    result = await db.execute(query)
+    return [AdminUserResponse.model_validate(u) for u in result.scalars().all()]
