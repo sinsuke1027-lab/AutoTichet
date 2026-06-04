@@ -78,6 +78,8 @@ _CSV_HEADERS = [
     "ソース種別",
     "作成日時",
     "更新日時",
+    "親タスク名",
+    "依存関係（ブロック元）",
 ]
 
 MAX_EXPORT_ROWS = 10_000
@@ -670,6 +672,8 @@ async def export_tasks_csv(
         selectinload(Task.project),
         selectinload(Task.section),
         selectinload(Task.assignee),
+        selectinload(Task.parent_task),
+        selectinload(Task.dependencies),
     )
     if status_filter:
         query = query.where(Task.status == status_filter.value)
@@ -764,6 +768,8 @@ async def export_tasks_csv(
                 task.source_type or "",
                 task.created_at.isoformat(),
                 task.updated_at.isoformat(),
+                task.parent_task.title if task.parent_task else "",
+                ",".join(str(d.depends_on_task_id) for d in (task.dependencies or [])),
             ]
         )
 

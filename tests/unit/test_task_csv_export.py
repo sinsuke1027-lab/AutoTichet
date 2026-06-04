@@ -41,6 +41,9 @@ def _make_task(*, status: str = "not_started") -> MagicMock:
     t.project = None
     t.section = None
     t.visibility = "all"
+    t.assignee = None
+    t.parent_task = None
+    t.dependencies = []
     return t
 
 
@@ -100,13 +103,15 @@ def test_export_csv_status_filter_row_value() -> None:
     assert rows[0]["ステータス"] == "completed"
 
 
-def test_export_csv_has_20_headers() -> None:
-    """CSV ヘッダーが 20 列あること（ID〜更新日時）"""
+def test_export_csv_has_22_headers() -> None:
+    """CSV ヘッダーが 22 列あること（ID〜依存関係（ブロック元））"""
     client = _make_client(_make_db([]))
     resp = client.get("/api/v1/tasks/export/csv")
     reader = csv.reader(io.StringIO(resp.content.decode("utf-8-sig")))
     headers = next(reader)
-    assert len(headers) == 20
+    assert len(headers) == 22
     assert headers[0] == "ID"
     assert headers[1] == "タイトル"
-    assert headers[-1] == "更新日時"
+    assert headers[19] == "更新日時"
+    assert headers[20] == "親タスク名"
+    assert headers[21] == "依存関係（ブロック元）"

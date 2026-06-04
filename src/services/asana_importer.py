@@ -97,6 +97,12 @@ def parse_asana_xlsx(xlsx_bytes: bytes) -> list[AsanaRow]:
         except ValueError:
             return None
 
+    def cell_ja(row: tuple, ja_col: str, en_col: str | None = None) -> Any:
+        v = cell(row, ja_col)
+        if v is None and en_col:
+            v = cell(row, en_col)
+        return v
+
     # 担当者メールアドレス列: テンプレートは "Assignee Email"、
     # 旧 Asana エクスポートは "Assignee" にメールが入る場合もあるため両方試みる
     def assignee_email(row: tuple) -> str:
@@ -111,35 +117,41 @@ def parse_asana_xlsx(xlsx_bytes: bytes) -> list[AsanaRow]:
 
     result: list[AsanaRow] = []
     for row in data_rows:
-        name = str(cell(row, "Name") or "").strip()
+        name = str(cell_ja(row, "タイトル", "Name") or "").strip()
         if not name:
             continue
-        completed_at_raw = cell(row, "Completed At")
+        completed_at_raw = cell_ja(row, "完了日時", "Completed At")
         completed_at = _parse_datetime(completed_at_raw)
-        priority_raw = str(cell(row, "優先度") or "").strip()
+        priority_raw = str(cell_ja(row, "優先度") or "").strip()
         priority = _PRIORITY_MAP.get(priority_raw, "medium")
-        tags_raw = str(cell(row, "Tags") or "").strip()
+        tags_raw = str(cell_ja(row, "タグ", "Tags") or "").strip()
         tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
-        blocked_raw = blocked_by_raw(row)
+        blocked_raw = str(
+            cell_ja(row, "依存関係（ブロック元）", "Blocked By (Dependencies)")
+            or cell(row, "Blocked By")
+            or ""
+        ).strip()
         blocked_by = [b.strip() for b in blocked_raw.split(",") if b.strip()]
-        sub_raw = str(cell(row, "サブ担当者") or "").strip()
+        sub_raw = str(cell_ja(row, "サブ担当者") or "").strip()
         sub_emails = [e.strip() for e in sub_raw.split(",") if e.strip()]
         result.append(
             AsanaRow(
-                task_id=str(cell(row, "Task ID") or "").strip(),
+                task_id=str(cell_ja(row, "ID", "Task ID") or "").strip(),
                 name=name,
-                section=str(cell(row, "Section/Column") or "").strip(),
-                assignee_email=assignee_email(row),
-                due_date=_parse_date(cell(row, "Due Date")),
-                start_date=_parse_date(cell(row, "Start Date")),
+                section=str(cell_ja(row, "セクション名", "Section/Column") or "").strip(),
+                assignee_email=str(
+                    cell_ja(row, "担当者", "Assignee Email") or cell(row, "Assignee") or ""
+                ).strip(),
+                due_date=_parse_date(cell_ja(row, "期限日", "Due Date")),
+                start_date=_parse_date(cell_ja(row, "開始日", "Start Date")),
                 completed_at=completed_at,
                 is_completed=completed_at is not None,
                 priority=priority,
-                notes=str(cell(row, "Notes") or "").strip(),
+                notes=str(cell_ja(row, "説明", "Notes") or "").strip(),
                 tags=tags,
                 blocked_by=blocked_by,
-                created_at=_parse_datetime(cell(row, "Created At")),
-                parent_task_name=str(cell(row, "Parent task") or "").strip(),
+                created_at=_parse_datetime(cell_ja(row, "作成日時", "Created At")),
+                parent_task_name=str(cell_ja(row, "親タスク名", "Parent task") or "").strip(),
                 sub_assignee_emails=sub_emails,
             )
         )
