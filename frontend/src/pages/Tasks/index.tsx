@@ -37,6 +37,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useTasks, useCreateTask, useEstimateHours, useRecordEstimatedHours, useReorderTask, useBulkUpdateTasks } from '../../hooks/useTasks'
+import { useAdminTags } from '../../hooks/useAdminTags'
 import { useProjects } from '../../hooks/useProjects'
 import { useSections } from '../../hooks/useSections'
 import { useSimilarTasks } from '../../hooks/useSimilarTasks'
@@ -142,6 +143,8 @@ export default function TaskList() {
   const { data: similarTasks = [] } = useSimilarTasks(newTitle)
   const { data: templates = [] } = useTemplates()
   const applyTemplate = useApplyTemplate()
+  const { data: adminTags = [] } = useAdminTags()
+  const tagOptions = adminTags.map((t) => ({ value: t.name, label: t.name }))
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>()
   const [templateBaseDate, setTemplateBaseDate] = useState<string>(
     new Date().toISOString().split('T')[0],
@@ -315,6 +318,18 @@ export default function TaskList() {
       ),
     },
     { title: '優先度', dataIndex: 'priority', key: 'priority' },
+    {
+      title: '担当者',
+      dataIndex: 'assignee_name',
+      key: 'assignee_name',
+      render: (v: string | null) => v ?? <span style={{ color: '#bbb' }}>未割当</span>,
+    },
+    {
+      title: 'プロジェクト',
+      dataIndex: 'project_name',
+      key: 'project_name',
+      render: (v: string | null) => v ?? <span style={{ color: '#bbb' }}>—</span>,
+    },
     {
       title: '期限',
       dataIndex: 'due_date',
@@ -560,8 +575,9 @@ export default function TaskList() {
             <Select
               mode="tags"
               style={{ width: '100%' }}
-              placeholder="タグを入力（Enter で確定）"
+              placeholder="タグを選択または入力"
               tokenSeparators={[',']}
+              options={tagOptions}
             />
           </Form.Item>
 

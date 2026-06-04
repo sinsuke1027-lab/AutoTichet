@@ -57,6 +57,8 @@ export interface Task {
   recurrence_rule?: 'daily' | 'weekly' | 'monthly' | null
   recurrence_end_date?: string | null
   recurrence_origin_id?: string | null
+  assignee_name?: string | null
+  project_name?: string | null
 }
 
 export interface TaskListResponse {
