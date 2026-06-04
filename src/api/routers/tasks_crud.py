@@ -691,10 +691,7 @@ async def export_tasks_csv(
     if assignee_ids:
         query = query.where(Task.assignee_id.in_(assignee_ids))
     if my_tasks_only:
-        query = query.where(
-            Task.assignee_id == current_user.sub,
-            Task.visibility == "private",
-        )
+        query = query.where(Task.assignee_id == current_user.sub)
     user_role = max(
         (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
         default=0,
@@ -724,8 +721,12 @@ async def export_tasks_csv(
                 )
             )
     if not include_archived_projects:
-        query = query.outerjoin(Project, Task.project_id == Project.id).where(
-            or_(Task.project_id.is_(None), Project.status != "archived")
+        archived_project_ids = select(Project.id).where(Project.status == "archived")
+        query = query.where(
+            or_(
+                Task.project_id.is_(None),
+                Task.project_id.not_in(archived_project_ids),
+            )
         )
 
     result = await db.execute(
@@ -747,7 +748,7 @@ async def export_tasks_csv(
                 task.title,
                 task.status,
                 task.priority,
-                task.assignee_id or "",
+                task.assignee.display_name if task.assignee else (task.assignee_id or ""),
                 ",".join(a.user_id for a in task.sub_assignees),
                 str(task.start_date) if task.start_date else "",
                 str(task.due_date) if task.due_date else "",
