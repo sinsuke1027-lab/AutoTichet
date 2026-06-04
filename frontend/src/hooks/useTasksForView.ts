@@ -30,11 +30,12 @@ export function useTasksForView(filters: ViewFilters) {
   })
 }
 
-export function useUsers() {
+export function useUsers(params: { scope?: 'all' | 'visible' } = {}) {
+  const { scope = 'all' } = params
   return useQuery<UserProfile[]>({
-    queryKey: ['users'],
+    queryKey: ['users', { scope }],
     queryFn: async () => {
-      const res = await api.get<UserProfile[]>('/users')
+      const res = await api.get<UserProfile[]>('/users', { params: { scope } })
       return res.data
     },
   })

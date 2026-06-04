@@ -50,7 +50,7 @@ export default function CalendarView() {
   const [assigneeIds, setAssigneeIds] = useState<string[]>([])
 
   const { data: projects = [] } = useProjects()
-  const { data: users = [] } = useUsers()
+  const { data: users = [] } = useUsers({ scope: 'visible' })
 
   const { monthStart, monthEnd } = useMemo(() => ({
     monthStart: startOfMonth(currentDate),
