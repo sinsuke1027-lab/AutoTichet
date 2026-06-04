@@ -1047,8 +1047,14 @@ async def generate_subtasks(
     provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
     try:
         titles = await provider.generate_subtasks(task.title, task.description)
-    except Exception:
-        logger.exception("Gemini generate_subtasks failed for task %s", task_id)
+    except Exception as exc:
+        logger.exception(
+            "Gemini generate_subtasks failed for task %s | model=%s | error=%s: %s",
+            task_id,
+            settings.gemini_model,
+            type(exc).__name__,
+            exc,
+        )
         raise HTTPException(
             status_code=503, detail="サブタスク生成に失敗しました。しばらく後に再試行してください"
         )
