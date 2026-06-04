@@ -215,6 +215,14 @@ class UserProfile(Base):
     )
 
 
+class DepartmentTag(Base):
+    __tablename__ = "department_tags"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Section(Base):
     __tablename__ = "sections"
 
