@@ -43,6 +43,9 @@ class Project(Base):
     tasks: Mapped[list["Task"]] = relationship("Task", back_populates="project")
     milestones: Mapped[list["Milestone"]] = relationship("Milestone", back_populates="project")
     sections: Mapped[list["Section"]] = relationship("Section", back_populates="project")
+    members: Mapped[list["ProjectMember"]] = relationship(
+        "ProjectMember", back_populates="project", cascade="all, delete-orphan"
+    )
 
 
 class Task(Base):
@@ -219,6 +222,18 @@ class UserProfile(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    role: Mapped[str] = mapped_column(String(10), nullable=False, default="member")
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    project: Mapped["Project"] = relationship("Project", back_populates="members")
 
 
 class DepartmentTag(Base):
