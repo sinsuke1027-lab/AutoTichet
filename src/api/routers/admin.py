@@ -2,8 +2,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import array as pg_array
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import TokenPayload, require_role
@@ -115,7 +114,9 @@ async def update_tag(
             )
         # タグ名変更: 全ユーザーの department_tags 配列も更新
         user_result = await db.execute(
-            select(UserProfile).where(UserProfile.department_tags.op("@>")(pg_array([tag])))
+            select(UserProfile).where(
+                UserProfile.department_tags.op("@>")(func.jsonb_build_array(tag))
+            )
         )
         for user in user_result.scalars().all():
             user.department_tags = [
@@ -145,7 +146,7 @@ async def delete_tag(tag: str, db: DbDep, _: AdminDep) -> None:
 
     # 全ユーザーの department_tags 配列からも削除
     user_result = await db.execute(
-        select(UserProfile).where(UserProfile.department_tags.op("@>")(pg_array([tag])))
+        select(UserProfile).where(UserProfile.department_tags.op("@>")(func.jsonb_build_array(tag)))
     )
     for user in user_result.scalars().all():
         user.department_tags = [t for t in (user.department_tags or []) if t != tag]
