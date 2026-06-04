@@ -8,12 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import TokenPayload, require_role
 from src.db.engine import get_db
-from src.db.models import UserProfile
+from src.db.models import DepartmentTag, UserProfile
 from src.models.task_web import (
     AdminUserCreate,
     AdminUserResponse,
     AdminUserUpdate,
-    TagRenameRequest,
+    DepartmentTagCreate,
+    DepartmentTagResponse,
+    DepartmentTagUpdate,
 )
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -75,36 +77,71 @@ async def delete_admin_user(user_id: str, db: DbDep, _: AdminDep) -> None:
 # --- タグ管理 ---
 
 
-@router.get("/tags", response_model=list[str])
-async def list_tags(db: DbDep, _: AdminDep) -> list[str]:
-    result = await db.execute(select(UserProfile.department_tags))
-    tags: set[str] = set()
-    for row_tags in result.scalars().all():
-        if row_tags:
-            tags.update(row_tags)
-    return sorted(tags)
+@router.get("/tags", response_model=list[DepartmentTagResponse])
+async def list_tags(db: DbDep, _: AdminDep) -> list[DepartmentTagResponse]:
+    result = await db.execute(select(DepartmentTag).order_by(DepartmentTag.name))
+    return [DepartmentTagResponse.model_validate(t) for t in result.scalars().all()]
 
 
-@router.patch("/tags/{tag}", status_code=status.HTTP_200_OK)
-async def rename_tag(tag: str, body: TagRenameRequest, db: DbDep, _: AdminDep) -> dict:
-    result = await db.execute(
-        select(UserProfile).where(UserProfile.department_tags.op("@>")(pg_array([tag])))
-    )
-    users = result.scalars().all()
-    for user in users:
-        user.department_tags = [
-            body.new_name if t == tag else t for t in (user.department_tags or [])
-        ]
+@router.post("/tags", response_model=DepartmentTagResponse, status_code=status.HTTP_201_CREATED)
+async def create_tag(body: DepartmentTagCreate, db: DbDep, _: AdminDep) -> DepartmentTagResponse:
+    existing = await db.execute(select(DepartmentTag).where(DepartmentTag.name == body.name))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="タグが既に存在します")
+    tag = DepartmentTag(name=body.name, description=body.description)
+    db.add(tag)
     await db.commit()
-    return {"updated_users": len(users)}
+    await db.refresh(tag)
+    return DepartmentTagResponse.model_validate(tag)
+
+
+@router.patch("/tags/{tag}", response_model=DepartmentTagResponse)
+async def update_tag(
+    tag: str, body: DepartmentTagUpdate, db: DbDep, _: AdminDep
+) -> DepartmentTagResponse:
+    result = await db.execute(select(DepartmentTag).where(DepartmentTag.name == tag))
+    dept_tag = result.scalar_one_or_none()
+    if dept_tag is None:
+        raise HTTPException(status_code=404, detail="タグが見つかりません")
+
+    new_name = body.new_name if body.new_name is not None else tag
+
+    if new_name != tag:
+        # タグ名変更: 全ユーザーの department_tags 配列も更新
+        user_result = await db.execute(
+            select(UserProfile).where(UserProfile.department_tags.op("@>")(pg_array([tag])))
+        )
+        for user in user_result.scalars().all():
+            user.department_tags = [
+                new_name if t == tag else t for t in (user.department_tags or [])
+            ]
+        # PK 変更のため DELETE + INSERT
+        await db.delete(dept_tag)
+        await db.flush()
+        dept_tag = DepartmentTag(name=new_name, description=body.description)
+        db.add(dept_tag)
+    else:
+        dept_tag.description = body.description
+
+    await db.commit()
+    # commit 後に re-fetch（expire 対策）
+    refreshed = await db.execute(select(DepartmentTag).where(DepartmentTag.name == new_name))
+    return DepartmentTagResponse.model_validate(refreshed.scalar_one())
 
 
 @router.delete("/tags/{tag}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tag(tag: str, db: DbDep, _: AdminDep) -> None:
-    result = await db.execute(
+    # department_tags テーブルから削除
+    tag_result = await db.execute(select(DepartmentTag).where(DepartmentTag.name == tag))
+    dept_tag = tag_result.scalar_one_or_none()
+    if dept_tag is not None:
+        await db.delete(dept_tag)
+
+    # 全ユーザーの department_tags 配列からも削除
+    user_result = await db.execute(
         select(UserProfile).where(UserProfile.department_tags.op("@>")(pg_array([tag])))
     )
-    users = result.scalars().all()
-    for user in users:
+    for user in user_result.scalars().all():
         user.department_tags = [t for t in (user.department_tags or []) if t != tag]
+
     await db.commit()

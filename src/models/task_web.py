@@ -403,8 +403,21 @@ class RescheduleResponse(BaseModel):
 # --- Admin Tag ---
 
 
-class TagRenameRequest(BaseModel):
-    new_name: str = Field(min_length=1, max_length=50)
+class DepartmentTagCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+    description: str | None = Field(default=None, max_length=200)
+
+
+class DepartmentTagUpdate(BaseModel):
+    new_name: str | None = Field(default=None, min_length=1, max_length=50)
+    description: str | None = None
+
+
+class DepartmentTagResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    name: str
+    description: str | None = None
 
 
 # --- Admin User ---
