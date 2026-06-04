@@ -75,16 +75,18 @@ export default function OrgSettings() {
   const columns = [
     {
       title: '部門タグ',
-      dataIndex: 'name',
       key: 'name',
-      render: (name: string) => <strong>{name}</strong>,
+      render: (_: unknown, record: DepartmentTagResponse) => <strong>{record.name}</strong>,
     },
     {
       title: '説明',
-      dataIndex: 'description',
       key: 'description',
-      render: (desc: string | null) =>
-        desc ? desc : <Typography.Text type="secondary">—</Typography.Text>,
+      render: (_: unknown, record: DepartmentTagResponse) =>
+        record.description ? (
+          record.description
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
     },
     {
       title: '対象ユーザー数',
