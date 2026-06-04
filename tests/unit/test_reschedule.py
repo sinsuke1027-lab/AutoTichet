@@ -45,22 +45,28 @@ def test_reschedule_returns_404_for_missing_task(client: TestClient, mock_db: As
 
 
 def test_list_tasks_accepts_due_date_gte(client: TestClient, mock_db: AsyncMock) -> None:
+    # _visible_user_ids が ProjectMember クエリを1回実行するため scope_mock が先頭に必要
+    scope_mock = MagicMock()
+    scope_mock.scalars.return_value.all.return_value = []
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 0
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
-    mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
+    mock_db.execute = AsyncMock(side_effect=[scope_mock, count_mock, result_mock])
     resp = client.get("/api/v1/tasks?due_date_gte=2026-06-01")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
 
 
 def test_list_tasks_accepts_assignee_ids(client: TestClient, mock_db: AsyncMock) -> None:
+    # _visible_user_ids が ProjectMember クエリを1回実行するため scope_mock が先頭に必要
+    scope_mock = MagicMock()
+    scope_mock.scalars.return_value.all.return_value = []
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 0
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
-    mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
+    mock_db.execute = AsyncMock(side_effect=[scope_mock, count_mock, result_mock])
     resp = client.get("/api/v1/tasks?assignee_ids=user-1&assignee_ids=user-2")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0

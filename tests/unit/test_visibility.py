@@ -35,36 +35,40 @@ def _empty_list() -> MagicMock:
 
 
 def test_member_list_tasks_returns_200() -> None:
+    # _visible_user_ids が ProjectMember クエリを1回実行するため scope_mock が先頭に必要
     member = TokenPayload(sub="m1", roles=["member"], department_tags=[])
-    db = _db_with_results([_empty_count(), _empty_list()])
+    db = _db_with_results([_empty_list(), _empty_count(), _empty_list()])
     client = _make_app(member, db)
     resp = client.get("/api/v1/tasks")
     assert resp.status_code == 200
 
 
 def test_manager_list_tasks_returns_200() -> None:
+    # manager も admin 未満のため _visible_user_ids が実行される（ProjectMember クエリ1回）
     manager = TokenPayload(sub="mg1", roles=["manager"], department_tags=[])
-    db = _db_with_results([_empty_count(), _empty_list()])
+    db = _db_with_results([_empty_list(), _empty_count(), _empty_list()])
     client = _make_app(manager, db)
     resp = client.get("/api/v1/tasks")
     assert resp.status_code == 200
 
 
 def test_leader_with_dept_tags_list_tasks_returns_200() -> None:
-    # leader は department_tags 一致ユーザー ID を DB 検索（3 回 execute）
+    # leader + dept_tags: _visible_user_ids は UserProfile クエリ + ProjectMember クエリの2回
     leader = TokenPayload(sub="l1", roles=["leader"], department_tags=["営業部"])
     dept_result = MagicMock()
     dept_result.scalars.return_value.all.return_value = ["user-x"]
-    db = _db_with_results([dept_result, _empty_count(), _empty_list()])
+    proj_result = MagicMock()
+    proj_result.scalars.return_value.all.return_value = []
+    db = _db_with_results([dept_result, proj_result, _empty_count(), _empty_list()])
     client = _make_app(leader, db)
     resp = client.get("/api/v1/tasks")
     assert resp.status_code == 200
 
 
 def test_leader_without_dept_tags_list_tasks_returns_200() -> None:
-    # department_tags が空の leader は visibility=="all" のみ（2 回 execute）
+    # department_tags が空の leader: _visible_user_ids は ProjectMember クエリのみ（1回）
     leader = TokenPayload(sub="l2", roles=["leader"], department_tags=[])
-    db = _db_with_results([_empty_count(), _empty_list()])
+    db = _db_with_results([_empty_list(), _empty_count(), _empty_list()])
     client = _make_app(leader, db)
     resp = client.get("/api/v1/tasks")
     assert resp.status_code == 200
