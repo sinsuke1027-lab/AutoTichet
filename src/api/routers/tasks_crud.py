@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import distinct, func, or_, select
+from sqlalchemy import and_, distinct, func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -218,36 +218,32 @@ async def list_tasks(
 
     # ロールベース閲覧制御（適用順序: 通常フィルタ → my_tasks_only → ロールフィルタ）
     # my_tasks_only=True のときは既に visibility=="private" & assignee_id 絞り込み済みのためスキップ
-    user_role = max(
-        (ROLE_HIERARCHY.get(r, 0) for r in current_user.roles),
-        default=0,
-    )
-    if not my_tasks_only and user_role < ROLE_HIERARCHY["manager"]:
-        if user_role >= ROLE_HIERARCHY["leader"]:
-            if current_user.department_tags:
-                dept_result = await db.execute(
-                    select(UserProfile.user_id).where(
-                        UserProfile.department_tags.op("?|")(pg_array(current_user.department_tags))
-                    )
-                )
-                dept_user_ids = list(dept_result.scalars().all())
-                query = query.where(
-                    or_(
-                        Task.assignee_id.in_(dept_user_ids),
-                        Task.visibility == "all",
-                    )
-                )
-            else:
-                query = query.where(Task.visibility == "all")
-        else:
-            # member: 自分のタスク + all
+    if not my_tasks_only:
+        allowed_uids = await _visible_user_ids(db, current_user)
+        if allowed_uids is not None:
+            from src.db.models import ProjectMember as PM
+
+            member_project_ids_subq = (
+                select(PM.project_id).where(PM.user_id == current_user.sub).scalar_subquery()
+            )
+            tag_condition = and_(
+                Task.visibility == "tag",
+                Task.visibility_tag.in_(current_user.department_tags or []),
+            )
+            project_condition = and_(
+                Task.visibility == "project",
+                Task.visibility_project_id.in_(member_project_ids_subq),
+            )
             query = query.where(
                 or_(
-                    Task.assignee_id == current_user.sub,
+                    Task.assignee_id.in_(allowed_uids),
                     Task.visibility == "all",
+                    Task.created_by == current_user.sub,
+                    tag_condition,
+                    project_condition,
                 )
             )
-    # manager / admin はフィルタなし（全件）
+    # admin は allowed_uids=None のためフィルタなし（全件）
 
     # アーカイブ済みプロジェクトのタスクを除外（project_id=None の個人 ToDo は対象外）
     if not include_archived_projects:

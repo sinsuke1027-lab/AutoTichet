@@ -107,11 +107,14 @@ def test_update_nonexistent_task_returns_404() -> None:
 
 def test_list_tasks_with_keyword_filter(client, mock_db) -> None:
     """q パラメータがクエリパラメータとして受け付けられること"""
+    # _visible_user_ids が ProjectMember クエリを1回実行するため scope_mock が先頭に必要
+    scope_mock = MagicMock()
+    scope_mock.scalars.return_value.all.return_value = []
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 0
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
-    mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
+    mock_db.execute = AsyncMock(side_effect=[scope_mock, count_mock, result_mock])
     resp = client.get("/api/v1/tasks?q=テスト")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
@@ -120,11 +123,14 @@ def test_list_tasks_with_keyword_filter(client, mock_db) -> None:
 def test_list_tasks_with_section_filter(client, mock_db) -> None:
     import uuid as _uuid
     sid = _uuid.uuid4()
+    # _visible_user_ids が ProjectMember クエリを1回実行するため scope_mock が先頭に必要
+    scope_mock = MagicMock()
+    scope_mock.scalars.return_value.all.return_value = []
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 0
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = []
-    mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
+    mock_db.execute = AsyncMock(side_effect=[scope_mock, count_mock, result_mock])
     resp = client.get(f"/api/v1/tasks?section_id={sid}")
     assert resp.status_code == 200
     assert resp.json()["total"] == 0
@@ -163,16 +169,21 @@ def test_task_response_has_assignee_name(client: TestClient, mock_db: AsyncMock)
     task_obj.recurrence_rule = None
     task_obj.recurrence_end_date = None
     task_obj.recurrence_origin_id = None
+    task_obj.visibility_tag = None
+    task_obj.visibility_project_id = None
     task_obj.assignee = MagicMock()
     task_obj.assignee.display_name = "石川 太郎"
     task_obj.project = MagicMock()
     task_obj.project.name = "テストプロジェクト"
 
+    # _visible_user_ids が ProjectMember クエリを1回実行するため scope_mock が先頭に必要
+    scope_mock = MagicMock()
+    scope_mock.scalars.return_value.all.return_value = []
     count_mock = MagicMock()
     count_mock.scalar_one.return_value = 1
     result_mock = MagicMock()
     result_mock.scalars.return_value.all.return_value = [task_obj]
-    mock_db.execute = AsyncMock(side_effect=[count_mock, result_mock])
+    mock_db.execute = AsyncMock(side_effect=[scope_mock, count_mock, result_mock])
 
     resp = client.get("/api/v1/tasks")
     assert resp.status_code == 200
