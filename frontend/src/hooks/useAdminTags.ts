@@ -1,21 +1,50 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/api'
 
+export interface DepartmentTagResponse {
+  name: string
+  description: string | null
+}
+
 export function useAdminTags() {
-  return useQuery<string[]>({
+  return useQuery<DepartmentTagResponse[]>({
     queryKey: ['admin-tags'],
     queryFn: async () => {
-      const { data } = await api.get<string[]>('/admin/tags')
+      const { data } = await api.get<DepartmentTagResponse[]>('/admin/tags')
       return data
     },
   })
 }
 
-export function useRenameTag() {
+export function useCreateTag() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ tag, newName }: { tag: string; newName: string }) => {
-      await api.patch(`/admin/tags/${encodeURIComponent(tag)}`, { new_name: newName })
+    mutationFn: async (body: { name: string; description: string | null }) => {
+      const { data } = await api.post<DepartmentTagResponse>('/admin/tags', body)
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-tags'] })
+    },
+  })
+}
+
+export function useUpdateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      tag,
+      newName,
+      description,
+    }: {
+      tag: string
+      newName?: string
+      description: string | null
+    }) => {
+      await api.patch(`/admin/tags/${encodeURIComponent(tag)}`, {
+        new_name: newName ?? null,
+        description,
+      })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-tags'] })
