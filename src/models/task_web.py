@@ -410,7 +410,7 @@ class DepartmentTagCreate(BaseModel):
 
 class DepartmentTagUpdate(BaseModel):
     new_name: str | None = Field(default=None, min_length=1, max_length=50)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=200)
 
 
 class DepartmentTagResponse(BaseModel):

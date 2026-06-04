@@ -131,7 +131,7 @@ async def update_tag(
 
 @router.delete("/tags/{tag}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tag(tag: str, db: DbDep, _: AdminDep) -> None:
-    # department_tags テーブルから削除
+    # department_tags テーブルから削除（テーブルに存在しない場合はユーザー配列のみ処理・後方互換）
     tag_result = await db.execute(select(DepartmentTag).where(DepartmentTag.name == tag))
     dept_tag = tag_result.scalar_one_or_none()
     if dept_tag is not None:

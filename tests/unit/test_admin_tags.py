@@ -76,6 +76,53 @@ def test_update_tag_not_found_returns_404(client: TestClient, mock_db: AsyncMock
     assert resp.status_code == 404
 
 
+def test_update_tag_description_only(client: TestClient, mock_db: AsyncMock) -> None:
+    """PATCH で description だけ更新する（name は変えない）"""
+    existing = DepartmentTag(name="営業部", description="旧説明")
+    tag_result = MagicMock()
+    tag_result.scalar_one_or_none.return_value = existing
+    updated = DepartmentTag(name="営業部", description="新説明")
+    refetch_result = MagicMock()
+    refetch_result.scalar_one.return_value = updated
+    mock_db.execute = AsyncMock(side_effect=[tag_result, refetch_result])
+    mock_db.commit = AsyncMock()
+
+    resp = client.patch(
+        "/api/v1/admin/tags/%E5%96%B6%E6%A5%AD%E9%83%A8",
+        json={"description": "新説明"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"name": "営業部", "description": "新説明"}
+
+
+def test_update_tag_rename(client: TestClient, mock_db: AsyncMock) -> None:
+    """PATCH で name を変更すると 200 が返り新名前が反映される"""
+    existing = DepartmentTag(name="営業部", description="説明")
+    tag_result = MagicMock()
+    tag_result.scalar_one_or_none.return_value = existing
+    # user update query (no users with this tag)
+    user_result = MagicMock()
+    user_result.scalars.return_value.all.return_value = []
+    # re-fetch after commit
+    renamed = DepartmentTag(name="営業グループ", description="説明")
+    refetch_result = MagicMock()
+    refetch_result.scalar_one.return_value = renamed
+    mock_db.execute = AsyncMock(side_effect=[tag_result, user_result, refetch_result])
+    mock_db.commit = AsyncMock()
+    mock_db.delete = AsyncMock()
+    mock_db.flush = AsyncMock()
+    mock_db.add = MagicMock()
+
+    resp = client.patch(
+        "/api/v1/admin/tags/%E5%96%B6%E6%A5%AD%E9%83%A8",
+        json={"new_name": "営業グループ", "description": "説明"},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["name"] == "営業グループ"
+
+
 def test_delete_tag_returns_204(client: TestClient, mock_db: AsyncMock) -> None:
     """DELETE /admin/tags/{tag} が 204 を返す"""
     tag = DepartmentTag(name="営業部", description=None)
