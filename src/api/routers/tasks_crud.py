@@ -1056,8 +1056,7 @@ async def generate_subtasks(
             exc,
         )
         raise HTTPException(
-            status_code=503,
-            detail=f"サブタスク生成に失敗しました [{type(exc).__name__}: {exc}]",
+            status_code=503, detail="サブタスク生成に失敗しました。しばらく後に再試行してください"
         )
     return GenerateSubtasksResponse(suggested_titles=titles)
 
