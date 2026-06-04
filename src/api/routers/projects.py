@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.auth import ROLE_HIERARCHY, CurrentUser, require_role
@@ -84,9 +84,15 @@ async def list_projects(
     if not include_archived:
         query = query.where(Project.status != "archived")
     if scope == "mine" and user_role < ROLE_HIERARCHY["admin"]:
+        # project_members に登録済み OR 自分が作成者
         query = query.where(
-            Project.id.in_(
-                select(ProjectMember.project_id).where(ProjectMember.user_id == current_user.sub)
+            or_(
+                Project.id.in_(
+                    select(ProjectMember.project_id).where(
+                        ProjectMember.user_id == current_user.sub
+                    )
+                ),
+                Project.created_by == current_user.sub,
             )
         )
     result = await db.execute(query)

@@ -55,7 +55,7 @@ export default function DevLogin() {
       departmentTags: u.department_tags,
     }
     sessionStorage.setItem(DEV_USER_KEY, JSON.stringify(devUser))
-    setUser({ userId: devUser.userId, displayName: devUser.displayName, email: devUser.email, roles: [devUser.role] })
+    setUser({ userId: devUser.userId, displayName: devUser.displayName, email: devUser.email, roles: [devUser.role], departmentTags: devUser.departmentTags })
     navigate('/')
   }
 

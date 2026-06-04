@@ -10,9 +10,7 @@ export default function ProjectContextSelector() {
     useProjectStore()
   const { data: projects = [] } = useProjects({ scope: 'mine' })
 
-  // useAuthStore は現時点で department_tags を持たないため as any でアクセスし、
-  // 将来的に追加された際に自動的に機能するようにする
-  const deptTags: string[] = (authState as any)?.department_tags ?? []
+  const deptTags: string[] = authState.departmentTags ?? []
   const multipleDepts = deptTags.length > 1
 
   useEffect(() => {
