@@ -101,6 +101,12 @@ class Task(Base):
     sub_assignees: Mapped[list["TaskAssignee"]] = relationship(
         "TaskAssignee", back_populates="task"
     )
+    assignee: Mapped["UserProfile | None"] = relationship(
+        "UserProfile",
+        primaryjoin="Task.assignee_id == foreign(UserProfile.user_id)",
+        uselist=False,
+        viewonly=True,
+    )
 
 
 class TaskComment(Base):
