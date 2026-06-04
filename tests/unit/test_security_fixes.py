@@ -92,6 +92,8 @@ def _make_mock_task(assignee_id: str = "owner-1") -> MagicMock:
     task.recurrence_rule = None
     task.recurrence_end_date = None
     task.recurrence_origin_id = None
+    task.assignee = None
+    task.project = None
     return task
 
 
