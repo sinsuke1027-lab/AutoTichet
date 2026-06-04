@@ -59,6 +59,8 @@ export interface Task {
   recurrence_origin_id?: string | null
   assignee_name?: string | null
   project_name?: string | null
+  visibility_tag?: string | null
+  visibility_project_id?: string | null
 }
 
 export interface TaskListResponse {

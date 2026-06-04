@@ -629,13 +629,43 @@ export default function TaskList() {
             }
           </Form.Item>
           <Form.Item name="visibility" label="公開範囲" initialValue="team">
-            <Select
-              options={[
-                { label: 'チーム共有', value: 'team' },
-                { label: '全公開', value: 'all' },
-                { label: '個人（ToDo）', value: 'private' },
-              ]}
-            />
+            <Select>
+              <Select.Option value="private">個人</Select.Option>
+              <Select.Option value="team">チーム共有</Select.Option>
+              <Select.Option value="all">全員</Select.Option>
+              <Select.Option value="tag">特定タグ</Select.Option>
+              <Select.Option value="project">特定プロジェクト</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, curr) => prev.visibility !== curr.visibility}
+          >
+            {({ getFieldValue }) =>
+              getFieldValue('visibility') === 'tag' ? (
+                <Form.Item
+                  name="visibility_tag"
+                  label="対象タグ"
+                  rules={[{ required: true, message: '対象タグを選択してください' }]}
+                >
+                  <Select
+                    options={adminTags.map((t) => ({ value: t.name, label: t.name }))}
+                    placeholder="部門タグを選択"
+                  />
+                </Form.Item>
+              ) : getFieldValue('visibility') === 'project' ? (
+                <Form.Item
+                  name="visibility_project_id"
+                  label="対象プロジェクト"
+                  rules={[{ required: true, message: 'プロジェクトを選択してください' }]}
+                >
+                  <Select
+                    options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                    placeholder="プロジェクトを選択"
+                  />
+                </Form.Item>
+              ) : null
+            }
           </Form.Item>
         </Form>
       </Modal>
