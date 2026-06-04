@@ -12,7 +12,7 @@ import {
 } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import {
-  DepartmentTagResponse,
+  type DepartmentTagResponse,
   useAdminTags,
   useCreateTag,
   useDeleteTag,
