@@ -113,7 +113,14 @@ export default function OrgSettings() {
           <Popconfirm
             title={`"${record.name}" を削除しますか？`}
             description={`${userCountByTag[record.name] ?? 0} 名のユーザーからこのタグが削除されます。`}
-            onConfirm={() => void deleteTag.mutateAsync(record.name)}
+            onConfirm={async () => {
+              try {
+                await deleteTag.mutateAsync(record.name)
+                void message.success(`"${record.name}" を削除しました`)
+              } catch {
+                void message.error('削除に失敗しました')
+              }
+            }}
             okText="削除"
             cancelText="キャンセル"
           >
@@ -157,7 +164,7 @@ export default function OrgSettings() {
       <Modal
         title="タグを編集"
         open={!!editingTag}
-        onOk={() => void handleUpdate()}
+        onOk={handleUpdate}
         onCancel={() => setEditingTag(null)}
         confirmLoading={updateTag.isPending}
         okText="保存"

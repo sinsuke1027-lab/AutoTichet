@@ -19,6 +19,7 @@ import {
   useDeleteAdminUser,
   useUpdateAdminUser,
 } from '../../hooks/useAdminUsers'
+import { useAdminTags } from '../../hooks/useAdminTags'
 import type { AdminUser } from '../../lib/api'
 
 const ROLE_OPTIONS = [
@@ -30,6 +31,7 @@ const ROLE_OPTIONS = [
 
 export default function AdminUsers() {
   const { data: users = [], isLoading } = useAdminUsers()
+  const { data: allTags = [] } = useAdminTags()
   const createUser = useCreateAdminUser()
   const updateUser = useUpdateAdminUser()
   const deleteUser = useDeleteAdminUser()
@@ -37,8 +39,6 @@ export default function AdminUsers() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<AdminUser | null>(null)
   const [form] = Form.useForm()
-
-  const existingTags = [...new Set(users.flatMap((u) => u.department_tags))]
 
   const handleOpen = (user?: AdminUser) => {
     setEditing(user ?? null)
@@ -156,8 +156,8 @@ export default function AdminUsers() {
           </Form.Item>
           <Form.Item name="department_tags" label="部門タグ">
             <Select
-              mode="tags"
-              options={existingTags.map((t) => ({ label: t, value: t }))}
+              mode="multiple"
+              options={allTags.map((t) => ({ label: t.name, value: t.name }))}
             />
           </Form.Item>
           <Form.Item name="capacity_hours_per_day" label="稼働時間/日">
