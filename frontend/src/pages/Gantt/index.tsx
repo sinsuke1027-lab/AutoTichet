@@ -67,7 +67,7 @@ export default function GanttView() {
   const [addDepPredecessor, setAddDepPredecessor] = useState<string | undefined>() // 先行タスク (A)
   const [addDepSuccessor, setAddDepSuccessor] = useState<string | undefined>()   // 後続タスク (B)
 
-  const { data: projects = [] } = useProjects()
+  const { data: projects = [] } = useProjects({ scope: 'all' })
   const { data: tasks = [], isLoading } = useTasksForView({
     project_id: projectId,
     limit: 200,
