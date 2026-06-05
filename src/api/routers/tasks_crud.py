@@ -970,7 +970,12 @@ async def list_subtasks(
         select(Task)
         .where(Task.parent_task_id == task_id)
         .options(
-            selectinload(Task.tags), selectinload(Task.sub_assignees), selectinload(Task.subtasks)
+            selectinload(Task.tags),
+            selectinload(Task.sub_assignees),
+            selectinload(Task.subtasks),
+            selectinload(Task.work_hours),
+            selectinload(Task.assignee),
+            selectinload(Task.project),
         )
     )
     return [_task_to_response(t) for t in result.scalars().all()]
