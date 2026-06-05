@@ -190,7 +190,11 @@ export default function Board() {
       // 同一カラム内の並び替え
       const colTasks = columnTasks[activeColKey] ?? []
       const activeIndex = colTasks.findIndex((t) => t.id === activeId)
-      const overIndex = colTasks.findIndex((t) => t.id === overId)
+      // over.id がカラムキーのとき（空白部分へのドロップ）は末尾扱い
+      const overIndex =
+        overId === activeColKey
+          ? colTasks.length - 1
+          : colTasks.findIndex((t) => t.id === overId)
       if (activeIndex !== -1 && overIndex !== -1 && activeIndex !== overIndex) {
         const newOrder = arrayMove(colTasks, activeIndex, overIndex)
         const beforeTask = overIndex > 0 ? newOrder[overIndex - 1] : null
