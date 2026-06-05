@@ -136,7 +136,7 @@ export default function Board() {
   const dragOccurredRef = useRef(false)
   const navigate = useNavigate()
 
-  const { data: projects = [] } = useProjects()
+  const { data: projects = [] } = useProjects({ scope: 'all' })
   const { data: tasks = [], isLoading } = useTasksForView({ project_id: projectId })
   const queryClient = useQueryClient()
   const updateTask = useUpdateTask()
