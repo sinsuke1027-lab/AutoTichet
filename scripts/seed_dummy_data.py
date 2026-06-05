@@ -433,6 +433,245 @@ async def main() -> None:
             if r:
                 print(f"  OK {task_id[:8]}... → depends on {depends_on[:8]}...")
 
+        # 7. テンプレート作成
+        print("\n=== 7. テンプレート作成 ===")
+
+        async def create_template_if_missing(
+            name: str, description: str, template_data: dict
+        ) -> str | None:
+            existing = await get(client, "/templates")
+            if isinstance(existing, list):
+                for t in existing:
+                    if t.get("name") == name:
+                        print(f"  SKIP (already exists): template '{name}'")
+                        return t["id"]
+            r = await post(client, "/templates", {
+                "name": name,
+                "description": description,
+                "template_data": template_data,
+            })
+            if r:
+                print(f"  OK template '{name}' → {r.get('id','')[:8]}...")
+            return r.get("id")
+
+        await create_template_if_missing(
+            "採用フロー標準テンプレート",
+            "採用開始から内定まで4ステップのタスクセット",
+            {
+                "title": "採用フロー",
+                "description": "採用要件定義から内定まで",
+                "priority": "high",
+                "visibility": "team",
+                "tags": ["採用"],
+                "due_date_offset_days": 35,
+                "subtasks": [
+                    {"title": "採用要件定義", "priority": "high", "due_date_offset_days": 7},
+                    {"title": "求人票作成・掲載", "priority": "high", "due_date_offset_days": 14},
+                    {"title": "書類審査・一次選考", "priority": "medium", "due_date_offset_days": 28},
+                    {"title": "最終面接・合否通知", "priority": "high", "due_date_offset_days": 35},
+                ],
+            },
+        )
+        await create_template_if_missing(
+            "社内イベント準備テンプレート",
+            "社内イベント開催に必要な準備タスク3ステップ",
+            {
+                "title": "社内イベント準備",
+                "description": "開催に向けた3ステップ",
+                "priority": "high",
+                "visibility": "team",
+                "tags": ["社内イベント"],
+                "due_date_offset_days": 21,
+                "subtasks": [
+                    {"title": "スピーカー・出演者調整", "priority": "high", "due_date_offset_days": 14},
+                    {"title": "出欠アンケート作成・送付", "priority": "medium", "due_date_offset_days": 7},
+                    {"title": "会場・配信設定確認", "priority": "medium", "due_date_offset_days": 3},
+                ],
+            },
+        )
+        await create_template_if_missing(
+            "月次報告テンプレート",
+            "月次レポート作成の標準フロー",
+            {
+                "title": "月次報告書作成",
+                "description": "月次レポートの標準フロー",
+                "priority": "medium",
+                "visibility": "team",
+                "tags": [],
+                "due_date_offset_days": 5,
+                "subtasks": [
+                    {"title": "データ集計・資料作成", "priority": "medium", "due_date_offset_days": 3},
+                    {"title": "上長レビュー・修正", "priority": "low", "due_date_offset_days": 5},
+                ],
+            },
+        )
+
+        # 8. マイルストーン作成
+        print("\n=== 8. マイルストーン作成 ===")
+
+        async def create_milestone_if_missing(
+            proj_id: str, title: str, due_days: int, description: str = ""
+        ) -> None:
+            milestones = await get(client, f"/projects/{proj_id}/milestones")
+            if isinstance(milestones, list):
+                for m in milestones:
+                    if m.get("title") == title:
+                        print(f"  SKIP (already exists): milestone '{title}'")
+                        return
+            r = await post(client, f"/projects/{proj_id}/milestones", {
+                "title": title,
+                "due_date": d(due_days),
+                "description": description,
+            }, header=ADMIN_HEADER)
+            if r:
+                print(f"  OK milestone '{title}' due:{d(due_days)}")
+
+        await create_milestone_if_missing(
+            soumu_id, "上期総務業務完了", 60, "6月末で総務上期タスクを完了させる"
+        )
+        await create_milestone_if_missing(
+            soumu_id, "下期キックオフ", 90, "7月から下期の取り組みを開始"
+        )
+        await create_milestone_if_missing(
+            jinji_id, "採用完了（夏季）", 40, "夏季採用枠の内定確定"
+        )
+        await create_milestone_if_missing(
+            jinji_id, "下半期評価開始", 120, "9月末〜10月の評価サイクル開始"
+        )
+
+        # 9. サブタスク作成
+        print("\n=== 9. サブタスク作成 ===")
+
+        async def subtask(
+            parent_id: str | None, title: str, assignee: str, priority: str, due_days: int,
+            proj_id: str | None = None, section_id: str | None = None
+        ) -> str | None:
+            if not parent_id:
+                return None
+            key = (title, proj_id)
+            if key in existing_tasks:
+                print(f"  SKIP (already exists): [sub] {title}")
+                return existing_tasks[key]
+            body: dict = {
+                "title": title,
+                "description": "",
+                "status": "not_started",
+                "priority": priority,
+                "assignee_id": assignee,
+                "due_date": d(due_days),
+                "visibility": "team",
+                "tags": [],
+                "project_id": proj_id,
+                "section_id": section_id,
+                "parent_task_id": parent_id,
+            }
+            r = await post(client, "/tasks", body, header=user_header(assignee))
+            tid = r.get("id")
+            if tid:
+                print(f"  OK [sub] {title} → parent {parent_id[:8]}...")
+            return tid
+
+        report_jun_id = task_ids.get("report_jun")
+        await subtask(report_jun_id, "取材メモ整理", "miyu-umemoto", "medium", 18, soumu_id, sec["report"])
+        await subtask(report_jun_id, "下書き作成", "miyu-umemoto", "medium", 24, soumu_id, sec["report"])
+        await subtask(report_jun_id, "最終校正・入稿", "tomoyo-ishikawa", "high", 28, soumu_id, sec["report"])
+
+        recruit1_id = task_ids.get("recruit1")
+        await subtask(recruit1_id, "スキル要件ヒアリング", "hanako-yamada", "high", 3, jinji_id, sec["recruit"])
+        await subtask(recruit1_id, "給与レンジ確認", "takuya-suzuki", "medium", 5, jinji_id, sec["recruit"])
+
+        # 10. コメント追加
+        print("\n=== 10. コメント追加 ===")
+
+        async def add_comment(task_id: str | None, author: str, content: str) -> None:
+            if not task_id:
+                return
+            r = await post(
+                client, f"/tasks/{task_id}/comments",
+                {"content": content},
+                header=user_header(author),
+            )
+            if r:
+                print(f"  OK comment by {author} on task {task_id[:8]}...")
+
+        vorn_may_id = task_ids.get("vorn_may")
+        await add_comment(vorn_may_id, "tomoyo-ishikawa", "スピーカーの田中さんから資料受領済みです。当日の機材チェックをお願いします。")
+        await add_comment(vorn_may_id, "miyu-umemoto", "配信用URLをSlackに共有しました。参加者への案内も完了しています。")
+
+        recruit1_id = task_ids.get("recruit1")
+        await add_comment(recruit1_id, "hanako-yamada", "各部門マネージャーへのヒアリングを完了しました。要件をドキュメントにまとめます。")
+        await add_comment(recruit1_id, "takuya-suzuki", "給与レンジは市場調査後に確定します。来週中にフィードバックします。")
+
+        # 11. 実績工数追加（Schedule / Workload 検証用）
+        print("\n=== 11. 実績工数追加 ===")
+
+        if task_ids.get("vorn_may"):
+            r = await post(
+                client, f"/tasks/{task_ids['vorn_may']}/work-hours",
+                {"estimated_hours": 3.0, "actual_hours": 2.0, "notes": "スピーカー調整・連絡"},
+                header=user_header("miyu-umemoto"),
+            )
+            if r:
+                print(f"  OK 梅本 実績2h → vorn_may")
+
+        venue_key = ("会場・配信設定確認", soumu_id)
+        venue_id = existing_tasks.get(venue_key)
+        if not venue_id:
+            existing_list2 = await get(client, "/tasks?limit=200", header=ADMIN_HEADER)
+            if isinstance(existing_list2, dict):
+                for t in existing_list2.get("items", []):
+                    if t["title"] == "会場・配信設定確認":
+                        venue_id = t["id"]
+                        break
+        if venue_id:
+            r = await post(
+                client, f"/tasks/{venue_id}/work-hours",
+                {"estimated_hours": 2.0, "actual_hours": 1.0, "notes": "機材確認完了"},
+                header=user_header("tabito-shibata"),
+            )
+            if r:
+                print(f"  OK 芝田 実績1h → 会場設定確認")
+
+        if task_ids.get("overload2"):
+            r = await post(
+                client, f"/tasks/{task_ids['overload2']}/work-hours",
+                {"estimated_hours": 3.0, "actual_hours": 3.0, "notes": "集計完了"},
+                header=user_header("toshio-yorita"),
+            )
+            if r:
+                print(f"  OK 寄田 実績3h")
+
+        if task_ids.get("recruit4"):
+            r = await post(
+                client, f"/tasks/{task_ids['recruit4']}/work-hours",
+                {"estimated_hours": 2.0, "actual_hours": 2.0, "notes": "面接官スケジュール確認"},
+                header=user_header("ichiro-tanaka"),
+            )
+            if r:
+                print(f"  OK 田中 実績2h → 最終面接")
+
+        # 12. Schedule/Workload 検証用追加タスク
+        print("\n=== 12. 追加タスク（来週・再来週分散）===")
+
+        for title, assignee, due, start, prio in [
+            ("6月度社内報草稿",     "miyu-umemoto",    9,  7, "medium"),
+            ("備品在庫棚卸し",      "tabito-shibata",  10, 8, "low"),
+            ("入館証新規発行",      "tabito-shibata",  12, 10, "medium"),
+            ("清掃業者打合せ",      "tabito-shibata",  14, 12, "low"),
+            ("健康診断案内メール",   "toshio-yorita",   8,  7, "high"),
+            ("残業時間月次集計",    "toshio-yorita",   11, 9, "medium"),
+            ("新卒研修日程調整",    "ichiro-tanaka",   13, 11, "high"),
+            ("インターン対応",      "ichiro-tanaka",   16, 14, "medium"),
+        ]:
+            proj = jinji_id if assignee in ("toshio-yorita", "ichiro-tanaka") else soumu_id
+            section = sec["kintai"] if assignee == "toshio-yorita" else (
+                sec["recruit"] if assignee == "ichiro-tanaka" else sec["proj"]
+            )
+            await task(
+                title, assignee, "not_started", prio, due, start_days=start,
+                proj_id=proj, section_id=section,
+            )
+
         print("\n=== 完了 ===")
         print(f"  総務チーム 3名 / 人事チーム 4名")
         print(f"  総務プロジェクト: {soumu_id}")
@@ -446,6 +685,12 @@ async def main() -> None:
         print("  ガントチャート    : 採用タスク4件に依存関係あり（採用要件定義→求人票→選考→面接）")
         print("  カレンダー        : 今後35日間にタスクが分散配置")
         print("  ワークロード      : 人事チームと総務チームの部署別集計を確認")
+        print("  テンプレート      : 採用フロー・社内イベント・月次報告の3件")
+        print("  マイルストーン    : 総務2件・人事2件")
+        print("  サブタスク        : 社内報6月号に3件・採用要件定義に2件")
+        print("  コメント          : VORNタスク・採用タスクに各2件")
+        print("  実績工数          : 梅本・芝田・寄田・田中に各1件")
+        print("  追加タスク        : 来週〜再来週に8件分散配置")
 
 if __name__ == "__main__":
     asyncio.run(main())
