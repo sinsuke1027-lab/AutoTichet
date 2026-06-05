@@ -586,6 +586,12 @@ async def main() -> None:
         async def add_comment(task_id: str | None, author: str, content: str) -> None:
             if not task_id:
                 return
+            existing_comments = await get(client, f"/tasks/{task_id}/comments")
+            if isinstance(existing_comments, list):
+                for c in existing_comments:
+                    if c.get("content") == content:
+                        print(f"  SKIP (already exists): comment by {author} on {task_id[:8]}...")
+                        return
             r = await post(
                 client, f"/tasks/{task_id}/comments",
                 {"content": content},
@@ -605,14 +611,27 @@ async def main() -> None:
         # 11. 実績工数追加（Schedule / Workload 検証用）
         print("\n=== 11. 実績工数追加 ===")
 
-        if task_ids.get("vorn_may"):
+        async def add_work_hours(
+            task_id: str | None, estimated: float, actual: float, notes: str, author: str
+        ) -> None:
+            if not task_id:
+                return
+            existing_wh = await get(client, f"/tasks/{task_id}/work-hours")
+            if isinstance(existing_wh, list):
+                if any(w.get("notes") == notes for w in existing_wh):
+                    print(f"  SKIP (already exists): work-hours notes='{notes}'")
+                    return
             r = await post(
-                client, f"/tasks/{task_ids['vorn_may']}/work-hours",
-                {"estimated_hours": 3.0, "actual_hours": 2.0, "notes": "スピーカー調整・連絡"},
-                header=user_header("miyu-umemoto"),
+                client, f"/tasks/{task_id}/work-hours",
+                {"estimated_hours": estimated, "actual_hours": actual, "notes": notes},
+                header=user_header(author),
             )
             if r:
-                print(f"  OK 梅本 実績2h → vorn_may")
+                print(f"  OK {author} 実績{actual}h → {notes}")
+
+        await add_work_hours(
+            task_ids.get("vorn_may"), 3.0, 2.0, "スピーカー調整・連絡", "miyu-umemoto"
+        )
 
         venue_key = ("会場・配信設定確認", soumu_id)
         venue_id = existing_tasks.get(venue_key)
@@ -623,32 +642,15 @@ async def main() -> None:
                     if t["title"] == "会場・配信設定確認":
                         venue_id = t["id"]
                         break
-        if venue_id:
-            r = await post(
-                client, f"/tasks/{venue_id}/work-hours",
-                {"estimated_hours": 2.0, "actual_hours": 1.0, "notes": "機材確認完了"},
-                header=user_header("tabito-shibata"),
-            )
-            if r:
-                print(f"  OK 芝田 実績1h → 会場設定確認")
+        await add_work_hours(venue_id, 2.0, 1.0, "機材確認完了", "tabito-shibata")
 
-        if task_ids.get("overload2"):
-            r = await post(
-                client, f"/tasks/{task_ids['overload2']}/work-hours",
-                {"estimated_hours": 3.0, "actual_hours": 3.0, "notes": "集計完了"},
-                header=user_header("toshio-yorita"),
-            )
-            if r:
-                print(f"  OK 寄田 実績3h")
+        await add_work_hours(
+            task_ids.get("overload2"), 3.0, 3.0, "集計完了", "tomoyo-ishikawa"
+        )
 
-        if task_ids.get("recruit4"):
-            r = await post(
-                client, f"/tasks/{task_ids['recruit4']}/work-hours",
-                {"estimated_hours": 2.0, "actual_hours": 2.0, "notes": "面接官スケジュール確認"},
-                header=user_header("ichiro-tanaka"),
-            )
-            if r:
-                print(f"  OK 田中 実績2h → 最終面接")
+        await add_work_hours(
+            task_ids.get("recruit4"), 2.0, 2.0, "面接官スケジュール確認", "ichiro-tanaka"
+        )
 
         # 12. Schedule/Workload 検証用追加タスク
         print("\n=== 12. 追加タスク（来週・再来週分散）===")
