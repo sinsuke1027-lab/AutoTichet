@@ -513,6 +513,8 @@ Expected: 見積工数・実績工数が表示（梅本のエントリー: 見�
 
 **Files:** なし（検証のみ）
 
+**実装メモ:** `@dnd-kit/core` + `SortableContext` を使用。カラム間ドラッグ → `PATCH /tasks/{id}` でステータス更新（楽観的更新あり・失敗時ロールバック）。同カラム内ドラッグ → `reorder` API で順序変更。
+
 - [ ] **Step 1: Board を開く（プロジェクトなし）**
 
 ```
@@ -540,10 +542,53 @@ browser_snapshot: 各カラムの件数バッジ（未着手 N / 進行中 N / �
 
 Expected: いずれかのカラムに1件以上タスクが存在する
 
-- [ ] **Step 4: タスクカードをクリックして詳細に遷移することを確認**
+- [ ] **Step 4: カードを別カラムへドラッグしてステータスが変わることを確認**
+
+未着手カラムの「出欠アンケート作成」を「進行中」カラムへドラッグする:
 
 ```
-browser_click: 「よく知るVORN5月」カードをクリック
+browser_snapshot: 「出欠アンケート作成」カードの位置を取得（未着手カラム内）
+browser_drag:
+  startElement: 「出欠アンケート作成」カード
+  endElement:   「進行中」カラムのドロップゾーン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-board-drag-cross-column.png
+```
+
+Expected:
+- ドラッグ中: カードが半透明になり DragOverlay が表示される
+- ドロップ後: 楽観的更新でカードが「進行中」カラムに即座に移動
+- 「進行中」件数カウントが+1、「未着手」が-1 になる
+
+- [ ] **Step 5: ドラッグ後のステータス変更が API に永続化されていることを確認**
+
+```
+browser_navigate: https://auto-tichet.vercel.app/board
+browser_click: 総務業務管理 プロジェクトフィルター再選択
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-board-after-reload.png
+browser_snapshot: 「出欠アンケート作成」が「進行中」カラムにあることを確認
+```
+
+Expected: リロード後も「進行中」カラムに表示される（DB に永続化済み）
+
+- [ ] **Step 6: 同カラム内ドラッグで並び替えを確認**
+
+「進行中」カラム内で先頭カードを末尾へドラッグする:
+
+```
+browser_snapshot: 「進行中」カラム内のカード順序を記録（before）
+browser_drag:
+  startElement: 「進行中」カラムの先頭カード
+  endElement:   「進行中」カラムの末尾カード
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-board-drag-reorder.png
+browser_snapshot: カード順序が変わっていることを確認（after）
+```
+
+Expected: 並び替え後、`reorder` API が呼ばれて順序が変わる。リロード後も順序が維持される。
+
+- [ ] **Step 7: タスクカードをクリックして詳細に遷移することを確認**
+
+```
+browser_click: 「よく知るVORN5月」カードをクリック（ドラッグなし・クリックのみ）
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-board-task-detail.png
 browser_navigate_back: ボードに戻る
 ```
@@ -556,6 +601,8 @@ Expected: タスク詳細ページ（/tasks/{id}）に遷移し、戻れる
 
 **Files:** なし（検証のみ）
 
+**実装メモ:** `react-big-calendar` を使用。ドラッグ＆ドロップ用アドオン（`withDragAndDrop`）は**未導入**のため日付変更ドラッグは非対応。`onSelectEvent` でタスク詳細ページへ遷移するのみ。
+
 - [ ] **Step 1: Calendar を開く**
 
 ```
@@ -563,9 +610,19 @@ browser_navigate: https://auto-tichet.vercel.app/calendar
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-calendar-month.png
 ```
 
-Expected: 当月カレンダービューが表示され、各日にタスクドットが散在している
+Expected: 当月カレンダービューが表示され、各日にタスクイベントバーが分散している
 
-- [ ] **Step 2: 担当者フィルターで田中 一郎 を選択**
+- [ ] **Step 2: 「前」「次」ボタンで月を移動できることを確認**
+
+```
+browser_click: 「次」ボタン（翌月へ）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-calendar-next-month.png
+browser_click: 「前」ボタン（当月に戻る）
+```
+
+Expected: 月が切り替わり、タスクの表示も変わる
+
+- [ ] **Step 3: 担当者フィルターで田中 一郎 を選択**
 
 ```
 browser_click: 担当者フィルタードロップダウン
@@ -575,20 +632,44 @@ browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-calendar-tanaka.
 
 Expected: 田中担当タスク（新卒研修日程調整・インターン対応等）のみ日付セルに表示
 
-- [ ] **Step 3: タスクをクリックして詳細ポップアップが開くことを確認**
+- [ ] **Step 4: 複数担当者フィルターを確認**
 
 ```
-browser_click: 日付セル内の任意のタスクドットをクリック
-browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-calendar-task-popup.png
+browser_click: 担当者フィルター → 田中 一郎 + 山田 花子 を複数選択
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-calendar-multi-assignee.png
 ```
 
-Expected: タスク名・担当者・優先度が表示されるポップアップが現れる
+Expected: 2名のタスクが両方表示される（採用タスク群が見える）
+
+- [ ] **Step 5: イベントをクリックしてタスク詳細に遷移することを確認**
+
+```
+browser_click: 日付セル内の任意のタスクイベントをクリック
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-calendar-task-detail.png
+browser_navigate_back
+```
+
+Expected: `/tasks/{id}` の詳細ページへ遷移する（react-big-calendar はクリックのみ対応、日程ドラッグは非対応）
+
+- [ ] **Step 6: 密度ヒートマップを確認（タスクが多い日ほど青く塗られる）**
+
+```
+browser_snapshot: 担当者フィルターをクリア → 全タスク表示
+browser_evaluate: 
+  const cells = document.querySelectorAll('.rbc-date-cell')
+  const colored = [...cells].filter(c => c.style.background || c.querySelector('[style*="background"]'))
+  colored.length
+```
+
+Expected: タスクが集中している日付のセルが青みがかった背景色になっている（count 1-2: 薄青、3-5: 中青）
 
 ---
 
 ### Task 7: Gantt ページ検証
 
 **Files:** なし（検証のみ）
+
+**実装メモ:** `gantt-task-react` ライブラリ使用。バードラッグ → `onDateChange` → `reschedule.mutate({ taskId, { new_start_date, new_due_date } })` で PATCH API 呼び出し。バー右端リサイズも同 handler 経由で `due_date` を更新。
 
 - [ ] **Step 1: Gantt を開く（人事業務管理プロジェクト）**
 
@@ -608,21 +689,77 @@ browser_snapshot: ガントチャートのSVG/依存線の存在を確認
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-dependencies.png
 ```
 
-Expected: バー間に依存関係を示す矢印線が表示されている
+Expected: バー間に依存関係を示す矢印線（折れ線）が表示されている
 
 - [ ] **Step 3: 今日ラインが表示されることを確認**
 
 ```
-browser_evaluate: document.querySelector('.gantt-today-line, [data-today]') !== null
+browser_evaluate: document.querySelector('.gantt-today-line, [data-today], ._3NhEf') !== null
 ```
 
-Expected: `true`（今日ラインが存在する）
+Expected: `true`（`gantt-task-react` が描画する今日縦線が存在する）
+
+- [ ] **Step 4: ガントバーをドラッグして日程を移動する**
+
+「求人票作成」のバーを右へ3〜5日ドラッグする:
+
+```
+browser_snapshot: 「求人票作成」バーの位置（開始日・終了日）を記録（before）
+browser_drag:
+  startElement: 「求人票作成」バー中央
+  endElement:   バー中央から右へ約3日分の位置（ピクセル換算: day_width × 3 px 右）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-drag-move.png
+```
+
+Expected:
+- ドラッグ中: バーが右へスライドしてプレビュー表示される
+- ドロップ後: `reschedule` API が呼ばれ、`new_start_date` と `new_due_date` が3日後にずれる
+- ガント上でバーの位置が変わる
+
+- [ ] **Step 5: バー右端をドラッグしてリサイズ（due_date 延長）する**
+
+「採用要件定義」バーの右端（リサイズハンドル）を右へ2日ドラッグ:
+
+```
+browser_snapshot: 「採用要件定義」バーの due_date を記録（before）
+browser_drag:
+  startElement: 「採用要件定義」バーの右端リサイズハンドル
+  endElement:   右端から右へ約2日分の位置
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-drag-resize.png
+```
+
+Expected:
+- ドロップ後: `new_due_date` が2日延長される、`new_start_date` は変わらない
+- バーが右に長くなる
+
+- [ ] **Step 6: リロードして日程変更が永続化されていることを確認**
+
+```
+browser_navigate: https://auto-tichet.vercel.app/gantt
+browser_click: 人事業務管理 を再選択
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-after-reload.png
+browser_snapshot: 「求人票作成」「採用要件定義」の新しい日程を確認（before と異なる位置）
+```
+
+Expected: ドラッグ後の日程が DB に永続化されており、リロード後も変更が反映されている
+
+- [ ] **Step 7: 依存関係の追加 UI を確認する**
+
+```
+browser_click: 「依存関係を追加」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-add-dep-modal.png
+browser_click: キャンセル（モーダルを閉じる）
+```
+
+Expected: 先行タスク・後続タスクを選択するモーダルが開く
 
 ---
 
 ### Task 8: Schedule ページ検証
 
 **Files:** なし（検証のみ）
+
+**実装メモ:** `@dnd-kit/core` + `useDraggable/useDroppable` で週次7日カラムに対応。今日-3日〜今日+3日の7列 + 「未配置（`__unassigned__`）」列。ドラッグ → `updateTask.mutate({ id, start_date: newDate })` で PATCH API 呼び出し。未配置列へドラッグすると `start_date: null` になる。
 
 - [ ] **Step 1: Schedule を開く**
 
@@ -631,26 +768,55 @@ browser_navigate: https://auto-tichet.vercel.app/schedule
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-schedule-all.png
 ```
 
-Expected: 直近2〜4週間のタイムライン/週次ビューにタスクが分散表示される
+Expected: 今日-3日〜今日+3日の7日カラム + 「未配置」カラムにタスクが分散表示される
 
-- [ ] **Step 2: 担当者フィルターで梅本 美結 を選択**
+- [ ] **Step 2: タスクカードを別の日付列へドラッグして start_date が変わることを確認**
 
-```
-browser_click: 担当者フィルター → 梅本 美結
-browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-schedule-umemoto.png
-```
-
-Expected: 梅本担当タスク（6月度社内報草稿 など）がスケジュールに表示される
-
-- [ ] **Step 3: 週表示・月表示の切り替えを確認**
+「未配置」列または任意の日付列のタスクを、今日の列へドラッグする:
 
 ```
-browser_click: 月表示ボタン（またはWeek/Month切り替え）
-browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-schedule-monthly.png
-browser_click: 週表示ボタン
+browser_snapshot: ドラッグ対象タスク（例: 「6月度社内報草稿」）の現在の列を確認（before）
+browser_drag:
+  startElement: 「6月度社内報草稿」カード
+  endElement:   今日の日付列のドロップゾーン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-schedule-drag-to-today.png
 ```
 
-Expected: 切り替えが正常に動作し、タスクの表示範囲が変化する
+Expected:
+- ドラッグ中: 対象カラムが青色ハイライト（`border: 2px solid #1677ff`）になる
+- ドロップ後: カードが今日の列に移動し、`PATCH /tasks/{id}` で `start_date` が今日の日付に更新される
+
+- [ ] **Step 3: タスクを「未配置」列へドラッグして start_date を外す**
+
+任意の日付列のタスクを「未配置」列へドラッグする:
+
+```
+browser_drag:
+  startElement: 任意の日付列のタスクカード
+  endElement:   「未配置」列のドロップゾーン（点線ボーダー）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-schedule-drag-to-unassigned.png
+```
+
+Expected:
+- ドロップ後: カードが「未配置」列に移動し、`start_date: null` が API に送信される
+
+- [ ] **Step 4: リロードしてスケジュール変更が永続化されていることを確認**
+
+```
+browser_navigate: https://auto-tichet.vercel.app/schedule
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-schedule-after-reload.png
+browser_snapshot: 「6月度社内報草稿」が今日の列にあることを確認
+```
+
+Expected: リロード後も移動先の列に表示される（DB 永続化済み）
+
+- [ ] **Step 5: 複数タスクが同一列に積み重なることを確認**
+
+```
+browser_snapshot: 「今日」列に複数タスクが縦に並んでいることを確認
+```
+
+Expected: 同じ `start_date` のタスクが同一列に複数表示される（スクロール可能）
 
 ---
 
@@ -861,10 +1027,10 @@ Expected: 主要機能（タスク管理・カンバン・ガント・インポ�
 | MyPage | 自分のタスク一覧・週次サマリー |
 | Tasks 一覧 | 担当者/プロジェクト列・フィルター動作 |
 | Tasks 詳細 | サブタスク3件・コメント2件・工数表示 |
-| Board | 4カラム・プロジェクトフィルター |
-| Calendar | タスクドット表示・担当者フィルター |
-| Gantt | 採用4タスクバー・依存関係矢印 |
-| Schedule | 来週〜再来週のタスク分散表示 |
+| Board | 4カラム表示・カラム間ドラッグ（ステータス変更）・同カラムドラッグ（並び替え）・リロード永続化 |
+| Calendar | タスクイベント表示・担当者フィルター・月ナビゲーション・クリックで詳細遷移（DnD 非対応確認） |
+| Gantt | 採用4タスクバー・依存矢印・バードラッグ日程移動・バーリサイズ・リロード永続化 |
+| Schedule | 7日カラム表示・タスクドラッグで日付変更・未配置列へドラッグ・リロード永続化 |
 | Workload | 石川の超過バッジ・部署フィルター |
 | Templates | 3件表示・タスク内容展開 |
 | Projects | 2プロジェクト・マイルストーン2件 |
