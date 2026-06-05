@@ -487,25 +487,83 @@ browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-subt
 
 Expected: 「取材メモ整理」「下書き作成」「最終校正・入稿」の3件が表示される
 
-- [ ] **Step 5: コメントパネルを確認する**
+- [ ] **Step 5: タスク詳細フィールドをインライン編集する（修正）**
+
+「社内報作成（6月号）」の詳細ページで、ステータスと優先度を変更する:
 
 ```
-browser_click: コメント タブ/セクション
+browser_click: ステータスのドロップダウン（「未着手」）
+browser_click: 「進行中」を選択
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-edit-status.png
+browser_snapshot: ステータスが「進行中」に変わっていることを確認
+browser_click: 優先度ドロップダウン（「中」）
+browser_click: 「高」を選択
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-edit-priority.png
+```
+
+Expected: インライン変更がリアルタイムで反映され、`PATCH /tasks/{id}` が呼ばれる
+
+- [ ] **Step 6: タスクを複製する（複製）**
+
+```
+browser_click: 「複製」ボタン（CopyOutlined アイコン）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-duplicate.png
+browser_navigate_back: 元のタスク一覧へ
+```
+
+Expected: 複製されたタスクの詳細ページへ遷移する（タイトルが同じ、別 ID）
+
+- [ ] **Step 7: 「よく知るVORN5月」のコメントを確認し、新規コメントを投稿する（作成）**
+
+```
+browser_navigate: /tasks/{よく知るVORN5月のID} （一覧から遷移）
+browser_click: コメント タブ
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-comments-vorn.png
 ```
 
-（よく知るVORN5月 の詳細に移動してコメントを確認）
-
-Expected: 石川・梅本のコメントが時系列で表示される
-
-- [ ] **Step 6: 工数パネルを確認する**
+Expected: 石川・梅本の既存コメント2件が時系列で表示される
 
 ```
-browser_click: 工数 タブ/セクション
-browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-workhours.png
+browser_fill_form: コメント入力欄 → 「検証コメント: Playwright から投稿」
+browser_click: 「送信」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-comment-posted.png
+browser_snapshot: 新しいコメントがリストに追加されていることを確認
 ```
 
-Expected: 見積工数・実績工数が表示（梅本のエントリー: 見積3h / 実績2h）
+Expected: 新規コメントが一覧末尾に追加される
+
+- [ ] **Step 8: 工数パネルで実績工数を登録する（作成）**
+
+```
+browser_click: 工数 タブ
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-workhours-before.png
+browser_fill_form: 見積工数 → 2 / 実績工数 → 1.5
+browser_click: 「登録」または「保存」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-workhours-after.png
+browser_snapshot: 新しい工数エントリが一覧に追加されていることを確認
+```
+
+Expected: 工数エントリが登録され、合計工数の集計が更新される
+
+- [ ] **Step 9: テスト用タスクを削除する（削除）**
+
+Step 6 で複製されたタスクの詳細ページへ移動し、削除する:
+
+```
+browser_navigate: 複製されたタスクの詳細ページ
+browser_click: 「削除」ボタン（DeleteOutlined アイコン）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-delete-confirm.png
+```
+
+Expected: 削除確認の `Popconfirm` ダイアログが表示される
+
+```
+browser_click: 確認ダイアログの「OK」または「削除」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-task-detail-deleted.png
+browser_snapshot: `/tasks` の一覧ページにリダイレクトされ、複製タスクが消えていることを確認
+```
+
+Expected: 削除後に一覧ページへ戻り、「タスクを削除しました」のメッセージが表示される
 
 ---
 
@@ -743,15 +801,44 @@ browser_snapshot: 「求人票作成」「採用要件定義」の新しい日�
 
 Expected: ドラッグ後の日程が DB に永続化されており、リロード後も変更が反映されている
 
-- [ ] **Step 7: 依存関係の追加 UI を確認する**
+- [ ] **Step 7: 依存関係の追加 UI を確認する（作成）**
 
 ```
 browser_click: 「依存関係を追加」ボタン
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-add-dep-modal.png
-browser_click: キャンセル（モーダルを閉じる）
 ```
 
 Expected: 先行タスク・後続タスクを選択するモーダルが開く
+
+```
+browser_select_option: 先行タスク → 「候補者選考・書類審査」
+browser_select_option: 後続タスク → 「採用要件定義」（テスト用の逆依存）
+browser_click: 「追加」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-dep-added.png
+browser_snapshot: 依存関係リストに新しいエントリが追加されていることを確認
+```
+
+Expected: 依存関係が追加され、ガントチャートに矢印が増える
+
+- [ ] **Step 8: 依存関係を削除する（削除）**
+
+Step 7 で追加した依存関係（「候補者選考→採用要件定義」）を削除する:
+
+```
+browser_snapshot: 依存関係リストから Step 7 で追加したエントリを特定
+browser_click: そのエントリの削除アイコン（DeleteOutlined）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-dep-delete-confirm.png
+```
+
+Expected: `Popconfirm` 確認ダイアログが表示される
+
+```
+browser_click: 「OK」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-gantt-dep-deleted.png
+browser_snapshot: 依存関係リストからエントリが削除されていることを確認
+```
+
+Expected: 削除後、ガントチャートの矢印が元の状態（3本）に戻る
 
 ---
 
@@ -875,10 +962,67 @@ browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-detail
 
 Expected: テンプレート内のタスク4件（採用要件定義・求人票作成・書類審査・最終面接）が表示される
 
-- [ ] **Step 3: テンプレートを使ってタスク生成する（任意）**
+- [ ] **Step 3: 新規テンプレートを作成する（作成）**
 
 ```
-browser_click: 「適用」または「このテンプレートを使う」ボタン
+browser_click: 「テンプレートを作成」ボタン（PlusOutlined アイコン）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-create-drawer.png
+```
+
+Expected: テンプレート作成ドロワーが開く
+
+```
+browser_fill_form:
+  テンプレート名 → 「オフィス管理テンプレート（検証用）」
+  説明 → 「Playwright 検証用の一時テンプレート」
+  タスクタイトル1 → 「設備点検」/ 優先度 → 低
+  タスクタイトル2 → 「清掃業者連絡」/ 優先度 → 低
+browser_click: 「保存」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-created.png
+browser_snapshot: 一覧に「オフィス管理テンプレート（検証用）」が追加されたことを確認
+```
+
+Expected: 4件目のテンプレートが一覧に表示される
+
+- [ ] **Step 4: テンプレートを編集する（修正）**
+
+```
+browser_click: 「オフィス管理テンプレート（検証用）」の編集ボタン（EditOutlined アイコン）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-edit-drawer.png
+```
+
+Expected: 編集ドロワーが開き、既存値がフォームに入っている
+
+```
+browser_fill_form: テンプレート名 → 「オフィス管理テンプレート（検証用・修正済）」
+browser_click: 「保存」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-edited.png
+browser_snapshot: 一覧で名前が変わっていることを確認
+```
+
+Expected: 編集内容が一覧に反映される
+
+- [ ] **Step 5: テンプレートを削除する（削除）**
+
+```
+browser_click: 「オフィス管理テンプレート（検証用・修正済）」の削除ボタン（DeleteOutlined）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-delete-confirm.png
+```
+
+Expected: `Popconfirm` 確認ダイアログが表示される
+
+```
+browser_click: 「OK」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-deleted.png
+browser_snapshot: 一覧が3件に戻っていることを確認
+```
+
+Expected: 削除後、テンプレート一覧から該当テンプレートが消える
+
+- [ ] **Step 6: テンプレートを適用してタスク生成する**
+
+```
+browser_click: 「採用フロー標準テンプレート」の「適用」ボタン
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-templates-apply.png
 ```
 
@@ -916,6 +1060,61 @@ browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milesto
 ```
 
 Expected: 2件のマイルストーンが日付順に表示される
+
+- [ ] **Step 4: マイルストーンを新規作成する（作成）**
+
+```
+browser_click: 「マイルストーンを追加」ボタン（PlusOutlined アイコン）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milestone-create-modal.png
+```
+
+Expected: マイルストーン作成モーダルが開く
+
+```
+browser_fill_form:
+  タイトル → 「中間レビュー（検証用）」
+  期限日 → 今日から20日後
+  説明 → 「Playwright 検証用の一時マイルストーン」
+browser_click: 「作成」または「保存」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milestone-created.png
+browser_snapshot: タイムラインに「中間レビュー（検証用）」が追加されていることを確認
+```
+
+Expected: 3件目のマイルストーンがタイムラインに追加される
+
+- [ ] **Step 5: マイルストーンを完了トグルする（修正）**
+
+```
+browser_click: 「中間レビュー（検証用）」のチェックボックスまたは「完了」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milestone-toggle.png
+browser_snapshot: マイルストーンのマーカー色が緑（完了色）に変わっていることを確認
+```
+
+Expected: `useToggleComplete` が呼ばれ、`completed: true` に更新される。マーカー色が `#52c41a`（緑）になる
+
+- [ ] **Step 6: マイルストーンを編集する（修正）**
+
+```
+browser_click: 「中間レビュー（検証用）」の編集ボタン（EditOutlined または鉛筆アイコン）
+browser_fill_form: タイトル → 「中間レビュー（検証用・修正済）」
+browser_click: 「保存」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milestone-edited.png
+browser_snapshot: タイムラインで名前が変わっていることを確認
+```
+
+Expected: 編集内容がタイムラインに反映される
+
+- [ ] **Step 7: マイルストーンを削除する（削除）**
+
+```
+browser_click: 「中間レビュー（検証用・修正済）」の削除ボタン（DeleteOutlined または Popconfirm）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milestone-delete-confirm.png
+browser_click: 「OK」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-projects-milestone-deleted.png
+browser_snapshot: タイムラインが2件に戻っていることを確認
+```
+
+Expected: 削除後、元の2件（上期総務業務完了・下期キックオフ）のみ表示される
 
 ---
 
@@ -976,16 +1175,88 @@ browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-users.png
 
 Expected: 全8ユーザーが一覧表示され、role・department_tags が表示される
 
-- [ ] **Step 3: AlertSettings タブを確認**
+- [ ] **Step 3: テスト用ユーザーを新規作成する（作成）**
+
+```
+browser_click: 「ユーザーを追加」ボタン（PlusOutlined アイコン）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-user-create-modal.png
+```
+
+Expected: ユーザー作成モーダルが開く
+
+```
+browser_fill_form:
+  表示名 → 「テスト太郎（検証用）」
+  メール → 「test-taro@dev.example.com」
+  ロール → 「メンバー」
+  部署タグ → general_affairs
+browser_click: 「作成」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-user-created.png
+browser_snapshot: 一覧が9件になっていることを確認
+```
+
+Expected: 「テスト太郎（検証用）」が一覧に追加される
+
+- [ ] **Step 4: ユーザーを編集する（修正）**
+
+```
+browser_click: 「テスト太郎（検証用）」の編集ボタン（鉛筆アイコンまたは行の編集列）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-user-edit-modal.png
+```
+
+Expected: 編集モーダルが開き、既存値が入力されている
+
+```
+browser_fill_form: ロール → 「リーダー」
+browser_click: 「保存」または「更新」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-user-edited.png
+browser_snapshot: 「テスト太郎（検証用）」のロールが「リーダー」になっていることを確認
+```
+
+Expected: ロールの変更が一覧に反映される
+
+- [ ] **Step 5: ユーザーを削除する（削除）**
+
+```
+browser_click: 「テスト太郎（検証用）」の削除ボタン（Popconfirm）
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-user-delete-confirm.png
+browser_click: 「OK」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-user-deleted.png
+browser_snapshot: 一覧が8件に戻っていることを確認
+```
+
+Expected: 削除後、元の8件の一覧に戻る
+
+- [ ] **Step 6: AlertSettings タブでしきい値を変更して保存する（修正）**
 
 ```
 browser_click: 「アラート設定」タブ
 browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-alert-settings.png
 ```
 
-Expected: 負荷アラートのしきい値設定フォームが表示される（デフォルト値が入力されている）
+Expected: 負荷アラートのしきい値設定フォームが表示される
 
-- [ ] **Step 4: OrgSettings タブを確認**
+```
+browser_snapshot: 現在のしきい値（デフォルト値）を読み取る（before）
+browser_fill_form: 負荷アラートしきい値 → 現在値 + 1（例: 8.0 → 9.0）
+browser_click: 「保存」ボタン
+browser_take_screenshot: .playwright-mcp/screenshots/2026-06-05-admin-alert-settings-saved.png
+browser_snapshot: 「保存しました」メッセージまたは更新後の値を確認
+```
+
+Expected: `PATCH /api/v1/admin/alert-settings` が呼ばれ、設定が保存される
+
+```
+browser_navigate: https://auto-tichet.vercel.app/admin
+browser_click: 「アラート設定」タブ
+browser_snapshot: しきい値が変更後の値（9.0）になっていることを確認（永続化確認）
+browser_fill_form: 負荷アラートしきい値 → 元の値（8.0）に戻す
+browser_click: 「保存」ボタン
+```
+
+Expected: 設定が DB に永続化されており、リロード後も変更値が表示される（後でデフォルトに戻す）
+
+- [ ] **Step 7: OrgSettings タブを確認**
 
 ```
 browser_click: 「組織設定」タブ
@@ -1026,14 +1297,14 @@ Expected: 主要機能（タスク管理・カンバン・ガント・インポ�
 | Dashboard | KPI 4件表示・石川の負荷アラート |
 | MyPage | 自分のタスク一覧・週次サマリー |
 | Tasks 一覧 | 担当者/プロジェクト列・フィルター動作 |
-| Tasks 詳細 | サブタスク3件・コメント2件・工数表示 |
+| Tasks 詳細 | サブタスク3件・コメント2件・工数表示・ステータス/優先度インライン編集・コメント投稿・工数登録・タスク複製・タスク削除 |
 | Board | 4カラム表示・カラム間ドラッグ（ステータス変更）・同カラムドラッグ（並び替え）・リロード永続化 |
 | Calendar | タスクイベント表示・担当者フィルター・月ナビゲーション・クリックで詳細遷移（DnD 非対応確認） |
-| Gantt | 採用4タスクバー・依存矢印・バードラッグ日程移動・バーリサイズ・リロード永続化 |
+| Gantt | 採用4タスクバー・依存矢印・バードラッグ日程移動・バーリサイズ・依存関係追加・依存関係削除・リロード永続化 |
 | Schedule | 7日カラム表示・タスクドラッグで日付変更・未配置列へドラッグ・リロード永続化 |
 | Workload | 石川の超過バッジ・部署フィルター |
-| Templates | 3件表示・タスク内容展開 |
-| Projects | 2プロジェクト・マイルストーン2件 |
+| Templates | 3件表示・新規作成・編集・削除・適用 |
+| Projects | 2プロジェクト・マイルストーン作成・完了トグル・編集・削除 |
 | Import | CSV アップロードプレビュー |
-| Admin | ユーザー8件・AlertSettings 表示 |
+| Admin | ユーザー一覧・ユーザー作成・編集・削除・AlertSettings 保存・永続化確認 |
 | Help | ページが開いてコンテンツ表示 |
