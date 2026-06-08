@@ -39,7 +39,7 @@ class AppController:
             sys.exit(1)
 
         # DEV_MODE 専用エンドポイントで認証なしユーザー一覧を取得
-        dev_client = BackendClient(self.config.backend_url, "")
+        dev_client = BackendClient(self.config.backend_url, UserInfo(user_id="", display_name=""))
         try:
             self.users = dev_client.get_users_dev()
         except Exception as exc:
@@ -58,7 +58,12 @@ class AppController:
                 print("ユーザーが選択されませんでした。終了します。")
                 sys.exit(0)
 
-        self.backend = BackendClient(self.config.backend_url, self.config.selected_user_id)
+        selected_user = next(
+            (u for u in self.users if u.user_id == self.config.selected_user_id), None
+        )
+        if selected_user is None:
+            selected_user = UserInfo(user_id=self.config.selected_user_id, display_name=self.config.selected_user_id)
+        self.backend = BackendClient(self.config.backend_url, selected_user)
         try:
             self.projects = self.backend.get_projects()
         except Exception as exc:

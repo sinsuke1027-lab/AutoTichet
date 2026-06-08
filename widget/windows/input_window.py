@@ -175,7 +175,7 @@ class InputWindow(ctk.CTkToplevel):
                 self._backend.create_task(payload)
                 self.after(0, self._on_success)
             except Exception as exc:
-                self.after(0, lambda: self._on_error(str(exc)))
+                self.after(0, lambda msg=str(exc): self._on_error(msg))
 
         threading.Thread(target=_run, daemon=True).start()
 

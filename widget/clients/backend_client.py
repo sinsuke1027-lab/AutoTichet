@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 from dataclasses import dataclass
 import httpx
 
@@ -7,6 +8,8 @@ import httpx
 class UserInfo:
     user_id: str
     display_name: str
+    role: str = "member"
+    email: str = ""
 
 
 @dataclass(eq=True)
@@ -16,12 +19,16 @@ class ProjectInfo:
 
 
 class BackendClient:
-    def __init__(self, backend_url: str, user_id: str) -> None:
+    def __init__(self, backend_url: str, user: UserInfo) -> None:
         self._base = backend_url.rstrip("/")
-        self._headers = {
-            "X-Dev-User": user_id,
-            "Content-Type": "application/json",
-        }
+        dev_header = json.dumps({
+            "userId": user.user_id,
+            "displayName": user.display_name,
+            "email": user.email or f"{user.user_id}@dev.example.com",
+            "role": user.role,
+            "departmentTags": [],
+        })
+        self._headers = {"X-Dev-User": dev_header, "Content-Type": "application/json"}
 
     def get_users_dev(self) -> list[UserInfo]:
         """DEV_MODE 専用: 認証なしで /api/v1/dev/users からユーザー一覧を取得する。"""
@@ -30,7 +37,15 @@ class BackendClient:
             timeout=10,
         )
         resp.raise_for_status()
-        return [UserInfo(u["user_id"], u["display_name"]) for u in resp.json()]
+        return [
+            UserInfo(
+                user_id=u["user_id"],
+                display_name=u["display_name"],
+                role=u.get("role", "member"),
+                email=u.get("email") or "",
+            )
+            for u in resp.json()
+        ]
 
     def get_users(self) -> list[UserInfo]:
         resp = httpx.get(
@@ -39,7 +54,15 @@ class BackendClient:
             timeout=10,
         )
         resp.raise_for_status()
-        return [UserInfo(u["user_id"], u["display_name"]) for u in resp.json()]
+        return [
+            UserInfo(
+                user_id=u["user_id"],
+                display_name=u["display_name"],
+                role=u.get("role", "member"),
+                email=u.get("email") or "",
+            )
+            for u in resp.json()
+        ]
 
     def get_projects(self) -> list[ProjectInfo]:
         resp = httpx.get(
