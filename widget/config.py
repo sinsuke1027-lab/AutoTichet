@@ -19,12 +19,16 @@ def load_config() -> Config:
         cfg = Config()
         save_config(cfg)
         return cfg
-    with CONFIG_PATH.open(encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with CONFIG_PATH.open(encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, ValueError):
+        return Config()
     known = {f.name for f in fields(Config)}
     return Config(**{k: v for k, v in data.items() if k in known})
 
 
 def save_config(cfg: Config) -> None:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     with CONFIG_PATH.open("w", encoding="utf-8") as f:
         json.dump(asdict(cfg), f, ensure_ascii=False, indent=2)
