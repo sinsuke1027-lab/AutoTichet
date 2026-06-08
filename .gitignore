@@ -43,3 +43,5 @@ docker/volumes/
 
 # Playwright テスト結果
 frontend/test-results/
+
+widget/config.json
