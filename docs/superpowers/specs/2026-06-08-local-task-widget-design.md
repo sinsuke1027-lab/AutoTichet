@@ -53,7 +53,7 @@ pillow>=10.0          # pystray の画像処理
 {
   "backend_url": "https://xxx.hf.space",
   "selected_user_id": "",
-  "hotkey": "ctrl+shift+space",
+  "hotkey": "<ctrl>+<shift>+<space>",
   "ollama_model": "gemma4:e4b"
 }
 ```
