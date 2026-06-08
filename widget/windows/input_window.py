@@ -1,5 +1,7 @@
 from __future__ import annotations
+import logging
 import threading
+import traceback
 import customtkinter as ctk
 from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
@@ -173,16 +175,21 @@ class InputWindow(ctk.CTkToplevel):
         def _run() -> None:
             try:
                 self._backend.create_task(payload)
+                logging.debug("create_task success")
                 self.after(0, self._on_success)
             except Exception as exc:
+                logging.error("create_task failed:\n" + traceback.format_exc())
                 self.after(0, lambda msg=str(exc): self._on_error(msg))
 
         threading.Thread(target=_run, daemon=True).start()
 
     def _on_success(self) -> None:
-        self._build_input_panel()
-        self._status_lbl.configure(text="✅ 起票しました！", text_color="green")
-        self.after(3000, lambda: self._status_lbl.configure(text=""))
+        try:
+            self._build_input_panel()
+            self._status_lbl.configure(text="✅ 起票しました！", text_color="green")
+            self.after(3000, lambda: self._status_lbl.configure(text=""))
+        except Exception:
+            logging.error("_on_success failed:\n" + traceback.format_exc())
 
     def _on_error(self, msg: str) -> None:
         self._error_lbl.configure(text=f"送信エラー: {msg}")

@@ -1,7 +1,35 @@
 from __future__ import annotations
+from datetime import date, datetime
 from widget.clients.backend_client import UserInfo, ProjectInfo
 
 _PRIORITY_MAP = {"低": "low", "中": "medium", "高": "high", "緊急": "urgent"}
+
+_DATE_FORMATS = [
+    "%Y-%m-%d",   # 2026-06-15
+    "%Y/%m/%d",   # 2026/06/15 or 2026/6/15
+    "%m/%d/%Y",   # 06/15/2026
+    "%m-%d-%Y",   # 06-15-2026
+    "%m/%d",      # 6/15  → 今年
+    "%m-%d",      # 6-15  → 今年
+]
+
+
+def normalize_date(s: str) -> str | None:
+    s = s.strip()
+    if not s:
+        return None
+    year = date.today().year
+    for fmt in _DATE_FORMATS:
+        try:
+            if fmt in ("%m/%d", "%m-%d"):
+                sep = fmt[2]
+                d = datetime.strptime(f"{year}{sep}{s}", f"%Y{sep}{fmt}")
+            else:
+                d = datetime.strptime(s, fmt)
+            return d.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
 
 
 def jp_to_priority(jp: str) -> str:
@@ -44,7 +72,7 @@ def build_payload(
     )
     return {
         "title": title,
-        "due_date": due_date_str.strip() or None,
+        "due_date": normalize_date(due_date_str),
         "assignee_id": assignee_id,
         "project_id": project_id,
         "priority": jp_to_priority(priority_jp),

@@ -48,6 +48,16 @@ def test_resolve_assignee_case_insensitive_partial_match():
     assert resolve_assignee("存在しない", users) is None
 
 
+def test_normalize_date_various_formats():
+    from widget.payload_builder import normalize_date
+    assert normalize_date("2026-06-15") == "2026-06-15"
+    assert normalize_date("2026/06/15") == "2026-06-15"
+    assert normalize_date("2026/6/15")  == "2026-06-15"
+    assert normalize_date("") is None
+    assert normalize_date("   ") is None
+    assert normalize_date("invalid") is None
+
+
 def test_priority_map_all_values():
     from widget.payload_builder import jp_to_priority
     assert jp_to_priority("低") == "low"

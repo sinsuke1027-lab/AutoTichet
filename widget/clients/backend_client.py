@@ -77,11 +77,18 @@ class BackendClient:
         return [ProjectInfo(p["id"], p["name"]) for p in items]
 
     def create_task(self, payload: dict) -> dict:
+        import logging
+        logging.debug("create_task payload: %s", payload)
         resp = httpx.post(
             f"{self._base}/api/v1/tasks",
             json=payload,
             headers=self._headers,
             timeout=15,
         )
-        resp.raise_for_status()
+        if not resp.is_success:
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text
+            raise ValueError(f"HTTP {resp.status_code}: {detail}")
         return resp.json()

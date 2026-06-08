@@ -1,10 +1,22 @@
 from __future__ import annotations
+import logging
 import sys
 import threading
+import traceback
 import customtkinter as ctk
 from PIL import Image, ImageDraw
 import pystray
 from pynput import keyboard
+
+import pathlib
+_LOG_PATH = pathlib.Path(__file__).parent / "widget_error.log"
+logging.basicConfig(
+    filename=str(_LOG_PATH),
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s\n%(message)s\n",
+    encoding="utf-8",
+)
+logging.debug("widget started")
 
 from widget.config import load_config, save_config, Config
 from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
@@ -50,6 +62,13 @@ class AppController:
         ctk.set_default_color_theme("blue")
         self._root = ctk.CTk()
         self._root.withdraw()
+
+        def _report_callback_exception(exc_type, exc_val, exc_tb) -> None:  # type: ignore[override]
+            msg = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+            logging.error(msg)
+            print(msg, file=sys.stderr)
+
+        self._root.report_callback_exception = _report_callback_exception
 
         if not self.config.selected_user_id:
             win = UserSelectWindow(self._root, self.config, self.users)
