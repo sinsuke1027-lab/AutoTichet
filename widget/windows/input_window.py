@@ -2,7 +2,9 @@ from __future__ import annotations
 import logging
 import threading
 import traceback
+from datetime import date, datetime
 import customtkinter as ctk
+from tkcalendar import DateEntry
 from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
 from widget.config import Config
@@ -113,10 +115,32 @@ class InputWindow(ctk.CTkToplevel):
         if not title_val:
             self._title_entry.configure(border_color="red")
 
-        # 期限
-        self._due_entry = ctk.CTkEntry(frame, placeholder_text="YYYY-MM-DD（空欄可）")
+        # 期限（カレンダーピッカー）
+        due_str = parsed.get("due_date") or ""
+        try:
+            _initial = datetime.strptime(due_str, "%Y-%m-%d").date() if due_str else date.today()
+        except ValueError:
+            _initial = date.today()
+        self._due_entry = DateEntry(
+            frame,
+            date_pattern="yyyy-mm-dd",
+            year=_initial.year,
+            month=_initial.month,
+            day=_initial.day,
+            width=18,
+            background="#1f538d",
+            foreground="white",
+            headersbackground="#144870",
+            headersforeground="white",
+            selectbackground="#1f538d",
+            normalbackground="#2b2b2b",
+            normalforeground="white",
+            weekendbackground="#2b2b2b",
+            weekendforeground="#cccccc",
+            othermonthbackground="#1a1a1a",
+            othermonthforeground="#666666",
+        )
         _row("期限", self._due_entry)
-        self._due_entry.insert(0, parsed.get("due_date") or "")
 
         # 担当者
         user_names = [_NO_SELECT] + [u.display_name for u in self._users]
