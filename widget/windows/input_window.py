@@ -180,7 +180,9 @@ class InputWindow(ctk.CTkToplevel):
         threading.Thread(target=_run, daemon=True).start()
 
     def _on_success(self) -> None:
-        self.destroy()
+        self._build_input_panel()
+        self._status_lbl.configure(text="✅ 起票しました！", text_color="green")
+        self.after(3000, lambda: self._status_lbl.configure(text=""))
 
     def _on_error(self, msg: str) -> None:
         self._error_lbl.configure(text=f"送信エラー: {msg}")
