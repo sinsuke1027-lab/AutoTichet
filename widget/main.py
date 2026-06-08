@@ -38,10 +38,10 @@ class AppController:
             )
             sys.exit(1)
 
-        tmp_client = BackendClient(self.config.backend_url, self.config.selected_user_id or "anonymous")
+        # DEV_MODE 専用エンドポイントで認証なしユーザー一覧を取得
+        dev_client = BackendClient(self.config.backend_url, "")
         try:
-            self.users = tmp_client.get_users()
-            self.projects = tmp_client.get_projects()
+            self.users = dev_client.get_users_dev()
         except Exception as exc:
             print(f"バックエンド接続エラー: {exc}")
             sys.exit(1)
@@ -59,6 +59,11 @@ class AppController:
                 sys.exit(0)
 
         self.backend = BackendClient(self.config.backend_url, self.config.selected_user_id)
+        try:
+            self.projects = self.backend.get_projects()
+        except Exception as exc:
+            print(f"プロジェクト一覧取得エラー: {exc}")
+            self.projects = []
         self.ollama = OllamaClient(model=self.config.ollama_model)
 
         threading.Thread(target=self._start_hotkey_listener, daemon=True).start()

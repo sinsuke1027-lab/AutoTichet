@@ -23,6 +23,15 @@ class BackendClient:
             "Content-Type": "application/json",
         }
 
+    def get_users_dev(self) -> list[UserInfo]:
+        """DEV_MODE 専用: 認証なしで /api/v1/dev/users からユーザー一覧を取得する。"""
+        resp = httpx.get(
+            f"{self._base}/api/v1/dev/users",
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return [UserInfo(u["user_id"], u["display_name"]) for u in resp.json()]
+
     def get_users(self) -> list[UserInfo]:
         resp = httpx.get(
             f"{self._base}/api/v1/users",

@@ -15,6 +15,20 @@ def _make_response(json_data, status_code=200):
     return resp
 
 
+def test_get_users_dev_returns_user_info_list_without_auth():
+    from widget.clients.backend_client import BackendClient, UserInfo
+    raw = [
+        {"user_id": "u1", "display_name": "山田 太郎", "role": "member"},
+    ]
+    with patch("httpx.get", return_value=_make_response(raw)) as mock_get:
+        client = BackendClient("https://example.hf.space", "")
+        users = client.get_users_dev()
+    call_kwargs = mock_get.call_args
+    assert "/api/v1/dev/users" in call_kwargs.args[0]
+    assert "headers" not in call_kwargs.kwargs or "X-Dev-User" not in (call_kwargs.kwargs.get("headers") or {})
+    assert users[0] == UserInfo(user_id="u1", display_name="山田 太郎")
+
+
 def test_get_users_returns_user_info_list():
     from widget.clients.backend_client import BackendClient, UserInfo
     raw = [
