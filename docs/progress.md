@@ -1,10 +1,50 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: 本番デプロイ完了 → Phase 1B（Graph API 統合）または追加改善バックログ**
-ステータス: Vercel + HuggingFace Spaces + Supabase デプロイ完了・シードデータ投入済み・動作確認済み・F-21 は Graph API 承認待ちでブロック中
+**Phase: ローカルタスク入力ウィジェット MVP 完成 → フェーズ2（音声入力 / .exe 配布）または Graph API 統合**
+ステータス: widget/ MVP 完成・動作確認済み・GitHub push 済み（2026-06-09）。次の選択肢は下記「次のアクション候補」を参照。
 
 ## 最終更新
+- **日付**: 2026-06-09
+
+- **完了した作業**:
+  - **[Board/Gantt バグ修正]**（2026-06-09）
+    - Board・Gantt のプロジェクトフィルターが非 admin ユーザーで空になる → `useProjects({ scope: 'all' })` に変更
+    - Board 同カラム内ドラッグ並び替えが動作しない → `over.id` がカラムキーのとき末尾扱いに修正
+    - コミット: `d0eb550`, `be6fe72`, `089159a`
+
+  - **[ローカルタスク入力ウィジェット MVP]**（2026-06-08〜09）
+    - `widget/` ディレクトリに Python デスクトップウィジェットを新規作成
+    - **起動フロー**: `python -m widget.main` → `/api/v1/dev/users` で認証なしユーザー一覧取得 → UserSelectWindow でユーザー選択 → `/api/v1/projects` 取得 → システムトレイ常駐
+    - **ホットキー**: `Ctrl+Shift+Space` で InputWindow をポップアップ
+    - **AI 解析**: Ollama（`gemma4:e4b`）で自然言語をタスク構造化。未起動時は手動フォールバック
+    - **ConfirmPanel**: タイトル・カレンダー日付ピッカー（tkcalendar）・担当者・プロジェクト・優先度
+    - **起票**: `POST /api/v1/tasks`（`X-Dev-User` JSON ヘッダー）
+    - **送信後**: ウィンドウを閉じずリセット（「✅ 起票しました！」3秒表示）
+    - **テスト**: 17 件全通過
+    - コミット: `630aaaa`〜`03c0d8e`（16 コミット）→ GitHub push 済み
+
+  - **修正したバグ（ウィジェット）**:
+    - 起動時 401: `/api/v1/dev/users` エンドポイント（認証不要）を使用するよう変更
+    - `X-Dev-User` ヘッダー: プレーン文字列 → JSON オブジェクト形式に修正
+    - lambda クロージャー: `except exc as e` の変数が消える Python 3 バグを修正
+    - 日付形式 422: `normalize_date()` で `2026/6/15` 等を `YYYY-MM-DD` に正規化
+
+## 次のアクション候補
+
+| 優先度 | 内容 |
+|-------|------|
+| 高 | Ollama セットアップ（`ollama pull gemma4:e4b`）→ AI 解析の動作確認 |
+| 中 | ウィジェット フェーズ 2: 音声入力（sounddevice + faster-whisper） |
+| 中 | ウィジェット フェーズ 2: PyInstaller で .exe 配布 |
+| 低 | F-21 Graph API 承認待ち → IT 管理者に `docs/graph-api-setup.md` を提出 |
+
+## ブロッカー
+
+- F-21（Outlook/Teams 自動取込）: Graph API アプリ登録が IT 管理者承認待ち
+
+---
+
 - **日付**: 2026-06-04
 - **完了した作業**:
   - **[バグ修正: タスク作成・更新・複製で 500 エラー]**（2026-06-04）
