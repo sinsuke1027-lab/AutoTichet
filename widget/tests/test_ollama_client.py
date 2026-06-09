@@ -47,3 +47,54 @@ def test_parse_sends_today_date_in_system_prompt():
         client = OllamaClient()
         client.parse("test")
     assert date.today().isoformat() in captured["system"]
+
+
+# --- Vision テスト ---
+
+def test_parse_image_returns_structured_dict():
+    from widget.clients.ollama_client import OllamaClient
+    from pathlib import Path
+
+    mock_content = (
+        '{"title": "報告書作成", "due_date": "2026-06-20", '
+        '"assignee_name": "田中", "priority": "high", '
+        '"description_hint": "月次報告書の作成が必要"}'
+    )
+    with patch("ollama.chat", return_value=_mock_ollama_response(mock_content)):
+        client = OllamaClient(model="gemma4:e4b")
+        result = client.parse_image(Path("/tmp/screen.png"))
+    assert result["title"] == "報告書作成"
+    assert result["due_date"] == "2026-06-20"
+    assert result["description_hint"] == "月次報告書の作成が必要"
+
+
+def test_parse_image_returns_empty_on_error():
+    from widget.clients.ollama_client import OllamaClient
+    from pathlib import Path
+
+    with patch("ollama.chat", side_effect=Exception("vision error")):
+        client = OllamaClient()
+        result = client.parse_image(Path("/tmp/screen.png"))
+    assert result["title"] is None
+    assert result["description_hint"] is None
+
+
+def test_parse_image_passes_image_path_to_ollama():
+    from widget.clients.ollama_client import OllamaClient
+    from pathlib import Path
+
+    captured: dict = {}
+    test_path = Path("/tmp/test.png")
+
+    def fake_chat(model, messages, options):
+        captured["images"] = messages[0]["images"]
+        return _mock_ollama_response(
+            '{"title": "test", "due_date": null, "assignee_name": null, '
+            '"priority": null, "description_hint": null}'
+        )
+
+    with patch("ollama.chat", side_effect=fake_chat):
+        client = OllamaClient()
+        client.parse_image(test_path)
+
+    assert captured["images"] == [str(test_path)]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from pathlib import Path
 
 import ollama
 
@@ -21,6 +22,28 @@ _SYSTEM_PROMPT = """\
 """
 
 _EMPTY: dict = {"title": None, "due_date": None, "assignee_name": None, "priority": None}
+
+_VISION_EMPTY: dict = {
+    "title": None,
+    "due_date": None,
+    "assignee_name": None,
+    "priority": None,
+    "description_hint": None,
+}
+
+_VISION_PROMPT = """\
+画像からタスク管理に関連する情報を抽出してください。
+今日の日付: {today}
+
+以下の JSON のみを出力してください（説明・コードブロック不要）:
+{{
+  "title": "タスクタイトル（日本語で簡潔に、必須）",
+  "due_date": "YYYY-MM-DD または null",
+  "assignee_name": "担当者の表示名または null",
+  "priority": "low|medium|high|urgent または null",
+  "description_hint": "画像から読み取れる補足情報（1〜2文）または null"
+}}\
+"""
 
 
 class OllamaClient:
@@ -46,3 +69,24 @@ class OllamaClient:
             return json.loads(raw[start:end])
         except Exception:
             return dict(_EMPTY)
+
+    def parse_image(self, image_path: Path) -> dict:
+        today = date.today().isoformat()
+        try:
+            response = ollama.chat(
+                model=self.model,
+                messages=[{
+                    "role": "user",
+                    "content": _VISION_PROMPT.format(today=today),
+                    "images": [str(image_path)],
+                }],
+                options={"temperature": 0},
+            )
+            raw = response["message"]["content"].strip()
+            start = raw.find("{")
+            end = raw.rfind("}") + 1
+            if start == -1 or end == 0:
+                return dict(_VISION_EMPTY)
+            return json.loads(raw[start:end])
+        except Exception:
+            return dict(_VISION_EMPTY)
