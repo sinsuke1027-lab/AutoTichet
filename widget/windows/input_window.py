@@ -99,7 +99,27 @@ class InputWindow(ctk.CTkToplevel):
             self._status_lbl.configure(text="クリップボードが空です", text_color="gray")
 
     def _capture_screenshot(self) -> None:
-        pass
+        self._submit_btn.configure(state="disabled")
+        self._status_lbl.configure(text="撮影中…", text_color="gray")
+        self.withdraw()
+        self.after(500, self._do_capture)
+
+    def _do_capture(self) -> None:
+        def _run() -> None:
+            path = self._screenshot.capture()
+            try:
+                parsed = self._ollama.parse_image(path)
+            finally:
+                self._screenshot.cleanup(path)
+            self.after(0, lambda p=parsed: self._on_capture_done(p))
+
+        self.deiconify()
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _on_capture_done(self, parsed: dict) -> None:
+        self._submit_btn.configure(state="normal")
+        self._status_lbl.configure(text="")
+        self._build_confirm_panel(parsed)
 
     # ──────────────────────────────
     # AI 解析 → ConfirmPanel 表示
