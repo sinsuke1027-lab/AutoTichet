@@ -9,8 +9,9 @@ from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
 from widget.config import Config
 from widget.payload_builder import build_payload
+from tkinter import filedialog
+from pathlib import Path
 from widget.services.clipboard_reader import ClipboardReader
-from widget.services.screenshot_capture import ScreenshotCapture
 
 _PRIORITY_OPTIONS = ["低", "中", "高", "緊急"]
 _NO_SELECT = "（なし）"
@@ -26,7 +27,6 @@ class InputWindow(ctk.CTkToplevel):
         users: list[UserInfo],
         projects: list[ProjectInfo],
         clipboard: ClipboardReader,
-        screenshot: ScreenshotCapture,
     ) -> None:
         super().__init__(parent)
         self._config = config
@@ -35,7 +35,6 @@ class InputWindow(ctk.CTkToplevel):
         self._users = users
         self._projects = projects
         self._clipboard = clipboard
-        self._screenshot = screenshot
 
         self.title("AutoTicket")
         self.geometry("440x230")
@@ -72,8 +71,8 @@ class InputWindow(ctk.CTkToplevel):
             command=self._paste_clipboard,
         ).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
-            tools, text="📸 スクリーンショット", width=170, height=28,
-            command=self._capture_screenshot,
+            tools, text="🖼️ 画像ファイル", width=170, height=28,
+            command=self._open_image_file,
         ).pack(side="left")
 
         # Row 3: テキストボックス
@@ -98,25 +97,24 @@ class InputWindow(ctk.CTkToplevel):
         else:
             self._status_lbl.configure(text="クリップボードが空です", text_color="gray")
 
-    def _capture_screenshot(self) -> None:
+    def _open_image_file(self) -> None:
+        path_str = filedialog.askopenfilename(
+            title="画像ファイルを選択",
+            filetypes=[("画像ファイル", "*.png *.jpg *.jpeg *.bmp *.gif"), ("すべてのファイル", "*.*")],
+            parent=self,
+        )
+        if not path_str:
+            return
         self._submit_btn.configure(state="disabled")
-        self._status_lbl.configure(text="撮影中…", text_color="gray")
-        self.withdraw()
-        self.after(500, self._do_capture)
+        self._status_lbl.configure(text="画像を解析中…", text_color="gray")
 
-    def _do_capture(self) -> None:
         def _run() -> None:
-            path = self._screenshot.capture()
-            try:
-                parsed = self._ollama.parse_image(path)
-            finally:
-                self._screenshot.cleanup(path)
-            self.after(0, lambda p=parsed: self._on_capture_done(p))
+            parsed = self._ollama.parse_image(Path(path_str))
+            self.after(0, lambda p=parsed: self._on_image_parsed(p))
 
-        self.deiconify()
         threading.Thread(target=_run, daemon=True).start()
 
-    def _on_capture_done(self, parsed: dict) -> None:
+    def _on_image_parsed(self, parsed: dict) -> None:
         self._submit_btn.configure(state="normal")
         self._status_lbl.configure(text="")
         self._build_confirm_panel(parsed)
