@@ -9,6 +9,8 @@ from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
 from widget.config import Config
 from widget.payload_builder import build_payload
+from widget.services.clipboard_reader import ClipboardReader
+from widget.services.screenshot_capture import ScreenshotCapture
 
 _PRIORITY_OPTIONS = ["低", "中", "高", "緊急"]
 _NO_SELECT = "（なし）"
@@ -23,6 +25,8 @@ class InputWindow(ctk.CTkToplevel):
         backend: BackendClient,
         users: list[UserInfo],
         projects: list[ProjectInfo],
+        clipboard: ClipboardReader,
+        screenshot: ScreenshotCapture,
     ) -> None:
         super().__init__(parent)
         self._config = config
@@ -30,9 +34,11 @@ class InputWindow(ctk.CTkToplevel):
         self._backend = backend
         self._users = users
         self._projects = projects
+        self._clipboard = clipboard
+        self._screenshot = screenshot
 
         self.title("AutoTicket")
-        self.geometry("440x190")
+        self.geometry("440x230")
         self.resizable(False, False)
         self.attributes("-topmost", True)
         self._build_input_panel()
@@ -43,10 +49,11 @@ class InputWindow(ctk.CTkToplevel):
     def _build_input_panel(self) -> None:
         for w in self.winfo_children():
             w.destroy()
-        self.geometry("440x190")
+        self.geometry("440x230")
 
+        # Row 1: ユーザー選択
         top = ctk.CTkFrame(self, fg_color="transparent")
-        top.pack(fill="x", padx=16, pady=(12, 4))
+        top.pack(fill="x", padx=16, pady=(12, 2))
         ctk.CTkLabel(top, text="👤").pack(side="left")
         user_names = [u.display_name for u in self._users]
         current = next(
@@ -57,16 +64,42 @@ class InputWindow(ctk.CTkToplevel):
         self._user_combo.set(current)
         self._user_combo.pack(side="left", padx=8)
 
+        # Row 2: 入力ツールボタン
+        tools = ctk.CTkFrame(self, fg_color="transparent")
+        tools.pack(fill="x", padx=16, pady=(0, 2))
+        ctk.CTkButton(
+            tools, text="📋 クリップボード", width=160, height=28,
+            command=self._paste_clipboard,
+        ).pack(side="left", padx=(0, 8))
+        ctk.CTkButton(
+            tools, text="📸 スクリーンショット", width=170, height=28,
+            command=self._capture_screenshot,
+        ).pack(side="left")
+
+        # Row 3: テキストボックス
         self._text = ctk.CTkTextbox(self, height=70, width=410)
-        self._text.pack(padx=16, pady=4)
+        self._text.pack(padx=16, pady=2)
         self._text.focus()
 
+        # Row 4: ステータス + 送信ボタン
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.pack(fill="x", padx=16, pady=(4, 12))
+        btn_row.pack(fill="x", padx=16, pady=(2, 12))
         self._status_lbl = ctk.CTkLabel(btn_row, text="", text_color="gray")
         self._status_lbl.pack(side="left")
         self._submit_btn = ctk.CTkButton(btn_row, text="AIで起票する →", command=self._on_ai_submit)
         self._submit_btn.pack(side="right")
+
+    def _paste_clipboard(self) -> None:
+        text = self._clipboard.read()
+        if text:
+            self._text.delete("1.0", "end")
+            self._text.insert("1.0", text)
+            self._status_lbl.configure(text="")
+        else:
+            self._status_lbl.configure(text="クリップボードが空です", text_color="gray")
+
+    def _capture_screenshot(self) -> None:
+        pass
 
     # ──────────────────────────────
     # AI 解析 → ConfirmPanel 表示

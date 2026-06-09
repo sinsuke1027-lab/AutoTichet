@@ -23,6 +23,8 @@ from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
 from widget.windows.user_select_window import UserSelectWindow
 from widget.windows.input_window import InputWindow
+from widget.services.clipboard_reader import ClipboardReader
+from widget.services.screenshot_capture import ScreenshotCapture
 
 
 def _make_tray_image() -> Image.Image:
@@ -41,6 +43,8 @@ class AppController:
         self.ollama: OllamaClient | None = None
         self._root: ctk.CTk | None = None
         self._window_open = False
+        self._clipboard: ClipboardReader | None = None
+        self._screenshot: ScreenshotCapture | None = None
 
     def start(self) -> None:
         if not self.config.backend_url:
@@ -89,6 +93,10 @@ class AppController:
             print(f"プロジェクト一覧取得エラー: {exc}")
             self.projects = []
         self.ollama = OllamaClient(model=self.config.ollama_model)
+        self._clipboard = ClipboardReader(
+            get_clipboard=lambda: self._root.clipboard_get() if self._root else ""
+        )
+        self._screenshot = ScreenshotCapture()
 
         threading.Thread(target=self._start_hotkey_listener, daemon=True).start()
 
@@ -125,6 +133,8 @@ class AppController:
             self.backend,
             self.users,
             self.projects,
+            clipboard=self._clipboard,
+            screenshot=self._screenshot,
         )
         win.protocol("WM_DELETE_WINDOW", lambda: self._on_window_close(win))
 
