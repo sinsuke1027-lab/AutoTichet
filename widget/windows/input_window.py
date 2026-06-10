@@ -166,6 +166,7 @@ class InputWindow(ctk.CTkToplevel):
         self._submit_btn.configure(state="disabled", text="解析中…")
         self._status_lbl.configure(text="Ollama で解析しています…")
         self._start_elapsed_timer("Ollama で解析しています")
+        self._last_input_text = text
 
         def _run() -> None:
             parsed = self._ollama.parse(text)
@@ -177,6 +178,67 @@ class InputWindow(ctk.CTkToplevel):
         self._stop_elapsed_timer()
         self._submit_btn.configure(state="normal", text="AIで起票する →")
         self._status_lbl.configure(text="")
+        question = parsed.get("clarifying_question")
+        if question:
+            self._build_hearing_panel(parsed, question)
+        else:
+            self._build_confirm_panel(parsed)
+
+    def _build_hearing_panel(self, parsed: dict, question: str) -> None:
+        for w in self.winfo_children():
+            w.destroy()
+        self.geometry("440x260")
+        self.title("AutoTicket - ヒアリング")
+
+        ctk.CTkLabel(
+            self, text="💬 AIからの質問", font=ctk.CTkFont(weight="bold")
+        ).pack(pady=(14, 6))
+
+        ctk.CTkLabel(
+            self, text=question, wraplength=400, justify="left"
+        ).pack(padx=20, pady=(0, 10))
+
+        self._hearing_text = ctk.CTkTextbox(self, height=60, width=400)
+        self._hearing_text.pack(padx=20, pady=(0, 10))
+        self._hearing_text.focus()
+
+        self._status_lbl = ctk.CTkLabel(self, text="", text_color="gray")
+        self._status_lbl.pack()
+
+        btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        btn_row.pack(pady=(4, 12))
+
+        ctk.CTkButton(
+            btn_row, text="スキップ", width=110,
+            fg_color="gray40", hover_color="gray30",
+            command=lambda: self._build_confirm_panel(parsed),
+        ).pack(side="left", padx=8)
+
+        self._hearing_btn = ctk.CTkButton(
+            btn_row, text="回答して起票へ →", width=160,
+            command=lambda: self._on_hearing_answer(parsed),
+        )
+        self._hearing_btn.pack(side="left", padx=8)
+
+    def _on_hearing_answer(self, parsed: dict) -> None:
+        answer = self._hearing_text.get("1.0", "end").strip()
+        if not answer:
+            self._build_confirm_panel(parsed)
+            return
+
+        self._hearing_btn.configure(state="disabled", text="生成中…")
+        self._start_elapsed_timer("説明文を生成中")
+        original_text = getattr(self, "_last_input_text", "")
+
+        def _run() -> None:
+            description = self._ollama.generate_description(original_text, answer)
+            parsed["description"] = description
+            self.after(0, lambda: self._on_description_done(parsed))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _on_description_done(self, parsed: dict) -> None:
+        self._stop_elapsed_timer()
         self._build_confirm_panel(parsed)
 
     # ──────────────────────────────
