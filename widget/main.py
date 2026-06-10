@@ -24,6 +24,7 @@ from widget.clients.ollama_client import OllamaClient
 from widget.windows.user_select_window import UserSelectWindow
 from widget.windows.input_window import InputWindow
 from widget.services.clipboard_reader import ClipboardReader
+from widget.services.vision_parser import VisionParser
 
 _MAX_CONNECT_ATTEMPTS = 5
 _RETRY_INTERVAL_MS = 15_000  # 15秒ごとに再試行（HF Spaces の起動待ち）
@@ -62,6 +63,7 @@ class AppController:
         self._root: ctk.CTk | None = None
         self._window_open = False
         self._clipboard: ClipboardReader | None = None
+        self._vision: VisionParser | None = None
         self._conn_win: _ConnectingWindow | None = None
 
     def start(self) -> None:
@@ -199,6 +201,7 @@ class AppController:
         self._clipboard = ClipboardReader(
             get_clipboard=lambda: self._root.clipboard_get() if self._root else ""
         )
+        self._vision = VisionParser(config=self.config, ollama=self.ollama)
 
         threading.Thread(target=self._start_hotkey_listener, daemon=True).start()
 
@@ -238,6 +241,7 @@ class AppController:
             self.users,
             self.projects,
             clipboard=self._clipboard,
+            vision=self._vision,
         )
         win.protocol("WM_DELETE_WINDOW", lambda: self._on_window_close(win))
 

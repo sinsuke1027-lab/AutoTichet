@@ -9,6 +9,7 @@ from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
 from widget.config import Config
 from widget.payload_builder import build_payload
+from widget.services.vision_parser import VisionParser
 from tkinter import filedialog
 from pathlib import Path
 from widget.services.clipboard_reader import ClipboardReader
@@ -27,10 +28,12 @@ class InputWindow(ctk.CTkToplevel):
         users: list[UserInfo],
         projects: list[ProjectInfo],
         clipboard: ClipboardReader,
+        vision: VisionParser,
     ) -> None:
         super().__init__(parent)
         self._config = config
         self._ollama = ollama
+        self._vision = vision
         self._backend = backend
         self._users = users
         self._projects = projects
@@ -122,7 +125,7 @@ class InputWindow(ctk.CTkToplevel):
         self._start_elapsed_timer("画像を解析中")
 
         def _run() -> None:
-            parsed = self._ollama.parse_image(Path(path_str))
+            parsed = self._vision.parse_image(Path(path_str))
             self.after(0, lambda p=parsed: self._on_image_parsed(p))
 
         threading.Thread(target=_run, daemon=True).start()
