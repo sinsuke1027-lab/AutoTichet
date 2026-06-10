@@ -10,7 +10,7 @@ def test_load_config_creates_default_json_when_missing(tmp_path):
     with patch("widget.config.CONFIG_PATH", config_path):
         cfg = load_config()
     assert cfg.hotkey == "<ctrl>+<shift>+<space>"
-    assert cfg.ollama_model == "qwen2.5:1.5b"
+    assert cfg.ollama_model == "gemma4:e2b"
     assert cfg.backend_url == ""
     assert cfg.selected_user_id == ""
     assert config_path.exists()

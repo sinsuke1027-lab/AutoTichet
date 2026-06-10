@@ -31,12 +31,8 @@ _VISION_PROMPT = """\
 {{"title":"タスク名(必須)","due_date":"YYYY-MM-DD or null","assignee_name":"担当者名 or null","priority":"low|medium|high|urgent or null","description_hint":"補足1〜2文 or null"}}\
 """
 
-# Vision は qwen2.5 等の軽量モデルでは非対応のため専用モデルを使う
-_DEFAULT_VISION_MODEL = "gemma4:e4b"
-
-
 class OllamaClient:
-    def __init__(self, model: str = "qwen2.5:1.5b", vision_model: str = _DEFAULT_VISION_MODEL) -> None:
+    def __init__(self, model: str = "gemma4:e2b", vision_model: str = "gemma4:e2b") -> None:
         self.model = model
         self.vision_model = vision_model
 
