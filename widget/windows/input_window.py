@@ -179,7 +179,7 @@ class InputWindow(ctk.CTkToplevel):
         self._submit_btn.configure(state="normal", text="AIで起票する →")
         self._status_lbl.configure(text="")
         question = parsed.get("clarifying_question")
-        if question:
+        if question and question != "null":
             self._build_hearing_panel(parsed, question)
         else:
             self._build_confirm_panel(parsed)
