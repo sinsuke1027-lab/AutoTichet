@@ -74,7 +74,7 @@ class AppController:
             )
             sys.exit(1)
 
-        ctk.set_appearance_mode("dark")
+        ctk.set_appearance_mode("system")
         ctk.set_default_color_theme("blue")
         self._root = ctk.CTk()
         self._root.withdraw()
