@@ -67,8 +67,8 @@ class InputWindow(ctk.CTkToplevel):
         tools = ctk.CTkFrame(self, fg_color="transparent")
         tools.pack(fill="x", padx=16, pady=(0, 2))
         ctk.CTkButton(
-            tools, text="📋 クリップボード", width=160, height=28,
-            command=self._paste_clipboard,
+            tools, text="📋 クリップボード履歴", width=160, height=28,
+            command=self._show_clipboard_history,
         ).pack(side="left", padx=(0, 8))
         ctk.CTkButton(
             tools, text="🖼️ 画像ファイル", width=170, height=28,
@@ -88,14 +88,26 @@ class InputWindow(ctk.CTkToplevel):
         self._submit_btn = ctk.CTkButton(btn_row, text="AIで起票する →", command=self._on_ai_submit)
         self._submit_btn.pack(side="right")
 
-    def _paste_clipboard(self) -> None:
-        text = self._clipboard.read()
-        if text:
+    def _show_clipboard_history(self) -> None:
+        self._status_lbl.configure(text="履歴を取得中…", text_color="gray")
+
+        def _run() -> None:
+            from widget.services.clipboard_history import get_clipboard_history
+            items = get_clipboard_history()
+            self.after(0, lambda: self._on_history_fetched(items))
+
+        import threading
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _on_history_fetched(self, items: list[str]) -> None:
+        self._status_lbl.configure(text="")
+        from widget.windows.history_picker_window import HistoryPickerWindow
+
+        def _on_select(text: str) -> None:
             self._text.delete("1.0", "end")
             self._text.insert("1.0", text)
-            self._status_lbl.configure(text="")
-        else:
-            self._status_lbl.configure(text="クリップボードが空です", text_color="gray")
+
+        HistoryPickerWindow(self, items, _on_select)
 
     def _open_image_file(self) -> None:
         path_str = filedialog.askopenfilename(
