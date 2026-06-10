@@ -34,7 +34,7 @@ def test_parse_returns_empty_dict_on_ollama_error():
     with patch("ollama.chat", side_effect=Exception("connection refused")):
         client = OllamaClient()
         result = client.parse("なんか作業する")
-    assert result == {"title": None, "due_date": None, "assignee_name": None, "priority": None}
+    assert result == {"title": None, "due_date": None, "assignee_name": None, "priority": None, "clarifying_question": None}
 
 
 def test_parse_sends_today_date_in_system_prompt():
@@ -98,3 +98,49 @@ def test_parse_image_passes_image_path_to_ollama():
         client.parse_image(test_path)
 
     assert captured["images"] == [str(test_path)]
+
+
+# --- 2B: clarifying_question / generate_description ---
+
+def test_parse_returns_clarifying_question():
+    from widget.clients.ollama_client import OllamaClient
+    mock_content = (
+        '{"title": "報告書作成", "due_date": null, "assignee_name": null, '
+        '"priority": "medium", "clarifying_question": "目的を一言で教えてください"}'
+    )
+    with patch("ollama.chat", return_value=_mock_ollama_response(mock_content)):
+        client = OllamaClient()
+        result = client.parse("報告書を作る")
+    assert result["clarifying_question"] == "目的を一言で教えてください"
+
+
+def test_parse_clarifying_question_can_be_null():
+    from widget.clients.ollama_client import OllamaClient
+    mock_content = (
+        '{"title": "定例MTG", "due_date": null, "assignee_name": null, '
+        '"priority": "low", "clarifying_question": null}'
+    )
+    with patch("ollama.chat", return_value=_mock_ollama_response(mock_content)):
+        client = OllamaClient()
+        result = client.parse("定例MTGの準備")
+    assert result["clarifying_question"] is None
+
+
+def test_generate_description_returns_string():
+    from widget.clients.ollama_client import OllamaClient
+    with patch("ollama.chat", return_value=_mock_ollama_response("月次報告書を作成します。期限は月末です。")):
+        client = OllamaClient()
+        result = client.generate_description(
+            original_text="月次報告書を作る",
+            answer="月末締め切りの提出用です",
+        )
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_generate_description_returns_empty_on_error():
+    from widget.clients.ollama_client import OllamaClient
+    with patch("ollama.chat", side_effect=Exception("error")):
+        client = OllamaClient()
+        result = client.generate_description("テキスト", "回答")
+    assert result == ""
