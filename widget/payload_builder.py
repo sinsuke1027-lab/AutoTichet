@@ -59,6 +59,7 @@ def build_payload(
     priority_jp: str,
     users: list[UserInfo],
     projects: list[ProjectInfo],
+    description: str = "",
 ) -> dict:
     assignee_id = (
         None
@@ -76,5 +77,6 @@ def build_payload(
         "assignee_id": assignee_id,
         "project_id": project_id,
         "priority": jp_to_priority(priority_jp),
+        "description": description,
         "source_type": "manual",
     }

@@ -65,3 +65,32 @@ def test_priority_map_all_values():
     assert jp_to_priority("高") == "high"
     assert jp_to_priority("緊急") == "urgent"
     assert jp_to_priority("不明") == "medium"
+
+
+def test_build_payload_includes_description():
+    from widget.payload_builder import build_payload
+    payload = build_payload(
+        title="テストタスク",
+        due_date_str="",
+        assignee_display="（なし）",
+        project_name="（なし）",
+        priority_jp="中",
+        users=[],
+        projects=[],
+        description="これはテスト用の説明文です。",
+    )
+    assert payload["description"] == "これはテスト用の説明文です。"
+
+
+def test_build_payload_description_defaults_to_empty():
+    from widget.payload_builder import build_payload
+    payload = build_payload(
+        title="テストタスク",
+        due_date_str="",
+        assignee_display="（なし）",
+        project_name="（なし）",
+        priority_jp="中",
+        users=[],
+        projects=[],
+    )
+    assert payload["description"] == ""
