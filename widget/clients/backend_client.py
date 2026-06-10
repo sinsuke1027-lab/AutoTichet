@@ -34,7 +34,7 @@ class BackendClient:
         """DEV_MODE 専用: 認証なしで /api/v1/dev/users からユーザー一覧を取得する。"""
         resp = httpx.get(
             f"{self._base}/api/v1/dev/users",
-            timeout=10,
+            timeout=90,  # HuggingFace Spaces のスリープ復帰に最大60秒かかる
         )
         resp.raise_for_status()
         return [
