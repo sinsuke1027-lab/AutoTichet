@@ -185,7 +185,7 @@ class InputWindow(ctk.CTkToplevel):
     def _build_confirm_panel(self, parsed: dict) -> None:
         for w in self.winfo_children():
             w.destroy()
-        self.geometry("440x330")
+        self.geometry("440x420")
         self.title("AutoTicket - 確認")
 
         ctk.CTkLabel(
@@ -261,6 +261,13 @@ class InputWindow(ctk.CTkToplevel):
         _row("優先度", self._priority_combo)
         self._priority_combo.set(priority_jp)
 
+        # 説明（任意）
+        self._desc_text = ctk.CTkTextbox(frame, height=60)
+        _row("説明", self._desc_text)
+        desc_val = parsed.get("description") or ""
+        if desc_val:
+            self._desc_text.insert("1.0", desc_val)
+
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=16, pady=(8, 4))
         ctk.CTkButton(btn_row, text="キャンセル", width=100, command=self._build_input_panel).pack(side="left")
@@ -288,6 +295,7 @@ class InputWindow(ctk.CTkToplevel):
             priority_jp=self._priority_combo.get(),
             users=self._users,
             projects=self._projects,
+            description=self._desc_text.get("1.0", "end").strip(),
         )
         self._send_btn.configure(state="disabled", text="送信中…")
 
