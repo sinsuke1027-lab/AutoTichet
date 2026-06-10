@@ -7,18 +7,10 @@ from pathlib import Path
 import ollama
 
 _SYSTEM_PROMPT = """\
-あなたはタスク管理システムへの入力を構造化するアシスタントです。
-ユーザーの入力テキストから以下の JSON のみを出力してください（説明・コードブロック不要）。
+タスク管理アシスタント。今日: {today}
+入力からタスク情報を抽出し、JSON のみ出力（他のテキスト・コードブロック不要）。
 
-今日の日付: {today}
-
-出力形式:
-{{
-  "title": "タスクタイトル（必須、日本語で簡潔に）",
-  "due_date": "YYYY-MM-DD または null",
-  "assignee_name": "担当者の表示名または null",
-  "priority": "low|medium|high|urgent または null"
-}}\
+{{"title":"タスク名(必須)","due_date":"YYYY-MM-DD or null","assignee_name":"担当者名 or null","priority":"low|medium|high|urgent or null"}}\
 """
 
 _EMPTY: dict = {"title": None, "due_date": None, "assignee_name": None, "priority": None}
@@ -32,17 +24,10 @@ _VISION_EMPTY: dict = {
 }
 
 _VISION_PROMPT = """\
-画像からタスク管理に関連する情報を抽出してください。
-今日の日付: {today}
+タスク管理アシスタント。今日: {today}
+この画像に含まれるタスク・作業・TODO情報を読み取り、JSON のみ出力（他のテキスト不要）。
 
-以下の JSON のみを出力してください（説明・コードブロック不要）:
-{{
-  "title": "タスクタイトル（日本語で簡潔に、必須）",
-  "due_date": "YYYY-MM-DD または null",
-  "assignee_name": "担当者の表示名または null",
-  "priority": "low|medium|high|urgent または null",
-  "description_hint": "画像から読み取れる補足情報（1〜2文）または null"
-}}\
+{{"title":"タスク名(必須)","due_date":"YYYY-MM-DD or null","assignee_name":"担当者名 or null","priority":"low|medium|high|urgent or null","description_hint":"補足1〜2文 or null"}}\
 """
 
 

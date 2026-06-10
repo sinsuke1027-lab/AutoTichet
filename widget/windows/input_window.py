@@ -119,6 +119,7 @@ class InputWindow(ctk.CTkToplevel):
             return
         self._submit_btn.configure(state="disabled")
         self._status_lbl.configure(text="画像を解析中…", text_color="gray")
+        self._start_elapsed_timer("画像を解析中")
 
         def _run() -> None:
             parsed = self._ollama.parse_image(Path(path_str))
@@ -127,6 +128,7 @@ class InputWindow(ctk.CTkToplevel):
         threading.Thread(target=_run, daemon=True).start()
 
     def _on_image_parsed(self, parsed: dict) -> None:
+        self._stop_elapsed_timer()
         self._submit_btn.configure(state="normal")
         self._status_lbl.configure(text="")
         self._build_confirm_panel(parsed)
@@ -134,18 +136,45 @@ class InputWindow(ctk.CTkToplevel):
     # ──────────────────────────────
     # AI 解析 → ConfirmPanel 表示
     # ──────────────────────────────
+    def _start_elapsed_timer(self, label: str) -> None:
+        """解析中の経過秒数を 1 秒ごとに更新する。_parsing_active が False になると停止。"""
+        self._parsing_active = True
+        self._elapsed_secs = 0
+
+        def _tick() -> None:
+            if not self._parsing_active:
+                return
+            self._elapsed_secs += 1
+            try:
+                self._status_lbl.configure(text=f"{label}（{self._elapsed_secs}秒）")
+                self.after(1000, _tick)
+            except Exception:
+                pass
+
+        self.after(1000, _tick)
+
+    def _stop_elapsed_timer(self) -> None:
+        self._parsing_active = False
+
     def _on_ai_submit(self) -> None:
         text = self._text.get("1.0", "end").strip()
         if not text:
             return
         self._submit_btn.configure(state="disabled", text="解析中…")
         self._status_lbl.configure(text="Ollama で解析しています…")
+        self._start_elapsed_timer("Ollama で解析しています")
 
         def _run() -> None:
             parsed = self._ollama.parse(text)
-            self.after(0, lambda: self._build_confirm_panel(parsed))
+            self.after(0, lambda: self._on_ai_done(parsed))
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _on_ai_done(self, parsed: dict) -> None:
+        self._stop_elapsed_timer()
+        self._submit_btn.configure(state="normal", text="AIで起票する →")
+        self._status_lbl.configure(text="")
+        self._build_confirm_panel(parsed)
 
     # ──────────────────────────────
     # ConfirmPanel（インライン展開）

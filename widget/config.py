@@ -11,7 +11,7 @@ class Config:
     backend_url: str = ""
     selected_user_id: str = ""
     hotkey: str = "<ctrl>+<shift>+<space>"
-    ollama_model: str = "gemma4:e4b"
+    ollama_model: str = "qwen2.5:1.5b"
 
 
 def load_config() -> Config:
