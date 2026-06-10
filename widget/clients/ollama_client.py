@@ -32,7 +32,7 @@ _VISION_PROMPT = """\
 """
 
 class OllamaClient:
-    def __init__(self, model: str = "gemma4:e2b", vision_model: str = "gemma4:e2b") -> None:
+    def __init__(self, model: str = "qwen2.5:1.5b", vision_model: str = "gemma4:e4b") -> None:
         self.model = model
         self.vision_model = vision_model
 
