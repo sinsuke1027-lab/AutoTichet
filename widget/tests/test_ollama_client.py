@@ -144,3 +144,18 @@ def test_generate_description_returns_empty_on_error():
         client = OllamaClient()
         result = client.generate_description("テキスト", "回答")
     assert result == ""
+
+
+def test_parse_normalizes_string_null_to_none():
+    from widget.clients.ollama_client import OllamaClient
+    mock_content = (
+        '{"title": "テスト", "due_date": "null", "assignee_name": "null", '
+        '"priority": "null", "clarifying_question": "null"}'
+    )
+    with patch("ollama.chat", return_value=_mock_ollama_response(mock_content)):
+        client = OllamaClient()
+        result = client.parse("テスト")
+    assert result["due_date"] is None
+    assert result["assignee_name"] is None
+    assert result["priority"] is None
+    assert result["clarifying_question"] is None

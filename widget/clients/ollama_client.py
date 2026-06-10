@@ -10,8 +10,11 @@ import ollama
 _SYSTEM_PROMPT = """\
 タスク管理アシスタント。今日: {today}
 入力からタスク情報を抽出し、JSON のみ出力（他のテキスト・コードブロック不要）。
+値が不明・不要なフィールドは JSON の null（クォートなし、文字列 "null" 不可）を使う。
 
-{{"title":"タスク名(必須)","due_date":"YYYY-MM-DD or null","assignee_name":"担当者名 or null","priority":"low|medium|high|urgent or null","clarifying_question":"説明文作成のためのヒアリング質問1問 or null"}}\
+例: {{"title":"報告書作成","due_date":null,"assignee_name":null,"priority":"high","clarifying_question":null}}
+
+{{"title":"タスク名(必須)","due_date":"YYYY-MM-DD または null","assignee_name":"担当者名 または null","priority":"low|medium|high|urgent または null","clarifying_question":"ヒアリング質問1問 または null"}}\
 """
 
 _EMPTY: dict = {
@@ -70,6 +73,9 @@ class OllamaClient:
                 logging.warning("OllamaClient.parse: no JSON found in response")
                 return dict(_EMPTY)
             result = json.loads(raw[start:end])
+            for key in result:
+                if result[key] == "null":
+                    result[key] = None
             logging.debug("OllamaClient.parse result=%s", result)
             return result
         except Exception as exc:
