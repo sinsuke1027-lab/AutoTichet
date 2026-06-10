@@ -80,7 +80,7 @@ class InputWindow(ctk.CTkToplevel):
 
         ctk.CTkLabel(
             self, text="タスク内容を自由に入力（Ctrl+Enter で送信）",
-            text_color="gray", anchor="w", font=ctk.CTkFont(size=11),
+            text_color=("gray30", "gray70"), anchor="w", font=ctk.CTkFont(size=11),
         ).pack(fill="x", padx=18, pady=(2, 0))
 
         self._text = ctk.CTkTextbox(self, height=80)
@@ -92,13 +92,13 @@ class InputWindow(ctk.CTkToplevel):
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=16, pady=(2, 12))
-        self._status_lbl = ctk.CTkLabel(btn_row, text="", text_color="gray")
+        self._status_lbl = ctk.CTkLabel(btn_row, text="", text_color=("gray30", "gray70"))
         self._status_lbl.pack(side="left")
         self._submit_btn = ctk.CTkButton(btn_row, text="AIで起票する →", command=self._on_ai_submit)
         self._submit_btn.pack(side="right")
 
     def _show_clipboard_history(self) -> None:
-        self._status_lbl.configure(text="履歴を取得中…", text_color="gray")
+        self._status_lbl.configure(text="履歴を取得中…", text_color=("gray30", "gray70"))
 
         def _run() -> None:
             from widget.services.clipboard_history import get_clipboard_history
@@ -126,7 +126,7 @@ class InputWindow(ctk.CTkToplevel):
         if not path_str:
             return
         self._submit_btn.configure(state="disabled")
-        self._status_lbl.configure(text="画像を解析中…", text_color="gray")
+        self._status_lbl.configure(text="画像を解析中…", text_color=("gray30", "gray70"))
         self._start_elapsed_timer("画像を解析中")
 
         def _run() -> None:
@@ -214,12 +214,12 @@ class InputWindow(ctk.CTkToplevel):
                 else self._last_input_text
             )
             ctk.CTkLabel(
-                self, text=f"入力: {preview}", text_color="gray",
+                self, text=f"入力: {preview}", text_color=("gray30", "gray70"),
                 font=ctk.CTkFont(size=11), wraplength=440, justify="left",
             ).pack(padx=20, pady=(0, 4))
 
         ctk.CTkLabel(
-            self, text="回答（Ctrl+Enter で送信）", text_color="gray",
+            self, text="回答（Ctrl+Enter で送信）", text_color=("gray30", "gray70"),
             font=ctk.CTkFont(size=11), anchor="w",
         ).pack(fill="x", padx=22)
 
@@ -228,7 +228,7 @@ class InputWindow(ctk.CTkToplevel):
         self._hearing_text.bind("<Control-Return>", lambda e: self._on_hearing_answer(parsed))
         self._hearing_text.focus()
 
-        self._status_lbl = ctk.CTkLabel(self, text="", text_color="gray")
+        self._status_lbl = ctk.CTkLabel(self, text="", text_color=("gray30", "gray70"))
         self._status_lbl.pack()
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
@@ -309,6 +309,7 @@ class InputWindow(ctk.CTkToplevel):
             _initial = date.today()
 
         due_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        _is_dark = ctk.get_appearance_mode() == "Dark"
         self._due_entry = DateEntry(
             due_frame,
             date_pattern="yyyy-mm-dd",
@@ -316,17 +317,17 @@ class InputWindow(ctk.CTkToplevel):
             month=_initial.month,
             day=_initial.day,
             width=14,
-            background="#1f538d",
+            background="#1f538d" if _is_dark else "#1f538d",
             foreground="white",
-            headersbackground="#144870",
+            headersbackground="#144870" if _is_dark else "#1a6fb5",
             headersforeground="white",
             selectbackground="#1f538d",
-            normalbackground="#2b2b2b",
-            normalforeground="white",
-            weekendbackground="#2b2b2b",
-            weekendforeground="#cccccc",
-            othermonthbackground="#1a1a1a",
-            othermonthforeground="#666666",
+            normalbackground="#2b2b2b" if _is_dark else "#ffffff",
+            normalforeground="white" if _is_dark else "#1a1a1a",
+            weekendbackground="#2b2b2b" if _is_dark else "#f5f5f5",
+            weekendforeground="#cccccc" if _is_dark else "#555555",
+            othermonthbackground="#1a1a1a" if _is_dark else "#eeeeee",
+            othermonthforeground="#666666" if _is_dark else "#aaaaaa",
         )
         self._due_entry.pack(side="left")
         self._no_due_var = ctk.BooleanVar(value=not bool(due_str))

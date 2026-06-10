@@ -148,7 +148,7 @@ class AppController:
         ctk.CTkLabel(
             dialog,
             text="HuggingFace Spaces がスリープ中の可能性があります。",
-            text_color="gray",
+            text_color=("gray30", "gray70"),
         ).pack(pady=(0, 12))
 
         btn_row = ctk.CTkFrame(dialog, fg_color="transparent")
