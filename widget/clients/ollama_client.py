@@ -12,9 +12,14 @@ _SYSTEM_PROMPT = """\
 入力からタスク情報を抽出し、JSON のみ出力（他のテキスト・コードブロック不要）。
 値が不明・不要なフィールドは JSON の null（クォートなし、文字列 "null" 不可）を使う。
 
-例: {{"title":"報告書作成","due_date":null,"assignee_name":null,"priority":"high","clarifying_question":null}}
+clarifying_question ルール:
+- タイトルの目的・背景・完了条件が不明瞭な場合、説明文作成に役立つ質問を1問だけ日本語で生成する
+- 担当者・期日・目的が明確な場合は null にする
 
-{{"title":"タスク名(必須)","due_date":"YYYY-MM-DD または null","assignee_name":"担当者名 または null","priority":"low|medium|high|urgent または null","clarifying_question":"ヒアリング質問1問 または null"}}\
+例（質問あり）: {{"title":"報告書作成","due_date":null,"assignee_name":null,"priority":"medium","clarifying_question":"この報告書の目的や提出先を教えてください"}}
+例（質問なし）: {{"title":"月次売上報告書を営業部に提出","due_date":"2026-06-30","assignee_name":"田中","priority":"high","clarifying_question":null}}
+
+{{"title":"タスク名(必須)","due_date":"YYYY-MM-DD または null","assignee_name":"担当者名 または null","priority":"low|medium|high|urgent または null","clarifying_question":"目的・背景が不明な場合の質問 または null"}}\
 """
 
 _EMPTY: dict = {
