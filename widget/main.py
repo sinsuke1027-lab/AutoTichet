@@ -192,7 +192,10 @@ class AppController:
             logging.warning("プロジェクト一覧取得エラー: %s", exc)
             self.projects = []
 
-        self.ollama = OllamaClient(model=self.config.ollama_model)
+        self.ollama = OllamaClient(
+            model=self.config.ollama_model,
+            vision_model=self.config.ollama_vision_model,
+        )
         self._clipboard = ClipboardReader(
             get_clipboard=lambda: self._root.clipboard_get() if self._root else ""
         )

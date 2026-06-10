@@ -12,6 +12,7 @@ class Config:
     selected_user_id: str = ""
     hotkey: str = "<ctrl>+<shift>+<space>"
     ollama_model: str = "qwen2.5:1.5b"
+    ollama_vision_model: str = "gemma4:e4b"
 
 
 def load_config() -> Config:
