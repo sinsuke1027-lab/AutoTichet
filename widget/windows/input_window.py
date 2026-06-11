@@ -499,7 +499,9 @@ class InputWindow(ctk.CTkToplevel):
         # 優先度
         priority_inv = {"low": "低", "medium": "中", "high": "高", "urgent": "緊急"}
         priority_jp = priority_inv.get(parsed.get("priority") or "", "中")
-        self._priority_combo = ctk.CTkComboBox(frame, values=_PRIORITY_OPTIONS, state="readonly", width=120)
+        self._priority_combo = ctk.CTkComboBox(
+            frame, values=_PRIORITY_OPTIONS, state="readonly", width=120
+        )
         _row("優先度", self._priority_combo)
         self._priority_combo.set(priority_jp)
 
@@ -512,7 +514,9 @@ class InputWindow(ctk.CTkToplevel):
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=16, pady=(8, 4))
-        ctk.CTkButton(btn_row, text="キャンセル", width=100, command=self._build_input_panel).pack(side="left")
+        ctk.CTkButton(
+            btn_row, text="キャンセル", width=100, command=self._build_input_panel
+        ).pack(side="left")
         self._send_btn = ctk.CTkButton(btn_row, text="送信する", command=self._on_send)
         self._send_btn.pack(side="right")
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from pathlib import Path
 
@@ -72,7 +73,9 @@ class AudioRecorder:
 
         audio = np.concatenate(self._frames, axis=0)
         if out_path is None:
-            out_path = Path(tempfile.mktemp(suffix=".wav"))
+            fd, tmp_name = tempfile.mkstemp(suffix=".wav")
+            os.close(fd)
+            out_path = Path(tmp_name)
 
         import scipy.io.wavfile as wav_io  # type: ignore[import]
         wav_io.write(str(out_path), _SAMPLERATE, audio)
