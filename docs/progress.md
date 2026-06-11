@@ -1,10 +1,40 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: ローカルタスク入力ウィジェット MVP 完成 → フェーズ2（音声入力 / .exe 配布）または Graph API 統合**
-ステータス: widget/ MVP 完成・動作確認済み・GitHub push 済み（2026-06-09）。次の選択肢は下記「次のアクション候補」を参照。
+**Phase: ウィジェット Phase 3 機能拡充 完成 → 次は .exe 配布（PyInstaller）または Graph API 統合**
+ステータス: widget/ Phase 3 全 8 機能実装完了・テスト 50 passed（2026-06-11）。次の選択肢は下記「次のアクション候補」を参照。
 
 ## 最終更新
+- **日付**: 2026-06-11
+
+- **完了した作業**:
+  - **[ウィジェット Phase 3 機能拡充 — 全 8 タスク完了]**（2026-06-11）
+    - **Task 1**: `notify_success()` を `toast_notifier.py` に追加（winotify トースト + launch URL）
+    - **Task 2**: `history_store.py` — SQLite で起票履歴 CRUD（直近10件・HistoryEntry dataclass）
+    - **Task 3**: `history_window.py` — 起票履歴一覧ウィンドウ + トレイメニュー「起票履歴」統合
+    - **Task 4**: `input_window.py` — 起票成功時に `add_history()` + `notify_success()` を呼び出し
+    - **Task 5**: `settings_window.py` — ホットキー・Ollama モデル・URL を GUI で変更・保存
+    - **Task 6**: `templates.json` + InputWindow テンプレートコンボボックス（5種）
+    - **Task 7**: tkinterdnd2 D&D — .txt / 画像ファイルをドロップで入力
+    - **Task 8**: `audio_recorder.py` + InputWindow 🎤ボタン（sounddevice + faster-whisper）
+    - **セキュリティ修正**: `tempfile.mktemp()` → `mkstemp()` (CWE-377)
+    - **テスト**: `pytest widget/tests/ -v` → 50 passed
+    - コミット: `37433c9`〜`71617d1`（計 16 コミット）
+
+## 次のアクション候補
+
+| 優先度 | 内容 |
+|-------|------|
+| 高 | PyInstaller で .exe 配布（`python -m PyInstaller widget/__main__.py --onefile --windowed`）|
+| 中 | Graph API 承認後 → Outlook/Teams 自動取込（Phase 1B） |
+| 低 | F-21 Graph API 承認待ち → IT 管理者に `docs/graph-api-setup.md` を提出 |
+
+## ブロッカー
+
+- F-21（Outlook/Teams 自動取込）: Graph API アプリ登録が IT 管理者承認待ち
+
+---
+
 - **日付**: 2026-06-09
 
 - **完了した作業**:
