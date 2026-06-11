@@ -13,6 +13,8 @@ from widget.services.vision_parser import VisionParser
 from tkinter import filedialog
 from pathlib import Path
 from widget.services.clipboard_reader import ClipboardReader
+from widget.services.history_store import add_history
+from widget.services.toast_notifier import notify_success
 
 _PRIORITY_OPTIONS = ["低", "中", "高", "緊急"]
 _NO_SELECT = "（なし）"
@@ -406,28 +408,40 @@ class InputWindow(ctk.CTkToplevel):
             projects=self._projects,
             description=self._desc_text.get("1.0", "end").strip(),
         )
+        proj_name = self._project_combo.get()
+        if proj_name == _NO_SELECT:
+            proj_name = None
         self._send_btn.configure(state="disabled", text="送信中…")
 
         def _run() -> None:
             try:
-                self._backend.create_task(payload)
+                result = self._backend.create_task(payload)
                 logging.debug("create_task success")
-                self.after(0, self._on_success)
+                self.after(0, lambda: self._on_success(result, title, proj_name))
             except Exception as exc:
                 logging.error("create_task failed:\n" + traceback.format_exc())
                 self.after(0, lambda msg=str(exc): self._on_error(msg))
 
         threading.Thread(target=_run, daemon=True).start()
 
-    def _on_success(self) -> None:
+    def _on_success(self, result: dict, title: str, project_name: str | None) -> None:
         try:
+            task_id = str(result.get("id", ""))
+            add_history(task_id, title, project_name)
+            task_url = ""
+            if task_id and self._config.frontend_url:
+                task_url = f"{self._config.frontend_url.rstrip('/')}/tasks/{task_id}"
+            notify_success(title, launch_url=task_url)
             self._last_input_text = ""
             self._build_input_panel()
             self._status_lbl.configure(
                 text="✅ 起票しました！", text_color="green",
                 font=ctk.CTkFont(size=13, weight="bold"),
             )
-            self.after(3000, lambda: self._status_lbl.configure(text="", font=ctk.CTkFont(size=13)))
+            self.after(
+                3000,
+                lambda: self._status_lbl.configure(text="", font=ctk.CTkFont(size=13)),
+            )
         except Exception:
             logging.error("_on_success failed:\n" + traceback.format_exc())
 
