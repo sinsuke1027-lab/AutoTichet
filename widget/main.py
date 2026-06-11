@@ -27,6 +27,7 @@ from widget.windows.todo_window import TodoWindow
 from widget.services.clipboard_reader import ClipboardReader
 from widget.services.vision_parser import VisionParser
 from widget.services.toast_notifier import notify_overdue, notify_today
+from widget.windows.history_window import HistoryWindow
 
 _MAX_CONNECT_ATTEMPTS = 5
 _RETRY_INTERVAL_MS = 15_000  # 15秒ごとに再試行（HF Spaces の起動待ち）
@@ -66,6 +67,7 @@ class AppController:
         self._root: ctk.CTk | None = None
         self._window_open = False
         self._todo_window_open = False
+        self._history_window_open = False
         self._clipboard: ClipboardReader | None = None
         self._vision: VisionParser | None = None
         self._conn_win: _ConnectingWindow | None = None
@@ -216,6 +218,8 @@ class AppController:
             menu=pystray.Menu(
                 pystray.MenuItem("タスク入力", lambda _i, _it: self._root.after(0, self._show_window)),
                 pystray.MenuItem("今日のタスク", lambda _i, _it: self._root.after(0, self._show_todo_window)),
+                pystray.MenuItem("起票履歴", lambda _i, _it: self._root.after(0, self._show_history_window)),
+                pystray.MenuItem("設定", lambda _i, _it: self._root.after(0, self._show_settings_window)),
                 pystray.MenuItem("終了", lambda _i, _it: self._root.after(0, self._quit)),
             ),
         )
@@ -245,6 +249,17 @@ class AppController:
 
     def _on_todo_close(self, win: TodoWindow) -> None:
         self._todo_window_open = False
+        win.destroy()
+
+    def _show_history_window(self) -> None:
+        if self._history_window_open or self._root is None:
+            return
+        self._history_window_open = True
+        win = HistoryWindow(self._root, self.config.frontend_url)
+        win.protocol("WM_DELETE_WINDOW", lambda: self._on_history_close(win))
+
+    def _on_history_close(self, win: HistoryWindow) -> None:
+        self._history_window_open = False
         win.destroy()
 
     def _check_alerts(self) -> None:
@@ -295,6 +310,9 @@ class AppController:
     def _on_window_close(self, win: InputWindow) -> None:
         self._window_open = False
         win.destroy()
+
+    def _show_settings_window(self) -> None:
+        pass  # Task 5 で実装
 
     def _quit(self) -> None:
         if self._root:
