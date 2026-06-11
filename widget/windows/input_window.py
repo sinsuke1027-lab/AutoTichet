@@ -17,6 +17,13 @@ from widget.services.history_store import add_history
 from widget.services.toast_notifier import notify_success
 import json as _json
 
+_DND_AVAILABLE = False
+try:
+    from tkinterdnd2 import DND_FILES  # type: ignore[import]
+    _DND_AVAILABLE = True
+except ImportError:
+    pass
+
 _PRIORITY_OPTIONS = ["低", "中", "高", "緊急"]
 _NO_SELECT = "（なし）"
 
@@ -114,6 +121,7 @@ class InputWindow(ctk.CTkToplevel):
         if self._last_input_text:
             self._text.insert("1.0", self._last_input_text)
         self._text.focus()
+        self._setup_dnd()
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=16, pady=(2, 12))
@@ -151,6 +159,49 @@ class InputWindow(ctk.CTkToplevel):
             self._text.delete("1.0", "end")
             self._text.insert("1.0", tpl["text"])
             self._text.focus()
+
+    def _setup_dnd(self) -> None:
+        if not _DND_AVAILABLE:
+            return
+        try:
+            inner = self._text._textbox  # type: ignore[attr-defined]
+            inner.drop_target_register(DND_FILES)
+            inner.dnd_bind("<<Drop>>", self._on_drop)
+        except Exception as exc:
+            logging.debug("D&D setup failed: %s", exc)
+
+    def _on_drop(self, event: object) -> None:
+        raw: str = getattr(event, "data", "")
+        raw = raw.strip()
+        if raw.startswith("{") and raw.endswith("}"):
+            raw = raw[1:-1]
+        path = Path(raw)
+        suffix = path.suffix.lower()
+        if suffix == ".txt":
+            try:
+                text = path.read_text(encoding="utf-8", errors="replace")
+                self._text.delete("1.0", "end")
+                self._text.insert("1.0", text[:1000])
+                self._text.focus()
+            except Exception as exc:
+                logging.error("D&D txt read error: %s", exc)
+        elif suffix in (".png", ".jpg", ".jpeg", ".bmp", ".gif"):
+            self._submit_btn.configure(state="disabled")
+            self._status_lbl.configure(
+                text="画像を解析中…", text_color=("gray30", "gray70")
+            )
+            self._start_elapsed_timer("画像を解析中")
+
+            def _run() -> None:
+                parsed = self._vision.parse_image(path)
+                self.after(0, lambda p=parsed: self._on_image_parsed(p))
+
+            threading.Thread(target=_run, daemon=True).start()
+        else:
+            self._status_lbl.configure(
+                text=f"未対応のファイル形式: {suffix}",
+                text_color=("gray30", "gray70"),
+            )
 
     def _open_image_file(self) -> None:
         path_str = filedialog.askopenfilename(

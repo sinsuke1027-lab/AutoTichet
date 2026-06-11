@@ -9,3 +9,4 @@ winrt-Windows.ApplicationModel.DataTransfer>=3.2
 winrt-Windows.Storage.Streams>=3.2
 winotify>=1.1
 pytest>=8.0
+tkinterdnd2>=0.3
