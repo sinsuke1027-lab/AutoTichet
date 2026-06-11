@@ -4,7 +4,7 @@ import tempfile
 
 
 @pytest.fixture
-def tmp_db(tmp_path, monkeypatch):
+def tmp_db(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib.Path:
     """テスト用に history.db をテンポラリディレクトリに向ける。"""
     import widget.services.history_store as hs
     monkeypatch.setattr(hs, "_DB_PATH", tmp_path / "history.db")
