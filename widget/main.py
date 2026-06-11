@@ -281,7 +281,11 @@ class AppController:
         if self.backend is None:
             return
 
-        tasks_url = (self.config.frontend_url.rstrip("/") + "/tasks") if self.config.frontend_url else ""
+        tasks_url = (
+            (self.config.frontend_url.rstrip("/") + "/tasks")
+            if self.config.frontend_url
+            else ""
+        )
 
         def _run() -> None:
             try:
