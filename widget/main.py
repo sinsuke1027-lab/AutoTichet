@@ -28,6 +28,7 @@ from widget.services.clipboard_reader import ClipboardReader
 from widget.services.vision_parser import VisionParser
 from widget.services.toast_notifier import notify_overdue, notify_today
 from widget.windows.history_window import HistoryWindow
+from widget.windows.settings_window import SettingsWindow
 
 _MAX_CONNECT_ATTEMPTS = 5
 _RETRY_INTERVAL_MS = 15_000  # 15秒ごとに再試行（HF Spaces の起動待ち）
@@ -68,6 +69,7 @@ class AppController:
         self._window_open = False
         self._todo_window_open = False
         self._history_window_open = False
+        self._settings_window_open = False
         self._clipboard: ClipboardReader | None = None
         self._vision: VisionParser | None = None
         self._conn_win: _ConnectingWindow | None = None
@@ -331,7 +333,19 @@ class AppController:
         win.destroy()
 
     def _show_settings_window(self) -> None:
-        pass  # Task 5 で実装
+        if self._settings_window_open or self._root is None:
+            return
+        self._settings_window_open = True
+
+        def _on_save(new_config: Config) -> None:
+            self.config = new_config
+
+        win = SettingsWindow(self._root, self.config, on_save=_on_save)
+        win.protocol("WM_DELETE_WINDOW", lambda: self._on_settings_close(win))
+
+    def _on_settings_close(self, win: SettingsWindow) -> None:
+        self._settings_window_open = False
+        win.destroy()
 
     def _quit(self) -> None:
         if self._root:
