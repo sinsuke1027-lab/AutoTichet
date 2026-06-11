@@ -216,11 +216,26 @@ class AppController:
             _make_tray_image(),
             "AutoTicket",
             menu=pystray.Menu(
-                pystray.MenuItem("タスク入力", lambda _i, _it: self._root.after(0, self._show_window)),
-                pystray.MenuItem("今日のタスク", lambda _i, _it: self._root.after(0, self._show_todo_window)),
-                pystray.MenuItem("起票履歴", lambda _i, _it: self._root.after(0, self._show_history_window)),
-                pystray.MenuItem("設定", lambda _i, _it: self._root.after(0, self._show_settings_window)),
-                pystray.MenuItem("終了", lambda _i, _it: self._root.after(0, self._quit)),
+                pystray.MenuItem(
+                    "タスク入力",
+                    lambda _i, _it: self._root.after(0, self._show_window),
+                ),
+                pystray.MenuItem(
+                    "今日のタスク",
+                    lambda _i, _it: self._root.after(0, self._show_todo_window),
+                ),
+                pystray.MenuItem(
+                    "起票履歴",
+                    lambda _i, _it: self._root.after(0, self._show_history_window),
+                ),
+                pystray.MenuItem(
+                    "設定",
+                    lambda _i, _it: self._root.after(0, self._show_settings_window),
+                ),
+                pystray.MenuItem(
+                    "終了",
+                    lambda _i, _it: self._root.after(0, self._quit),
+                ),
             ),
         )
         threading.Thread(target=icon.run, daemon=True).start()
