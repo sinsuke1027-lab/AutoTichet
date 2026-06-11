@@ -64,3 +64,23 @@ def notify_today(titles: list[str], launch_url: str = "") -> None:
         logging.debug("notify_today: sent %d tasks", count)
     except Exception as exc:
         logging.error("notify_today error: %s", exc)
+
+
+def notify_success(title: str, launch_url: str = "") -> None:
+    """起票成功のトースト通知を表示する。"""
+    if not _WINOTIFY_AVAILABLE:
+        logging.warning("winotify が見つかりません。トースト通知をスキップします。")
+        return
+    try:
+        toast = Notification(
+            app_id="AutoTicket",
+            title="✅ 起票しました",
+            msg=title,
+            duration="short",
+            launch=launch_url,
+        )
+        toast.set_audio(audio.Default, loop=False)
+        toast.show()
+        logging.debug("notify_success: %s", title)
+    except Exception as exc:
+        logging.error("notify_success error: %s", exc)
