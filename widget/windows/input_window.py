@@ -15,9 +15,19 @@ from pathlib import Path
 from widget.services.clipboard_reader import ClipboardReader
 from widget.services.history_store import add_history
 from widget.services.toast_notifier import notify_success
+import json as _json
 
 _PRIORITY_OPTIONS = ["低", "中", "高", "緊急"]
 _NO_SELECT = "（なし）"
+
+
+def _load_templates() -> list[dict]:
+    """Load text templates from JSON file."""
+    p = Path(__file__).parent.parent / "data" / "templates.json"
+    try:
+        return _json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
 
 
 class InputWindow(ctk.CTkToplevel):
@@ -80,6 +90,19 @@ class InputWindow(ctk.CTkToplevel):
             command=self._open_image_file,
         ).pack(side="left")
 
+        templates = _load_templates()
+        if templates:
+            tpl_frame = ctk.CTkFrame(self, fg_color="transparent")
+            tpl_frame.pack(fill="x", padx=16, pady=(0, 2))
+            ctk.CTkLabel(tpl_frame, text="📝", width=24).pack(side="left")
+            tpl_names = ["テンプレートを選択…"] + [t["name"] for t in templates]
+            tpl_combo = ctk.CTkComboBox(
+                tpl_frame, values=tpl_names, width=200, state="readonly",
+                command=lambda v, ts=templates: self._on_template_select(v, ts),
+            )
+            tpl_combo.set("テンプレートを選択…")
+            tpl_combo.pack(side="left", padx=(4, 0))
+
         ctk.CTkLabel(
             self, text="タスク内容を自由に入力（Ctrl+Enter で送信）",
             text_color=("gray30", "gray70"), anchor="w", font=ctk.CTkFont(size=11),
@@ -118,6 +141,16 @@ class InputWindow(ctk.CTkToplevel):
             self._text.insert("1.0", text)
 
         HistoryPickerWindow(self, items, _on_select)
+
+    def _on_template_select(self, name: str, templates: list[dict]) -> None:
+        """Handle template selection and insert text into textarea."""
+        if name == "テンプレートを選択…":
+            return
+        tpl = next((t for t in templates if t["name"] == name), None)
+        if tpl:
+            self._text.delete("1.0", "end")
+            self._text.insert("1.0", tpl["text"])
+            self._text.focus()
 
     def _open_image_file(self) -> None:
         path_str = filedialog.askopenfilename(
