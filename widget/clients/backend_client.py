@@ -1,6 +1,8 @@
 from __future__ import annotations
 import json
+import logging
 from dataclasses import dataclass
+from datetime import date, timedelta
 import httpx
 
 
@@ -16,6 +18,28 @@ class UserInfo:
 class ProjectInfo:
     id: str
     name: str
+
+
+@dataclass
+class TaskItem:
+    task_id: str
+    title: str
+    status: str
+    due_date: str | None
+    priority: str | None
+    assignee_name: str | None
+
+
+def _task_item_from_dict(d: dict) -> TaskItem:
+    due = d.get("due_date")
+    return TaskItem(
+        task_id=str(d["id"]),
+        title=d["title"],
+        status=d.get("status", "not_started"),
+        due_date=str(due) if due else None,
+        priority=d.get("priority"),
+        assignee_name=d.get("assignee_name"),
+    )
 
 
 class BackendClient:
@@ -76,8 +100,52 @@ class BackendClient:
         items = data if isinstance(data, list) else data.get("items", [])
         return [ProjectInfo(p["id"], p["name"]) for p in items]
 
+    def get_today_tasks(self) -> list[TaskItem]:
+        today = date.today().isoformat()
+        resp = httpx.get(
+            f"{self._base}/api/v1/tasks",
+            params={"due_date_gte": today, "due_date_lte": today, "limit": 100},
+            headers=self._headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        items = data if isinstance(data, list) else data.get("items", [])
+        return [_task_item_from_dict(t) for t in items]
+
+    def get_overdue_tasks(self) -> list[TaskItem]:
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        resp = httpx.get(
+            f"{self._base}/api/v1/tasks",
+            params={"due_date_lte": yesterday, "limit": 100},
+            headers=self._headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        items = data if isinstance(data, list) else data.get("items", [])
+        overdue = [
+            _task_item_from_dict(t) for t in items
+            if t.get("status") not in ("completed", "cancelled")
+        ]
+        logging.debug("get_overdue_tasks: %d items", len(overdue))
+        return overdue
+
+    def complete_task(self, task_id: str) -> None:
+        resp = httpx.patch(
+            f"{self._base}/api/v1/tasks/{task_id}",
+            json={"status": "completed"},
+            headers=self._headers,
+            timeout=15,
+        )
+        if not resp.is_success:
+            try:
+                detail = resp.json()
+            except Exception:
+                detail = resp.text
+            raise ValueError(f"HTTP {resp.status_code}: {detail}")
+
     def create_task(self, payload: dict) -> dict:
-        import logging
         logging.debug("create_task payload: %s", payload)
         resp = httpx.post(
             f"{self._base}/api/v1/tasks",

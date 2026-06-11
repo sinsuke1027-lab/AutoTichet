@@ -7,4 +7,5 @@ pillow>=10.0
 tkcalendar>=1.6
 winrt-Windows.ApplicationModel.DataTransfer>=3.2
 winrt-Windows.Storage.Streams>=3.2
+winotify>=1.1
 pytest>=8.0

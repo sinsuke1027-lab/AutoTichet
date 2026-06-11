@@ -9,6 +9,7 @@ CONFIG_PATH = Path(__file__).parent / "config.json"
 @dataclass
 class Config:
     backend_url: str = ""
+    frontend_url: str = ""
     selected_user_id: str = ""
     hotkey: str = "<ctrl>+<shift>+<space>"
     ollama_model: str = "qwen2.5:1.5b"

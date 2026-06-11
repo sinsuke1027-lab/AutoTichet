@@ -23,11 +23,14 @@ from widget.clients.backend_client import BackendClient, UserInfo, ProjectInfo
 from widget.clients.ollama_client import OllamaClient
 from widget.windows.user_select_window import UserSelectWindow
 from widget.windows.input_window import InputWindow
+from widget.windows.todo_window import TodoWindow
 from widget.services.clipboard_reader import ClipboardReader
 from widget.services.vision_parser import VisionParser
+from widget.services.toast_notifier import notify_overdue, notify_today
 
 _MAX_CONNECT_ATTEMPTS = 5
 _RETRY_INTERVAL_MS = 15_000  # 15秒ごとに再試行（HF Spaces の起動待ち）
+_ALERT_INTERVAL_MS = 30 * 60 * 1000  # 30分おき
 
 
 def _make_tray_image() -> Image.Image:
@@ -62,6 +65,7 @@ class AppController:
         self.ollama: OllamaClient | None = None
         self._root: ctk.CTk | None = None
         self._window_open = False
+        self._todo_window_open = False
         self._clipboard: ClipboardReader | None = None
         self._vision: VisionParser | None = None
         self._conn_win: _ConnectingWindow | None = None
@@ -211,11 +215,13 @@ class AppController:
             "AutoTicket",
             menu=pystray.Menu(
                 pystray.MenuItem("タスク入力", lambda _i, _it: self._root.after(0, self._show_window)),
+                pystray.MenuItem("今日のタスク", lambda _i, _it: self._root.after(0, self._show_todo_window)),
                 pystray.MenuItem("終了", lambda _i, _it: self._root.after(0, self._quit)),
             ),
         )
         threading.Thread(target=icon.run, daemon=True).start()
 
+        self._root.after(3000, self._check_alerts)
         print(f"AutoTicket 起動完了。{self.config.hotkey} でタスク入力ウィンドウを開けます。")
 
     # ──────────────────────────────
@@ -228,6 +234,47 @@ class AppController:
 
         with keyboard.GlobalHotKeys({self.config.hotkey: on_activate}) as h:
             h.join()
+
+    def _show_todo_window(self) -> None:
+        if self._todo_window_open or self.backend is None:
+            return
+        self._todo_window_open = True
+        assert self._root is not None
+        win = TodoWindow(self._root, self.backend)
+        win.protocol("WM_DELETE_WINDOW", lambda: self._on_todo_close(win))
+
+    def _on_todo_close(self, win: TodoWindow) -> None:
+        self._todo_window_open = False
+        win.destroy()
+
+    def _check_alerts(self) -> None:
+        if self.backend is None:
+            return
+
+        tasks_url = (self.config.frontend_url.rstrip("/") + "/tasks") if self.config.frontend_url else ""
+
+        def _run() -> None:
+            try:
+                overdue = self.backend.get_overdue_tasks()  # type: ignore[union-attr]
+                today = self.backend.get_today_tasks()  # type: ignore[union-attr]
+                overdue_titles = [t.title for t in overdue]
+                today_titles = [
+                    t.title for t in today
+                    if t.status not in ("completed", "cancelled")
+                ]
+                assert self._root is not None
+                self._root.after(0, lambda: notify_overdue(overdue_titles, tasks_url))
+                if overdue_titles:
+                    pass  # overdue のみ通知済み
+                elif today_titles:
+                    self._root.after(500, lambda: notify_today(today_titles, tasks_url))
+            except Exception as exc:
+                logging.warning("_check_alerts error: %s", exc)
+            finally:
+                assert self._root is not None
+                self._root.after(_ALERT_INTERVAL_MS, self._check_alerts)
+
+        threading.Thread(target=_run, daemon=True).start()
 
     def _show_window(self) -> None:
         if self._window_open:
