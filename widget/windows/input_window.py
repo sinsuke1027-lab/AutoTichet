@@ -16,6 +16,7 @@ from widget.services.clipboard_reader import ClipboardReader
 from widget.services.history_store import add_history
 from widget.services.toast_notifier import notify_success
 import json as _json
+from widget.services.audio_recorder import AudioRecorder
 
 _DND_AVAILABLE = False
 try:
@@ -58,6 +59,8 @@ class InputWindow(ctk.CTkToplevel):
         self._projects = projects
         self._clipboard = clipboard
         self._last_input_text: str = ""
+        self._recorder = AudioRecorder()
+        self._recording = False
 
         self.title("AutoTicket")
         self.geometry("480x250")
@@ -96,6 +99,12 @@ class InputWindow(ctk.CTkToplevel):
             tools, text="🖼️ 画像ファイル", width=170, height=28,
             command=self._open_image_file,
         ).pack(side="left")
+        if self._recorder.is_available:
+            self._mic_btn = ctk.CTkButton(
+                tools, text="🎤 音声入力", width=110, height=28,
+                command=self._toggle_recording,
+            )
+            self._mic_btn.pack(side="left", padx=(8, 0))
 
         templates = _load_templates()
         if templates:
@@ -202,6 +211,52 @@ class InputWindow(ctk.CTkToplevel):
                 text=f"未対応のファイル形式: {suffix}",
                 text_color=("gray30", "gray70"),
             )
+
+    def _toggle_recording(self) -> None:
+        if not self._recording:
+            self._recording = True
+            self._mic_btn.configure(
+                text="⏹ 録音停止", fg_color="red", hover_color="#cc0000"
+            )
+            self._status_lbl.configure(text="🎤 録音中…", text_color="red")
+            self._recorder.start()
+        else:
+            self._recording = False
+            self._mic_btn.configure(
+                text="🎤 音声入力",
+                fg_color=["#3B8ED0", "#1F6AA5"],
+                hover_color=["#36719F", "#144870"],
+            )
+            self._status_lbl.configure(
+                text="文字起こし中…", text_color=("gray30", "gray70")
+            )
+            threading.Thread(target=self._run_transcribe, daemon=True).start()
+
+    def _run_transcribe(self) -> None:
+        audio_path = self._recorder.stop_and_save()
+        if audio_path is None:
+            self.after(0, lambda: self._status_lbl.configure(text=""))
+            return
+        text = self._recorder.transcribe(audio_path)
+        try:
+            audio_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        if text:
+            self.after(0, lambda t=text: self._insert_transcribed(t))
+        else:
+            self.after(
+                0,
+                lambda: self._status_lbl.configure(
+                    text="文字起こし失敗", text_color=("gray30", "gray70")
+                ),
+            )
+
+    def _insert_transcribed(self, text: str) -> None:
+        self._text.delete("1.0", "end")
+        self._text.insert("1.0", text)
+        self._text.focus()
+        self._status_lbl.configure(text="")
 
     def _open_image_file(self) -> None:
         path_str = filedialog.askopenfilename(
