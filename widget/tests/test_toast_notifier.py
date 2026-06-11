@@ -1,14 +1,14 @@
 from unittest.mock import patch, MagicMock
 
 
-def _mock_notification():
+def _mock_notification() -> MagicMock:
     notif = MagicMock()
     notif.set_audio = MagicMock()
     notif.show = MagicMock()
     return notif
 
 
-def test_notify_success_calls_show():
+def test_notify_success_calls_show() -> None:
     from widget.services.toast_notifier import notify_success
     mock_notif = _mock_notification()
     with patch("widget.services.toast_notifier._WINOTIFY_AVAILABLE", True), \
@@ -22,13 +22,13 @@ def test_notify_success_calls_show():
     mock_notif.show.assert_called_once()
 
 
-def test_notify_success_silent_when_winotify_unavailable():
+def test_notify_success_silent_when_winotify_unavailable() -> None:
     from widget.services.toast_notifier import notify_success
     with patch("widget.services.toast_notifier._WINOTIFY_AVAILABLE", False):
         notify_success("テストタスク")  # 例外が出ないこと
 
 
-def test_notify_success_empty_launch_url():
+def test_notify_success_empty_launch_url() -> None:
     from widget.services.toast_notifier import notify_success
     mock_notif = _mock_notification()
     with patch("widget.services.toast_notifier._WINOTIFY_AVAILABLE", True), \
