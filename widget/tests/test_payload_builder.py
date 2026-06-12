@@ -48,6 +48,28 @@ def test_resolve_assignee_case_insensitive_partial_match():
     assert resolve_assignee("存在しない", users) is None
 
 
+def test_resolve_assignee_empty_name_returns_none():
+    # 空名・空白のみは誰にもアサインしない（issue #27）
+    from widget.payload_builder import resolve_assignee
+    users = [UserInfo("u1", "田中"), UserInfo("u2", "山田")]
+    assert resolve_assignee("", users) is None
+    assert resolve_assignee("   ", users) is None
+
+
+def test_resolve_assignee_prefers_exact_match():
+    # 完全一致を部分一致より優先（"田中" は "田中太郎" の部分一致でもあるが完全一致を選ぶ）
+    from widget.payload_builder import resolve_assignee
+    users = [UserInfo("u1", "田中太郎"), UserInfo("u2", "田中")]
+    assert resolve_assignee("田中", users) == "u2"
+
+
+def test_resolve_assignee_ambiguous_partial_returns_none():
+    # 複数候補に部分一致する場合は誤アサイン回避のため未選択（None）
+    from widget.payload_builder import resolve_assignee
+    users = [UserInfo("u1", "田中"), UserInfo("u2", "山田")]
+    assert resolve_assignee("田", users) is None
+
+
 def test_normalize_date_various_formats():
     from widget.payload_builder import normalize_date
     assert normalize_date("2026-06-15") == "2026-06-15"

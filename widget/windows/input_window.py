@@ -155,7 +155,7 @@ class InputWindow(ctk.CTkToplevel):
         def _run() -> None:
             from widget.services.clipboard_history import get_clipboard_history
             items = get_clipboard_history()
-            self.after(0, lambda: self._on_history_fetched(items))
+            self._safe_after(0, lambda: self._on_history_fetched(items))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -213,7 +213,7 @@ class InputWindow(ctk.CTkToplevel):
 
             def _run() -> None:
                 parsed = self._vision.parse_image(path)
-                self.after(0, lambda p=parsed: self._on_image_parsed(p))
+                self._safe_after(0, lambda p=parsed: self._on_image_parsed(p))
 
             threading.Thread(target=_run, daemon=True).start()
         else:
@@ -245,7 +245,7 @@ class InputWindow(ctk.CTkToplevel):
     def _run_transcribe(self) -> None:
         audio_path = self._recorder.stop_and_save()
         if audio_path is None:
-            self.after(0, lambda: self._status_lbl.configure(text=""))
+            self._safe_after(0, lambda: self._status_lbl.configure(text=""))
             return
         text = self._recorder.transcribe(audio_path)
         try:
@@ -253,9 +253,9 @@ class InputWindow(ctk.CTkToplevel):
         except Exception:
             pass
         if text:
-            self.after(0, lambda t=text: self._insert_transcribed(t))
+            self._safe_after(0, lambda t=text: self._insert_transcribed(t))
         else:
-            self.after(
+            self._safe_after(
                 0,
                 lambda: self._status_lbl.configure(
                     text="文字起こし失敗", text_color=("gray30", "gray70")
@@ -282,7 +282,7 @@ class InputWindow(ctk.CTkToplevel):
 
         def _run() -> None:
             parsed = self._vision.parse_image(Path(path_str))
-            self.after(0, lambda p=parsed: self._on_image_parsed(p))
+            self._safe_after(0, lambda p=parsed: self._on_image_parsed(p))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -291,6 +291,18 @@ class InputWindow(ctk.CTkToplevel):
         self._submit_btn.configure(state="normal")
         self._status_lbl.configure(text="")
         self._build_confirm_panel(parsed)
+
+    def _safe_after(self, delay_ms: int, callback: object) -> None:
+        """破棄済みウィンドウへの after 呼び出しによる TclError を防ぐ（issue #28）
+
+        バックグラウンドスレッドの完了コールバックは、ユーザーが先にウィンドウを
+        閉じていると破棄済みウィンドウに対して実行され TclError になる。
+        """
+        try:
+            if self.winfo_exists():
+                super().after(delay_ms, callback)  # type: ignore[arg-type]
+        except Exception:
+            pass
 
     # ──────────────────────────────
     # AI 解析
@@ -305,11 +317,11 @@ class InputWindow(ctk.CTkToplevel):
             self._elapsed_secs += 1
             try:
                 self._status_lbl.configure(text=f"{label}（{self._elapsed_secs}秒）")
-                self.after(1000, _tick)
+                self._safe_after(1000, _tick)
             except Exception:
                 pass
 
-        self.after(1000, _tick)
+        self._safe_after(1000, _tick)
 
     def _stop_elapsed_timer(self) -> None:
         self._parsing_active = False
@@ -327,7 +339,7 @@ class InputWindow(ctk.CTkToplevel):
 
         def _run() -> None:
             parsed = self._ollama.parse(text)
-            self.after(0, lambda: self._on_ai_done(parsed))
+            self._safe_after(0, lambda: self._on_ai_done(parsed))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -409,7 +421,7 @@ class InputWindow(ctk.CTkToplevel):
         def _run() -> None:
             description = self._ollama.generate_description(self._last_input_text, answer)
             parsed["description"] = description
-            self.after(0, lambda: self._on_description_done(parsed))
+            self._safe_after(0, lambda: self._on_description_done(parsed))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -665,10 +677,10 @@ class InputWindow(ctk.CTkToplevel):
             try:
                 result = self._backend.create_task(payload)
                 logging.debug("create_task success")
-                self.after(0, lambda: self._on_success(result, title, proj_name))
+                self._safe_after(0, lambda: self._on_success(result, title, proj_name))
             except Exception as exc:
                 logging.error("create_task failed:\n" + traceback.format_exc())
-                self.after(0, lambda msg=str(exc): self._on_error(msg))
+                self._safe_after(0, lambda msg=str(exc): self._on_error(msg))
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -686,7 +698,7 @@ class InputWindow(ctk.CTkToplevel):
                 text="✅ 起票しました！", text_color="green",
                 font=ctk.CTkFont(size=13, weight="bold"),
             )
-            self.after(
+            self._safe_after(
                 3000,
                 lambda: self._status_lbl.configure(text="", font=ctk.CTkFont(size=13)),
             )
