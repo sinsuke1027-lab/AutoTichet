@@ -1,5 +1,5 @@
-from datetime import date, datetime, timedelta, timezone
-from datetime import time as time_type, UTC
+from datetime import UTC, date, datetime, timedelta
+from datetime import time as time_type
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -295,6 +295,17 @@ async def get_daily_workload(db: DbDep, current_user: CurrentUser) -> list[Daily
     ]
 
 
+def _ensure_aware(dt: datetime) -> datetime:
+    """naive な datetime を UTC aware に正規化する（SQLite 対策・issue #19）
+
+    SQLite は ``DateTime(timezone=True)`` 列でも timezone 情報を落として naive な
+    値を返すことがあり、aware な ``datetime.now(UTC)`` との減算で TypeError になる。
+    """
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
+
+
 @router.get("/stale-tasks", response_model=list[StaleTaskItem])
 async def get_stale_tasks(db: DbDep, current_user: CurrentUser) -> list[StaleTaskItem]:
     """14日以上更新のないアクティブタスク一覧（ロールスコープ適用）"""
@@ -321,7 +332,7 @@ async def get_stale_tasks(db: DbDep, current_user: CurrentUser) -> list[StaleTas
             assignee_id=t.assignee_id,
             due_date=t.due_date,
             updated_at=t.updated_at,
-            days_stale=(now - t.updated_at).days,
+            days_stale=(now - _ensure_aware(t.updated_at)).days,
         )
         for t in tasks
     ]
