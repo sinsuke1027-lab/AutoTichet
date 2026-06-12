@@ -24,6 +24,19 @@ _SAMPLERATE = 16000
 _CHANNELS = 1
 _WHISPER_MODEL_SIZE = "small"
 
+# ロード済み WhisperModel をモデルサイズ単位でキャッシュする（issue #24）。
+# 文字起こしのたびに再ロードすると数秒〜十数秒かかるため使い回す。
+_WHISPER_MODEL_CACHE: dict[str, object] = {}
+
+
+def _get_whisper_model(model_size: str) -> object:
+    """WhisperModel を取得する（初回のみ生成しキャッシュする）"""
+    if model_size not in _WHISPER_MODEL_CACHE:
+        _WHISPER_MODEL_CACHE[model_size] = WhisperModel(
+            model_size, device="cpu", compute_type="int8"
+        )
+    return _WHISPER_MODEL_CACHE[model_size]
+
 
 class AudioRecorder:
     def __init__(self) -> None:
@@ -87,8 +100,8 @@ class AudioRecorder:
             logging.warning("faster-whisper が利用できません")
             return ""
         try:
-            model = WhisperModel(model_size, device="cpu", compute_type="int8")
-            segments, _ = model.transcribe(str(audio_path), language="ja")
+            model = _get_whisper_model(model_size)
+            segments, _ = model.transcribe(str(audio_path), language="ja")  # type: ignore[attr-defined]
             return "".join(s.text for s in segments).strip()
         except Exception as exc:
             logging.error("AudioRecorder.transcribe error: %s", exc)

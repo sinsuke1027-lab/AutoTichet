@@ -2,6 +2,17 @@ import pathlib
 import tempfile
 from unittest.mock import patch, MagicMock
 import numpy as np
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _clear_whisper_cache():
+    """モジュールレベルの WhisperModel キャッシュをテスト間で初期化する"""
+    import widget.services.audio_recorder as ar
+
+    ar._WHISPER_MODEL_CACHE.clear()
+    yield
+    ar._WHISPER_MODEL_CACHE.clear()
 
 
 def test_stop_and_save_creates_wav_file() -> None:
@@ -45,3 +56,19 @@ def test_transcribe_returns_empty_on_error() -> None:
     ):
         result = recorder.transcribe(pathlib.Path("dummy.wav"))
     assert result == ""
+
+
+def test_transcribe_caches_model_across_calls() -> None:
+    """同じモデルサイズの 2 回目以降は WhisperModel を再生成しない（issue #24）"""
+    from widget.services.audio_recorder import AudioRecorder
+    recorder = AudioRecorder()
+    mock_model = MagicMock()
+    mock_segment = MagicMock()
+    mock_segment.text = "テキスト"
+    mock_model.transcribe.return_value = ([mock_segment], MagicMock())
+    with patch(
+        "widget.services.audio_recorder.WhisperModel", return_value=mock_model
+    ) as mock_ctor:
+        recorder.transcribe(pathlib.Path("a.wav"))
+        recorder.transcribe(pathlib.Path("b.wav"))
+    assert mock_ctor.call_count == 1

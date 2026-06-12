@@ -357,6 +357,8 @@ class AppController:
             draft_queue=self._draft_queue,
         )
         win.protocol("WM_DELETE_WINDOW", lambda: self._on_window_close(win))
+        # Escape も WM_DELETE と同じ経路で閉じ、_window_open を確実にリセットする（issue #22）
+        win.bind("<Escape>", lambda e: self._on_window_close(win))
 
     def _on_window_close(self, win: InputWindow) -> None:
         self._window_open = False
@@ -419,6 +421,18 @@ class AppController:
                     )
 
     def _quit(self) -> None:
+        # バックグラウンドスレッド（接続監視・トレイアイコン）を明示的に停止して
+        # ゾンビアイコン残存・プロセス未終了を防ぐ（issue #23）
+        if self._connection_monitor is not None:
+            try:
+                self._connection_monitor.stop()
+            except Exception as exc:
+                logging.warning("connection_monitor stop error: %s", exc)
+        if self._tray_icon is not None:
+            try:
+                self._tray_icon.stop()
+            except Exception as exc:
+                logging.warning("tray_icon stop error: %s", exc)
         if self._root:
             self._root.destroy()
         sys.exit(0)
