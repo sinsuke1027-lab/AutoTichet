@@ -1,10 +1,40 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: ウィジェット Phase 3 機能拡充 完成 → 次は .exe 配布（PyInstaller）または Graph API 統合**
-ステータス: widget/ Phase 3 全 8 機能実装完了・テスト 50 passed（2026-06-11）。次の選択肢は下記「次のアクション候補」を参照。
+**Phase: ウィジェット チーム配布対応 完成 → 次は PyInstaller .exe ビルド & チーム配布**
+ステータス: widget/ チーム配布対応（10 タスク）完了・テスト 70 passed（2026-06-12）。次は PyInstaller でビルドしてチームに配布。
 
 ## 最終更新
+- **日付**: 2026-06-12
+
+- **完了した作業**:
+  - **[ウィジェット チーム配布対応 — 全 10 タスク完了]**（2026-06-12）
+    - **Task 1**: `widget/ui_constants.py` 新規作成（色・フォント・余白・ウィンドウサイズ定数）
+    - **Task 2**: `widget/config.py` — `first_run_complete: bool = False` フラグ追加
+    - **Task 3**: `widget/services/connection_monitor.py` 新規作成（ConnectionState 3 状態・定期チェック・コールバック）
+    - **Task 4**: `widget/services/draft_queue.py` 新規作成（SQLite ベースのオフラインドラフトキュー）
+    - **Task 5**: `widget/services/autostart.py` 新規作成（HKCU レジストリ自動起動登録/解除）
+    - **Task 6**: `widget/windows/first_run_wizard.py` 新規作成（3 ステップ初回起動ウィザード）
+    - **Task 7**: `widget/main.py` 統合（FirstRunWizard・ConnectionMonitor・DraftQueue・トレイアイコン色）
+    - **Task 8**: `widget/windows/input_window.py` — オフラインダイアログ・connection_monitor/draft_queue DI・WIN_INPUT 定数
+    - **Task 9**: `widget/windows/settings_window.py` — 自動起動トグル・WIN_SETTINGS 定数
+    - **テスト**: `pytest widget/tests/ -v` → **70 passed**（+20 件増加）
+    - コミット: `8f94451`〜`9974e42`（計 10 コミット）
+
+## 次のアクション候補
+
+| 優先度 | 内容 |
+|-------|------|
+| 高 | PyInstaller で .exe ビルド（`pyinstaller widget/__main__.py --onefile --windowed`）→ チーム共有フォルダに配置 |
+| 中 | チーム配布後のフィードバック収集 → 次の改善イテレーション |
+| 低 | Graph API 承認後 → Outlook/Teams 自動取込（Phase 1B） |
+
+## ブロッカー
+
+- F-21（Outlook/Teams 自動取込）: Graph API アプリ登録が IT 管理者承認待ち
+
+---
+
 - **日付**: 2026-06-11
 
 - **完了した作業**:
