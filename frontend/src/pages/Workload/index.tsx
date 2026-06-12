@@ -7,7 +7,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts'
 import { useWorkload } from '../../hooks/useDashboard'
 import { useSettingsStore } from '../../store/useSettingsStore'
@@ -56,12 +55,8 @@ export default function Workload() {
             <Tooltip />
             <Bar dataKey="予定工数" fill="#8884d8" />
             <Bar dataKey="キャパシティ" fill="#82ca9d" />
-            <ReferenceLine
-              y={chartData[0]?.閾値}
-              stroke="#faad14"
-              strokeDasharray="4 2"
-              label={{ value: `${thresholdPct}%`, fontSize: 11, fill: '#faad14' }}
-            />
+            {/* 閾値はユーザーごとにキャパシティが異なるため per-bar で描画（issue #33） */}
+            <Bar dataKey="閾値" fill="#faad14" />
           </BarChart>
         </ResponsiveContainer>
       </Card>

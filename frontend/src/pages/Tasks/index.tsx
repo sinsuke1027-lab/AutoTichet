@@ -116,14 +116,14 @@ export default function TaskList() {
   const watchedTags = (Form.useWatch('tags', form) as string[] | undefined) ?? []
   const { data: estimate } = useEstimateHours(watchedTags)
   const recordEstimatedHours = useRecordEstimatedHours()
-  const autoFilledRef = useRef(false)
+  // ユーザーが工数欄に一度でも触れたら以後オートフィルしない（issue #32）
+  const userTouchedHoursRef = useRef(false)
 
   useEffect(() => {
     if (!estimate || estimate.task_count === 0 || estimate.avg_actual_hours == null) return
     const current = form.getFieldValue('estimated_hours') as number | undefined
-    if (current == null || autoFilledRef.current) {
+    if (current == null && !userTouchedHoursRef.current) {
       form.setFieldValue('estimated_hours', estimate.avg_actual_hours)
-      autoFilledRef.current = true
     }
   }, [estimate, form])
 
@@ -253,7 +253,7 @@ export default function TaskList() {
     }
     setOpen(false)
     form.resetFields()
-    autoFilledRef.current = false
+    userTouchedHoursRef.current = false
     setNewTitle('')
   }
 
@@ -508,6 +508,7 @@ export default function TaskList() {
         onCancel={() => {
           setOpen(false)
           form.resetFields()
+          userTouchedHoursRef.current = false
           setNewTitle('')
           setSelectedTemplateId(undefined)
           setTemplateBaseDate(new Date().toISOString().split('T')[0])
@@ -601,7 +602,7 @@ export default function TaskList() {
               step={0.5}
               style={{ width: '100%' }}
               placeholder="例: 2.0"
-              onChange={() => { autoFilledRef.current = false }}
+              onChange={() => { userTouchedHoursRef.current = true }}
             />
           </Form.Item>
           <Form.Item name="recurrence_rule" label="繰り返し">
