@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import threading
 from typing import Callable
 
 import customtkinter as ctk
+import ollama
 
 from widget.config import Config, save_config
 from widget.services import autostart
@@ -26,6 +28,7 @@ class SettingsWindow(ctk.CTkToplevel):
         self._config = config
         self._on_save = on_save
         self._build_ui()
+        self.after(200, self._fetch_ollama_models)
 
     def _build_ui(self) -> None:
         ctk.CTkLabel(
@@ -60,12 +63,39 @@ class SettingsWindow(ctk.CTkToplevel):
             "ホットキー", self._config.hotkey,
             note="例: <ctrl>+<shift>+<space>  ※再起動後に反映"
         )
-        self._ollama_model_entry = _field(
-            "Ollama テキストモデル", self._config.ollama_model
+        # Ollama テキストモデル（ドロップダウン + 🔄）
+        ctk.CTkLabel(frame, text="Ollama テキストモデル", width=150, anchor="w").grid(
+            row=row[0], column=0, padx=(10, 4), pady=6, sticky="w"
         )
-        self._ollama_vision_entry = _field(
-            "Ollama ビジョンモデル", self._config.ollama_vision_model
+        model_cell = ctk.CTkFrame(frame, fg_color="transparent")
+        model_cell.grid(row=row[0], column=1, padx=(0, 10), pady=6, sticky="ew")
+        model_cell.columnconfigure(0, weight=1)
+        self._ollama_model_combo = ctk.CTkComboBox(model_cell, values=[self._config.ollama_model])
+        self._ollama_model_combo.set(self._config.ollama_model)
+        self._ollama_model_combo.grid(row=0, column=0, sticky="ew")
+        ctk.CTkButton(
+            model_cell, text="🔄", width=32, height=28,
+            command=self._fetch_ollama_models,
+        ).grid(row=0, column=1, padx=(4, 0))
+        row[0] += 1
+
+        # Ollama ビジョンモデル（ドロップダウン）
+        ctk.CTkLabel(frame, text="Ollama ビジョンモデル", width=150, anchor="w").grid(
+            row=row[0], column=0, padx=(10, 4), pady=6, sticky="w"
         )
+        vision_cell = ctk.CTkFrame(frame, fg_color="transparent")
+        vision_cell.grid(row=row[0], column=1, padx=(0, 10), pady=6, sticky="ew")
+        vision_cell.columnconfigure(0, weight=1)
+        self._ollama_vision_combo = ctk.CTkComboBox(vision_cell, values=[self._config.ollama_vision_model])
+        self._ollama_vision_combo.set(self._config.ollama_vision_model)
+        self._ollama_vision_combo.grid(row=0, column=0, sticky="ew")
+        row[0] += 1
+
+        self._ollama_status_lbl = ctk.CTkLabel(
+            frame, text="", text_color=("gray40", "gray60"), font=ctk.CTkFont(size=10), anchor="w"
+        )
+        self._ollama_status_lbl.grid(row=row[0], column=1, padx=(0, 10), pady=(0, 4), sticky="w")
+        row[0] += 1
         self._backend_url_entry = _field(
             "バックエンド URL", self._config.backend_url
         )
@@ -112,10 +142,42 @@ class SettingsWindow(ctk.CTkToplevel):
             btn_row, text="保存", width=110, command=self._on_save_click
         ).pack(side="left", padx=8)
 
+    def _fetch_ollama_models(self) -> None:
+        self._ollama_status_lbl.configure(text="Ollama モデルを取得中…")
+
+        def _run() -> None:
+            try:
+                result = ollama.list()
+                names = sorted(m.model for m in result.models)
+            except Exception:
+                names = []
+            self.after(0, lambda ns=names: self._on_models_fetched(ns))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def _on_models_fetched(self, names: list[str]) -> None:
+        if names:
+            current_text = self._ollama_model_combo.get()
+            current_vision = self._ollama_vision_combo.get()
+            if current_text not in names:
+                names_with_current = [current_text] + names
+            else:
+                names_with_current = names
+            if current_vision not in names:
+                names_with_vision = [current_vision] + names
+            else:
+                names_with_vision = names
+            self._ollama_model_combo.configure(values=names_with_current)
+            self._ollama_vision_combo.configure(values=names_with_vision)
+            self._ollama_status_lbl.configure(text=f"{len(names)} 件のモデルを取得しました")
+        else:
+            self._ollama_status_lbl.configure(text="Ollama 未起動 — 手入力してください")
+        self.after(3000, lambda: self._ollama_status_lbl.configure(text=""))
+
     def _on_save_click(self) -> None:
         self._config.hotkey = self._hotkey_entry.get().strip()
-        self._config.ollama_model = self._ollama_model_entry.get().strip()
-        self._config.ollama_vision_model = self._ollama_vision_entry.get().strip()
+        self._config.ollama_model = self._ollama_model_combo.get().strip()
+        self._config.ollama_vision_model = self._ollama_vision_combo.get().strip()
         self._config.backend_url = self._backend_url_entry.get().strip()
         self._config.frontend_url = self._frontend_url_entry.get().strip()
         save_config(self._config)
