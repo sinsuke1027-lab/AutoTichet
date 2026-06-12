@@ -42,7 +42,8 @@ export default function CommandPalette() {
   }
 
   const handleSelect = (item: SearchResultItem) => {
-    navigate(`/projects/${item.project_id}`)
+    // 検索でヒットした当該タスクの詳細を開く（issue #31）
+    navigate(`/tasks/${item.task_id}`)
     handleClose()
   }
 

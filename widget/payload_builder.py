@@ -37,10 +37,22 @@ def jp_to_priority(jp: str) -> str:
 
 
 def resolve_assignee(name: str, users: list[UserInfo]) -> str | None:
-    lower = name.lower()
-    for u in users:
-        if lower in u.display_name.lower():
-            return u.user_id
+    """担当者名からユーザー ID を解決する（issue #27）
+
+    完全一致を最優先し、なければ部分一致を試みる。部分一致が複数該当する場合は
+    誤アサインを避けるため None（未選択）を返す。空名は None。
+    """
+    target = name.strip().lower()
+    if not target:
+        return None
+    exact = [u for u in users if u.display_name.lower() == target]
+    if len(exact) == 1:
+        return exact[0].user_id
+    if len(exact) > 1:
+        return None
+    partial = [u for u in users if target in u.display_name.lower()]
+    if len(partial) == 1:
+        return partial[0].user_id
     return None
 
 

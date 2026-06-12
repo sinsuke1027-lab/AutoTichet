@@ -49,6 +49,21 @@ def test_bulk_status_update(mock_db: AsyncMock) -> None:
     assert resp.json()["updated_count"] == 2
 
 
+def test_bulk_status_stored_as_plain_string(mock_db: AsyncMock) -> None:
+    # status は Enum オブジェクトでなく素の文字列値で保存する（issue #20）
+    tid1 = str(uuid.uuid4())
+    task = _make_task(tid1)
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [task]
+    mock_db.execute = AsyncMock(return_value=result)
+    mock_db.commit = AsyncMock()
+    client = _make_client(_manager, mock_db)
+    resp = client.patch("/api/v1/tasks/bulk", json={"task_ids": [tid1], "status": "completed"})
+    assert resp.status_code == 200
+    assert task.status == "completed"
+    assert type(task.status) is str
+
+
 def test_bulk_assignee_update(mock_db: AsyncMock) -> None:
     tid1 = str(uuid.uuid4())
     tasks = [_make_task(tid1)]

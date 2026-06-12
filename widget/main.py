@@ -281,8 +281,24 @@ class AppController:
             if self._root:
                 self._root.after(0, self._show_window)
 
-        with keyboard.GlobalHotKeys({self.config.hotkey: on_activate}) as h:
-            h.join()
+        # 不正なホットキー文字列だと GlobalHotKeys が ValueError を投げてスレッドが
+        # 無言で死に、以後ホットキーが効かなくなる。例外を捕捉して通知する（issue #26）
+        try:
+            with keyboard.GlobalHotKeys({self.config.hotkey: on_activate}) as h:
+                h.join()
+        except Exception as exc:
+            logging.error("ホットキーリスナーの起動に失敗しました（%s）: %s", self.config.hotkey, exc)
+            if self._root is not None:
+                self._root.after(
+                    0,
+                    lambda: notify_today(
+                        [
+                            f"ホットキー「{self.config.hotkey}」を登録できませんでした。"
+                            "設定から有効な組み合わせに変更してください。"
+                        ],
+                        self.config.frontend_url,
+                    ),
+                )
 
     def _show_todo_window(self) -> None:
         if self._todo_window_open or self.backend is None:
@@ -380,6 +396,13 @@ class AppController:
         win.destroy()
 
     def _on_connection_state_changed(self, state: ConnectionState) -> None:
+        # 監視スレッドから呼ばれるため、UI 更新はメインスレッドへマーシャリングする（issue #25）
+        if self._root is not None:
+            self._root.after(0, lambda: self._apply_connection_state(state))
+        else:
+            self._apply_connection_state(state)
+
+    def _apply_connection_state(self, state: ConnectionState) -> None:
         if self._tray_icon is None:
             return
         tooltip_map = {
