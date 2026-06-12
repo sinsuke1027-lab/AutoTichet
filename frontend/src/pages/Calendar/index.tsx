@@ -2,12 +2,13 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import type { EventPropGetter, DateCellWrapperProps } from 'react-big-calendar'
-import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth, parseISO } from 'date-fns'
+import { format, parse, startOfWeek, getDay, startOfMonth, endOfMonth } from 'date-fns'
 import { ja } from 'date-fns/locale/ja'
 import { Select, Space, Typography } from 'antd'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { useTasksForView, useUsers } from '../../hooks/useTasksForView'
 import { useProjects } from '../../hooks/useProjects'
+import { parseLocalDate } from '../../lib/date'
 import type { Task } from '../../lib/api'
 
 const { Title } = Typography
@@ -66,9 +67,9 @@ export default function CalendarView() {
 
   const events = useMemo<CalEvent[]>(() => {
     return tasks.map((task) => {
-      const end = task.due_date ? parseISO(task.due_date) : new Date()
+      const end = task.due_date ? parseLocalDate(task.due_date) : new Date()
       const hasRange = !!task.start_date
-      const start = hasRange ? parseISO(task.start_date!) : end
+      const start = hasRange ? parseLocalDate(task.start_date!) : end
       return {
         id: task.id,
         title: task.title,

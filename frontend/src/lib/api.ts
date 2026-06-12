@@ -25,8 +25,11 @@ api.interceptors.request.use(async (config) => {
         account: accounts[0],
       })
       config.headers.Authorization = `Bearer ${result.accessToken}`
-    } catch {
+    } catch (error) {
+      // トークン更新に失敗したらリダイレクトでログインし直す。
+      // ここで中断しないと Authorization 未設定のまま無認証リクエストが飛ぶ（issue #29）
       await msalInstance.loginRedirect(loginRequest)
+      return Promise.reject(error)
     }
   }
   return config

@@ -20,6 +20,7 @@ import { useProjects } from '../../hooks/useProjects'
 import { useTasksForView } from '../../hooks/useTasksForView'
 import { useReschedule } from '../../hooks/useReschedule'
 import api from '../../lib/api'
+import { parseLocalDate } from '../../lib/date'
 import type { DependencyResponse, Task } from '../../lib/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
@@ -38,8 +39,8 @@ type DepMapFull = Record<string, DependencyResponse[]>
 function toGanttTask(task: Task, depMap: DepMapFull): GanttTask {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const end = task.due_date ? new Date(task.due_date) : new Date(today)
-  const start = task.start_date ? new Date(task.start_date) : end
+  const end = task.due_date ? parseLocalDate(task.due_date) : new Date(today)
+  const start = task.start_date ? parseLocalDate(task.start_date) : end
   const safeEnd = start > end ? start : end
   const progress =
     task.status === 'completed' ? 100
