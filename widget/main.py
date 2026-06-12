@@ -26,17 +26,27 @@ from widget.windows.input_window import InputWindow
 from widget.windows.todo_window import TodoWindow
 from widget.services.clipboard_reader import ClipboardReader
 from widget.services.vision_parser import VisionParser
-from widget.services.toast_notifier import notify_overdue, notify_today
+from widget.services.toast_notifier import notify_overdue, notify_today, notify_success
 from widget.windows.history_window import HistoryWindow
 from widget.windows.settings_window import SettingsWindow
+from widget.services.connection_monitor import ConnectionMonitor, ConnectionState
+from widget.services.draft_queue import DraftQueue
+from widget.windows.first_run_wizard import FirstRunWizard
 
 _MAX_CONNECT_ATTEMPTS = 5
 _RETRY_INTERVAL_MS = 15_000  # 15秒ごとに再試行（HF Spaces の起動待ち）
 _ALERT_INTERVAL_MS = 30 * 60 * 1000  # 30分おき
 
+_STATE_COLORS: dict[ConnectionState, tuple[int, int, int]] = {
+    ConnectionState.CONNECTED:    (22, 163, 74),   # 緑
+    ConnectionState.DEGRADED:     (217, 119, 6),   # 黄
+    ConnectionState.DISCONNECTED: (220, 38, 38),   # 赤
+}
 
-def _make_tray_image() -> Image.Image:
-    img = Image.new("RGB", (64, 64), color=(30, 120, 200))
+
+def _make_tray_image(state: ConnectionState = ConnectionState.DISCONNECTED) -> Image.Image:
+    color = _STATE_COLORS[state]
+    img = Image.new("RGB", (64, 64), color=color)
     draw = ImageDraw.Draw(img)
     draw.text((10, 18), "AT", fill="white")
     return img
@@ -73,15 +83,11 @@ class AppController:
         self._clipboard: ClipboardReader | None = None
         self._vision: VisionParser | None = None
         self._conn_win: _ConnectingWindow | None = None
+        self._connection_monitor: ConnectionMonitor | None = None
+        self._draft_queue: DraftQueue = DraftQueue()
+        self._tray_icon: pystray.Icon | None = None
 
     def start(self) -> None:
-        if not self.config.backend_url:
-            print(
-                "エラー: config.json の backend_url が未設定です。\n"
-                "widget/config.json を編集して HuggingFace Spaces の URL を設定してください。"
-            )
-            sys.exit(1)
-
         ctk.set_appearance_mode("system")
         ctk.set_default_color_theme("blue")
         self._root = ctk.CTk()
@@ -93,6 +99,22 @@ class AppController:
             print(msg, file=sys.stderr)
 
         self._root.report_callback_exception = _report_callback_exception
+
+        # 初回起動チェック
+        if not self.config.first_run_complete:
+            wizard = FirstRunWizard(self._root, self.config)
+            self._root.wait_window(wizard)
+            if not self.config.first_run_complete:
+                # ウィザードが × で閉じられた
+                sys.exit(0)
+            self.config = load_config()
+
+        if not self.config.backend_url:
+            print(
+                "エラー: バックエンド URL が未設定です。\n"
+                "ウィジェットを再起動して初回ウィザードで URL を設定してください。"
+            )
+            sys.exit(1)
 
         self._conn_win = _ConnectingWindow(self._root)
         self._try_connect(attempt=1)
@@ -213,10 +235,10 @@ class AppController:
 
         threading.Thread(target=self._start_hotkey_listener, daemon=True).start()
 
-        icon = pystray.Icon(
+        self._tray_icon = pystray.Icon(
             "AutoTicket",
-            _make_tray_image(),
-            "AutoTicket",
+            _make_tray_image(ConnectionState.CONNECTED),
+            "AutoTicket — 接続中",
             menu=pystray.Menu(
                 pystray.MenuItem(
                     "タスク入力",
@@ -240,7 +262,13 @@ class AppController:
                 ),
             ),
         )
-        threading.Thread(target=icon.run, daemon=True).start()
+        threading.Thread(target=self._tray_icon.run, daemon=True).start()
+
+        self._connection_monitor = ConnectionMonitor(
+            url=self.config.backend_url,
+            on_state_change=self._on_connection_state_changed,
+        )
+        self._connection_monitor.start()
 
         self._root.after(3000, self._check_alerts)
         print(f"AutoTicket 起動完了。{self.config.hotkey} でタスク入力ウィンドウを開けます。")
@@ -325,6 +353,8 @@ class AppController:
             self.projects,
             clipboard=self._clipboard,
             vision=self._vision,
+            connection_monitor=self._connection_monitor,
+            draft_queue=self._draft_queue,
         )
         win.protocol("WM_DELETE_WINDOW", lambda: self._on_window_close(win))
 
@@ -346,6 +376,47 @@ class AppController:
     def _on_settings_close(self, win: SettingsWindow) -> None:
         self._settings_window_open = False
         win.destroy()
+
+    def _on_connection_state_changed(self, state: ConnectionState) -> None:
+        if self._tray_icon is None:
+            return
+        tooltip_map = {
+            ConnectionState.CONNECTED:    "AutoTicket — 接続中",
+            ConnectionState.DEGRADED:     "AutoTicket — 応答遅延",
+            ConnectionState.DISCONNECTED: "AutoTicket — バックエンド未接続",
+        }
+        self._tray_icon.icon  = _make_tray_image(state)
+        self._tray_icon.title = tooltip_map[state]
+        # 接続復旧時にドラフトを自動再送
+        if state == ConnectionState.CONNECTED and self.backend is not None:
+            threading.Thread(target=self._retry_drafts, daemon=True).start()
+
+    def _retry_drafts(self) -> None:
+        pending = self._draft_queue.get_pending()
+        if not pending:
+            return
+        tasks_url = (
+            (self.config.frontend_url.rstrip("/") + "/tasks")
+            if self.config.frontend_url
+            else ""
+        )
+        for draft in pending:
+            try:
+                self.backend.create_task(draft.payload)  # type: ignore[union-attr]
+                self._draft_queue.remove(draft.id)
+                title = draft.payload.get("title", "")
+                if self._root:
+                    self._root.after(0, lambda t=title: notify_success(t, tasks_url))
+            except Exception as exc:
+                self._draft_queue.increment_retry(draft.id, str(exc))
+                if draft.retry_count + 1 >= 3 and self._root:
+                    self._root.after(
+                        0,
+                        lambda: notify_today(
+                            ["下書き送信に3回失敗しました。起票履歴から手動で再送してください。"],
+                            tasks_url,
+                        ),
+                    )
 
     def _quit(self) -> None:
         if self._root:

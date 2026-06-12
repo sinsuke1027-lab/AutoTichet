@@ -16,6 +16,7 @@ class Config:
     ollama_vision_model: str = "gemma4:e4b"
     vision_provider: str = "local"   # "local" | "google"
     google_api_key: str = ""
+    first_run_complete: bool = False
 
 
 def load_config() -> Config:

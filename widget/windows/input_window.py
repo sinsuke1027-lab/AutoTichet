@@ -17,6 +17,9 @@ from widget.services.history_store import add_history
 from widget.services.toast_notifier import notify_success
 import json as _json
 from widget.services.audio_recorder import AudioRecorder
+from widget.services.connection_monitor import ConnectionMonitor, ConnectionState
+from widget.services.draft_queue import DraftQueue
+from widget.ui_constants import WIN_INPUT
 
 _DND_AVAILABLE = False
 try:
@@ -47,8 +50,10 @@ class InputWindow(ctk.CTkToplevel):
         backend: BackendClient,
         users: list[UserInfo],
         projects: list[ProjectInfo],
-        clipboard: ClipboardReader,
-        vision: VisionParser,
+        clipboard: ClipboardReader | None = None,
+        vision: VisionParser | None = None,
+        connection_monitor: ConnectionMonitor | None = None,
+        draft_queue: DraftQueue | None = None,
     ) -> None:
         super().__init__(parent)
         self._config = config
@@ -61,9 +66,11 @@ class InputWindow(ctk.CTkToplevel):
         self._last_input_text: str = ""
         self._recorder = AudioRecorder()
         self._recording = False
+        self._connection_monitor = connection_monitor
+        self._draft_queue = draft_queue
 
         self.title("AutoTicket")
-        self.geometry("480x250")
+        self.geometry(f"{WIN_INPUT[0]}x{WIN_INPUT[1]}")
         self.resizable(True, False)
         self.attributes("-topmost", True)
         self.bind("<Escape>", lambda e: self.destroy())
@@ -75,7 +82,7 @@ class InputWindow(ctk.CTkToplevel):
     def _build_input_panel(self) -> None:
         for w in self.winfo_children():
             w.destroy()
-        self.geometry("480x250")
+        self.geometry(f"{WIN_INPUT[0]}x{WIN_INPUT[1]}")
 
         top = ctk.CTkFrame(self, fg_color="transparent")
         top.pack(fill="x", padx=16, pady=(12, 2))
@@ -532,7 +539,102 @@ class InputWindow(ctk.CTkToplevel):
     # ──────────────────────────────
     # 送信
     # ──────────────────────────────
+    def _show_offline_dialog(self) -> None:
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("バックエンド未接続")
+        dialog.geometry("360x180")
+        dialog.resizable(False, False)
+        dialog.attributes("-topmost", True)
+        dialog.grab_set()
+
+        ctk.CTkLabel(
+            dialog,
+            text="⚠️  バックエンドに接続できません",
+            font=ctk.CTkFont(size=14, weight="bold"),
+        ).pack(pady=(16, 4))
+        ctk.CTkLabel(
+            dialog,
+            text="このまま送信すると下書きとして保存され、\n復旧後に自動送信されます。",
+            justify="center",
+            text_color=("gray30", "gray70"),
+        ).pack(pady=(0, 12))
+
+        btn_row = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_row.pack()
+
+        def _save_draft() -> None:
+            dialog.destroy()
+            if self._draft_queue is None:
+                return
+            title = self._build_pending_title()
+            if not title:
+                return
+            payload = self._build_pending_payload()
+            if payload:
+                self._draft_queue.add(payload)
+                self._last_input_text = ""
+                self._build_input_panel()
+                self._status_lbl.configure(
+                    text="📋 下書き保存しました", text_color=("gray30", "gray70")
+                )
+
+        ctk.CTkButton(
+            btn_row, text="設定を開く", width=110,
+            fg_color="gray40", hover_color="gray30",
+            command=lambda: (dialog.destroy(), self._open_settings()),
+        ).pack(side="left", padx=6)
+        ctk.CTkButton(
+            btn_row, text="下書き保存", width=110,
+            command=_save_draft,
+        ).pack(side="left", padx=6)
+        ctk.CTkButton(
+            btn_row, text="閉じる", width=90,
+            fg_color="transparent", border_width=1,
+            command=dialog.destroy,
+        ).pack(side="left", padx=6)
+
+    def _build_pending_title(self) -> str:
+        """オフラインダイアログから下書き保存するタイトルを取得する。ConfirmPanel表示中はタイトル入力欄から取得。"""
+        try:
+            return self._title_entry.get().strip()
+        except AttributeError:
+            return self._text.get("1.0", "end").strip()[:80]
+
+    def _build_pending_payload(self) -> dict | None:
+        """ConfirmPanel の現在値から payload を組み立てる。入力パネル表示中は空dictを返す。"""
+        try:
+            from widget.payload_builder import build_payload as _build
+            title = self._title_entry.get().strip()
+            if not title:
+                return None
+            due_date_str = "" if self._no_due_var.get() else self._due_entry.get()
+            return _build(
+                title=title,
+                due_date_str=due_date_str,
+                assignee_display=self._assignee_combo.get(),
+                project_name=self._project_combo.get(),
+                priority_jp=self._priority_combo.get(),
+                users=self._users,
+                projects=self._projects,
+                description=self._desc_text.get("1.0", "end").strip(),
+            )
+        except AttributeError:
+            return {"title": self._text.get("1.0", "end").strip()[:80]}
+
+    def _open_settings(self) -> None:
+        """設定ウィンドウを開く（main.py の _show_settings_window を呼び出す）。"""
+        try:
+            master = self.master
+            if hasattr(master, "_show_settings_window"):
+                master._show_settings_window()  # type: ignore[attr-defined]
+        except Exception as exc:
+            logging.debug("_open_settings failed: %s", exc)
+
     def _on_send(self) -> None:
+        # バックエンド切断時はオフラインダイアログを表示
+        if self._connection_monitor is not None and not self._connection_monitor.is_connected():
+            self._show_offline_dialog()
+            return
         title = self._title_entry.get().strip()
         if not title:
             self._title_entry.configure(border_color="red")
