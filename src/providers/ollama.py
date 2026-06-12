@@ -1,9 +1,9 @@
 import base64
-import json
 
 import httpx
 
 from src.models.task import ExtractedTask
+from src.providers.parsing import parse_extracted_tasks
 
 _EXTRACT_SYSTEM = """あなたはタスク抽出の専門家です。与えられた日本語テキストからタスクを抽出し、JSONのみ返してください。
 
@@ -64,12 +64,7 @@ class OllamaProvider:
                 },
             )
             resp.raise_for_status()
-            raw: list[dict[str, object]] = json.loads(resp.json()["message"]["content"])
-            return [
-                ExtractedTask.model_validate({**t, "source_type": source_type, "source_id": ""})
-                for t in raw
-                if t.get("is_task")
-            ]
+            return parse_extracted_tasks(resp.json()["message"]["content"], source_type)
 
 
 class OllamaVisionProvider:

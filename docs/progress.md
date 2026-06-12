@@ -25,13 +25,25 @@
 
 | 優先度 | 内容 |
 |-------|------|
-| 高 | PyInstaller で .exe ビルド（`pyinstaller widget/__main__.py --onefile --windowed`）→ チーム共有フォルダに配置 |
+| 🔴 最優先 | **セキュリティ対応**: `docs/security-risk-audit-2026-06-12.md` の Critical（C-1 本番 DEV_MODE 露出 / C-2 無認証 extract / C-3 機密度分類バイパス）。C-2・C-3・H-1・H-2 は Graph API 承認不要で即着手可 |
+| 高 | PyInstaller で .exe ビルド（`pyinstaller widget/__main__.py --onefile --windowed`）→ チーム共有フォルダに配置（配布前に監査 H-6/H-7 修正） |
 | 中 | チーム配布後のフィードバック収集 → 次の改善イテレーション |
 | 低 | Graph API 承認後 → Outlook/Teams 自動取込（Phase 1B） |
 
 ## ブロッカー
 
 - F-21（Outlook/Teams 自動取込）: Graph API アプリ登録が IT 管理者承認待ち
+
+---
+
+- **日付**: 2026-06-12（セキュリティ・リスク監査）
+
+- **完了した作業**:
+  - **[全体リスク監査 — 5領域 並行調査]**（2026-06-12）
+    - バックエンドAPI / ウィジェット / AIパイプライン / フロントエンド / インフラ・リポジトリ衛生
+    - 結果を `docs/security-risk-audit-2026-06-12.md` に記録（Critical 3・High 9・Medium 16・Low 18・安心材料・機能完成度・優先順位つき）
+    - **Critical**: C-1 本番が DEV_MODE+bypass で公開稼働（誰でも admin なりすまし・実社員情報無認証露出）、C-2 旧 `/tasks/extract` 認証不要、C-3 AI 3経路が機密度分類バイパスで Gemini 直送
+    - メモリ `project_security_audit.md` にも要約を保存
 
 ---
 

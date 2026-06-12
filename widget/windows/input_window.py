@@ -73,7 +73,10 @@ class InputWindow(ctk.CTkToplevel):
         self.geometry(f"{WIN_INPUT[0]}x{WIN_INPUT[1]}")
         self.resizable(True, False)
         self.attributes("-topmost", True)
-        self.bind("<Escape>", lambda e: self.destroy())
+        # Escape / 閉じるの処理は親（AppController._show_window）が
+        # WM_DELETE_WINDOW と Escape の両方を _on_window_close に紐づけて一元管理する。
+        # ここで self.destroy() を直接バインドすると _window_open フラグが
+        # リセットされず、以後ウィンドウが開けなくなる（issue #22）。
         self._build_input_panel()
 
     # ──────────────────────────────

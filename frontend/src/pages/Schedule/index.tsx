@@ -138,7 +138,8 @@ export default function Schedule() {
     const map: Record<string, Task[]> = { __unassigned__: [] }
     for (const day of days) map[day.format('YYYY-MM-DD')] = []
     for (const task of tasks) {
-      const key = task.start_date ?? '__unassigned__'
+      // start_date が ISO 日時（"...T..."）を含む場合に備え日付部分のみをキーにする（issue #30）
+      const key = task.start_date ? task.start_date.slice(0, 10) : '__unassigned__'
       if (key in map) map[key].push(task)
       else map['__unassigned__'].push(task)
     }

@@ -5,6 +5,7 @@ from google.genai import types
 
 from src.models.task import ExtractedTask
 from src.providers.ollama import _EXTRACT_SYSTEM
+from src.providers.parsing import parse_extracted_tasks
 
 _SUBTASK_SYSTEM = (
     "あなたはプロジェクト管理の専門家です。"
@@ -70,12 +71,7 @@ class GeminiProvider:
                 response_mime_type="application/json",
             ),
         )
-        raw: list[dict[str, object]] = json.loads(resp.text or "[]")
-        return [
-            ExtractedTask.model_validate({**t, "source_type": source_type, "source_id": ""})
-            for t in raw
-            if t.get("is_task")
-        ]
+        return parse_extracted_tasks(resp.text, source_type)
 
     async def analyze_image(self, image: bytes, comment: str) -> str:
         resp = await self._client.aio.models.generate_content(
