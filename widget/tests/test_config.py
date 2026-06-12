@@ -32,3 +32,20 @@ def test_load_config_ignores_unknown_keys(tmp_path):
     with patch("widget.config.CONFIG_PATH", config_path):
         cfg = load_config()
     assert cfg.backend_url == "https://x.com"
+
+
+def test_first_run_complete_defaults_to_false(tmp_path):
+    config_path = tmp_path / "config.json"
+    with patch("widget.config.CONFIG_PATH", config_path):
+        cfg = load_config()
+    assert cfg.first_run_complete is False
+
+
+def test_first_run_complete_persists(tmp_path):
+    config_path = tmp_path / "config.json"
+    with patch("widget.config.CONFIG_PATH", config_path):
+        cfg = load_config()
+        cfg.first_run_complete = True
+        save_config(cfg)
+        reloaded = load_config()
+    assert reloaded.first_run_complete is True
