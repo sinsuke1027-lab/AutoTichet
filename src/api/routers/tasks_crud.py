@@ -613,16 +613,26 @@ async def reorder_task(
     before_index: float | None = None
     after_index: float | None = None
 
+    def _assert_same_group(anchor: Task) -> None:
+        # 並び替えの基準タスクは対象と同じセクション/プロジェクトに属する必要がある（issue #21）
+        if anchor.section_id != task.section_id or anchor.project_id != task.project_id:
+            raise HTTPException(
+                status_code=400,
+                detail="並び替えの基準タスクは同じセクション/プロジェクト内である必要があります",
+            )
+
     if body.before_id is not None:
         r = await db.execute(select(Task).where(Task.id == body.before_id))
         before_task = r.scalar_one_or_none()
         if before_task:
+            _assert_same_group(before_task)
             before_index = float(before_task.order_index)
 
     if body.after_id is not None:
         r = await db.execute(select(Task).where(Task.id == body.after_id))
         after_task = r.scalar_one_or_none()
         if after_task:
+            _assert_same_group(after_task)
             after_index = float(after_task.order_index)
 
     if before_index is not None and after_index is not None:
@@ -792,7 +802,10 @@ async def bulk_update_tasks(
         raise HTTPException(
             status_code=422, detail="status または assignee_id のいずれかを指定してください"
         )
-    result = await db.execute(select(Task).where(Task.id.in_(body.task_ids)))
+    # _spawn_next_recurrence が task.tags を参照するため eager load する（issue #18）
+    result = await db.execute(
+        select(Task).where(Task.id.in_(body.task_ids)).options(selectinload(Task.tags))
+    )
     tasks = result.scalars().all()
     if len(tasks) != len(body.task_ids):
         raise HTTPException(status_code=404, detail="指定されたタスクの一部が見つかりません")
@@ -802,7 +815,8 @@ async def bulk_update_tasks(
             raise HTTPException(status_code=403, detail="操作権限のないタスクが含まれています")
     for task in tasks:
         if body.status is not None:
-            task.status = body.status
+            # Enum オブジェクトでなく素の文字列値を保存する（issue #20）
+            task.status = body.status.value
         if body.assignee_id is not None:
             task.assignee_id = body.assignee_id
 

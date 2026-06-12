@@ -157,6 +157,21 @@ def test_reorder_triggers_renormalization() -> None:
     assert resp.status_code == 204
 
 
+def test_reorder_rejects_cross_section_anchor_returns_400() -> None:
+    """before/after が対象と別セクションのタスクなら 400（issue #21）"""
+    sec_a = uuid.uuid4()
+    sec_b = uuid.uuid4()
+    target = _make_task(order_index=3000.0, section_id=sec_a)
+    before = _make_task(order_index=1000.0, section_id=sec_b)  # 別セクション
+    db = _make_db_for_reorder(target, before, None, query_after=False)
+    client = _make_client(db)
+    resp = client.patch(
+        f"/api/v1/tasks/{target.id}/order",
+        json={"before_id": str(before.id), "after_id": None},
+    )
+    assert resp.status_code == 400
+
+
 def test_reorder_task_not_found_returns_404() -> None:
     """存在しない task_id → 404"""
     mock_db = AsyncMock()
