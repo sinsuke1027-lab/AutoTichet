@@ -5,6 +5,8 @@ from typing import Callable
 import customtkinter as ctk
 
 from widget.config import Config, save_config
+from widget.services import autostart
+from widget.ui_constants import WIN_SETTINGS
 
 
 class SettingsWindow(ctk.CTkToplevel):
@@ -18,7 +20,7 @@ class SettingsWindow(ctk.CTkToplevel):
     ) -> None:
         super().__init__(parent)
         self.title("AutoTicket - 設定")
-        self.geometry("480x420")
+        self.geometry(f"{WIN_SETTINGS[0]}x{WIN_SETTINGS[1]}")
         self.resizable(False, False)
         self.attributes("-topmost", True)
         self._config = config
@@ -71,6 +73,29 @@ class SettingsWindow(ctk.CTkToplevel):
             "フロントエンド URL", self._config.frontend_url
         )
 
+        # 自動起動トグル
+        autostart_row = ctk.CTkFrame(frame, fg_color="transparent")
+        autostart_row.grid(row=row[0], column=0, columnspan=2, padx=(10, 10), pady=(6, 2), sticky="ew")
+        row[0] += 1
+
+        autostart_label = ctk.CTkLabel(autostart_row, text="Windowsログイン時に自動起動", width=150, anchor="w")
+        autostart_label.pack(side="left")
+
+        self._autostart_var = ctk.BooleanVar(value=autostart.is_enabled())
+        autostart_switch = ctk.CTkSwitch(autostart_row, text="", variable=self._autostart_var, width=46)
+        autostart_switch.pack(side="left", padx=(8, 0))
+
+        if not autostart.is_frozen():
+            autostart_switch.configure(state="disabled")
+            ctk.CTkLabel(
+                frame,
+                text=".exeビルド後に有効",
+                text_color=("gray40", "gray60"),
+                font=ctk.CTkFont(size=10),
+                anchor="w",
+            ).grid(row=row[0], column=1, padx=(0, 10), pady=(0, 4), sticky="w")
+            row[0] += 1
+
         self._note_lbl = ctk.CTkLabel(
             self, text="", text_color="green", font=ctk.CTkFont(size=12)
         )
@@ -94,6 +119,14 @@ class SettingsWindow(ctk.CTkToplevel):
         self._config.backend_url = self._backend_url_entry.get().strip()
         self._config.frontend_url = self._frontend_url_entry.get().strip()
         save_config(self._config)
+        try:
+            if self._autostart_var.get():
+                autostart.enable(autostart.get_current_exe_path())
+            else:
+                autostart.disable()
+        except Exception as exc:
+            import logging
+            logging.warning("autostart toggle failed: %s", exc)
         self._on_save(self._config)
         self._note_lbl.configure(
             text="✅ 保存しました（一部設定は再起動後に反映）"
