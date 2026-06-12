@@ -1,6 +1,6 @@
 # AutoTicket タスク一覧
 
-最終更新: 2026-06-04
+最終更新: 2026-06-12
 
 凡例: `[x]` 完了 / `[ ]` 未着手 / `[-]` 承認待ちでブロック中
 
@@ -97,6 +97,31 @@
 - [x] `tests/unit/test_task_web_models.py`（12 件）
 - [x] `tests/unit/test_tasks_crud_router.py`（6 件）
 - [x] バックエンド合計 79 passed / フロントエンドビルド成功
+
+---
+
+## ウィジェット（widget/）
+
+### チーム配布対応 ✅ 完了（2026-06-12）
+
+- [x] `widget/ui_constants.py` — 色・フォント・余白・ウィンドウサイズ定数
+- [x] `widget/config.py` — `first_run_complete` フラグ追加
+- [x] `widget/services/connection_monitor.py` — 接続状態定期チェック（緑/黄/赤）
+- [x] `widget/services/draft_queue.py` — オフラインドラフトキュー（SQLite）
+- [x] `widget/services/autostart.py` — Windows 自動起動登録/解除（HKCU レジストリ）
+- [x] `widget/windows/first_run_wizard.py` — 初回起動ウィザード（3 ステップ）
+- [x] `widget/main.py` — ウィザード・ConnectionMonitor・DraftQueue 統合、トレイ色対応
+- [x] `widget/windows/input_window.py` — オフラインダイアログ・DraftQueue DI
+- [x] `widget/windows/settings_window.py` — 自動起動トグル・Ollama ドロップダウン
+- [x] `AutoTicket.spec` + `widget/__main__.py` — PyInstaller ビルド設定
+- [x] `docs/widget-distribution-guide.md` — 配布・運用ガイド
+- [x] pytest 70 passed
+
+### ウィジェット 次のアクション
+
+- [ ] チームへ配布（`dist\AutoTicket\` を共有フォルダに置く）
+- [ ] フィードバック収集 → 改善イテレーション
+- [ ] （任意）slim ビルド — 音声入力 OFF 版（サイズ縮小目的）
 
 ---
 
