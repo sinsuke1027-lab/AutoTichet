@@ -19,6 +19,20 @@ class Config:
     first_run_complete: bool = False
 
 
+def normalize_backend_url(url: str) -> str:
+    """バックエンド URL を正規化する（issue #36）
+
+    スキーム欠落時は https:// を補完し、末尾スラッシュを除去する。
+    空文字はそのまま空文字を返す。
+    """
+    url = url.strip().rstrip("/")
+    if not url:
+        return ""
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    return url
+
+
 def load_config() -> Config:
     if not CONFIG_PATH.exists():
         cfg = Config()

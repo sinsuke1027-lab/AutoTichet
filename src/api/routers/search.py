@@ -72,14 +72,13 @@ async def search(
     comment_rows = (await db.execute(comment_q)).all()
 
     # task_id 単位で重複排除（title > description > comment）
-    seen: dict[uuid.UUID, SearchResultItem] = {}
-
+    task_items: dict[uuid.UUID, SearchResultItem] = {}
     for task, project_name in task_rows:
-        if task.id in seen:
+        if task.id in task_items:
             continue
         match_type = "title" if q.lower() in (task.title or "").lower() else "description"
         text = task.title if match_type == "title" else (task.description or task.title)
-        seen[task.id] = SearchResultItem(
+        task_items[task.id] = SearchResultItem(
             task_id=task.id,
             project_id=task.project_id,
             project_name=project_name,
@@ -88,17 +87,26 @@ async def search(
             match_type=match_type,
         )
 
+    comment_items: list[SearchResultItem] = []
+    comment_seen: set[uuid.UUID] = set()
     for comment, task, project_name in comment_rows:
-        if task.id in seen:
+        if task.id in task_items or task.id in comment_seen:
             continue
-        seen[task.id] = SearchResultItem(
-            task_id=task.id,
-            project_id=task.project_id,
-            project_name=project_name,
-            title=task.title,
-            snippet=_make_snippet(comment.content, q),
-            match_type="comment",
+        comment_seen.add(task.id)
+        comment_items.append(
+            SearchResultItem(
+                task_id=task.id,
+                project_id=task.project_id,
+                project_name=project_name,
+                title=task.title,
+                snippet=_make_snippet(comment.content, q),
+                match_type="comment",
+            )
         )
 
-    items = list(seen.values())[:limit]
+    # タスク一致を優先しつつ、コメント一致が埋もれないよう limit の一部を確保する（issue #41）
+    task_list = list(task_items.values())
+    comment_quota = min(len(comment_items), max(1, limit // 3)) if comment_items else 0
+    task_quota = limit - comment_quota
+    items = (task_list[:task_quota] + comment_items[:comment_quota])[:limit]
     return SearchResponse(items=items, total=len(items))

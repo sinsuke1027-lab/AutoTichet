@@ -8,7 +8,7 @@ import customtkinter as ctk
 import httpx
 
 from widget.clients.backend_client import BackendClient, UserInfo
-from widget.config import Config, save_config
+from widget.config import Config, normalize_backend_url, save_config
 from widget.services import autostart
 from widget.ui_constants import (
     DANGER, FONT_H1, FONT_H2, FONT_BODY, FONT_SMALL,
@@ -95,7 +95,7 @@ class FirstRunWizard(ctk.CTkToplevel):
         threading.Thread(target=_run, daemon=True).start()
 
     def _step1_next(self) -> None:
-        self._config.backend_url = self._url_entry.get().strip()
+        self._config.backend_url = normalize_backend_url(self._url_entry.get())
         self._show_step2()
 
     # ──────────────────────────────

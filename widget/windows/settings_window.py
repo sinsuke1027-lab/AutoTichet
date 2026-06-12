@@ -6,7 +6,7 @@ from typing import Callable
 import customtkinter as ctk
 import ollama
 
-from widget.config import Config, save_config
+from widget.config import Config, normalize_backend_url, save_config
 from widget.services import autostart
 from widget.ui_constants import WIN_SETTINGS
 
@@ -178,7 +178,7 @@ class SettingsWindow(ctk.CTkToplevel):
         self._config.hotkey = self._hotkey_entry.get().strip()
         self._config.ollama_model = self._ollama_model_combo.get().strip()
         self._config.ollama_vision_model = self._ollama_vision_combo.get().strip()
-        self._config.backend_url = self._backend_url_entry.get().strip()
+        self._config.backend_url = normalize_backend_url(self._backend_url_entry.get())
         self._config.frontend_url = self._frontend_url_entry.get().strip()
         save_config(self._config)
         try:

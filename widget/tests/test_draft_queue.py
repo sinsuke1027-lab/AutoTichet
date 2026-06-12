@@ -40,6 +40,24 @@ def test_get_pending_empty_returns_empty_list(queue: DraftQueue) -> None:
     assert queue.get_pending() == []
 
 
+def test_get_pending_excludes_max_retries(queue: DraftQueue) -> None:
+    # リトライ上限（3回）に達したドラフトは再送対象から除外する（issue #35）
+    from widget.services.draft_queue import MAX_DRAFT_RETRIES
+
+    draft_id = queue.add({"title": "恒久失敗"})
+    for _ in range(MAX_DRAFT_RETRIES):
+        queue.increment_retry(draft_id, "error")
+    assert queue.get_pending() == []
+
+
+def test_get_pending_includes_below_max_retries(queue: DraftQueue) -> None:
+    draft_id = queue.add({"title": "まだ再送対象"})
+    queue.increment_retry(draft_id, "error")
+    pending = queue.get_pending()
+    assert len(pending) == 1
+    assert pending[0].id == draft_id
+
+
 def test_created_at_is_iso_format(queue: DraftQueue) -> None:
     queue.add({"title": "ISO確認"})
     entry = queue.get_pending()[0]

@@ -8,6 +8,7 @@ import {
   Button,
   Card,
   List,
+  message,
   Modal,
   Popconfirm,
   Select,
@@ -35,6 +36,26 @@ function toLocalDate(d: Date) {
 
 // taskId → [{id, depends_on_task_id}]  (depMap に id も持たせて削除に使う)
 type DepMapFull = Record<string, DependencyResponse[]>
+
+// B(successor) depends_on A(predecessor) を追加すると循環するか判定する（issue #39）。
+// A が（推移的に）B に依存していれば循環になる。
+function wouldCreateCycle(
+  predecessor: string,
+  successor: string,
+  depMap: DepMapFull,
+): boolean {
+  if (predecessor === successor) return true
+  const visited = new Set<string>()
+  const stack = [predecessor]
+  while (stack.length > 0) {
+    const cur = stack.pop()!
+    if (cur === successor) return true
+    if (visited.has(cur)) continue
+    visited.add(cur)
+    for (const d of depMap[cur] ?? []) stack.push(d.depends_on_task_id)
+  }
+  return false
+}
 
 function toGanttTask(task: Task, depMap: DepMapFull): GanttTask {
   const today = new Date()
@@ -117,7 +138,14 @@ export default function GanttView() {
   // API: POST /tasks/{B}/dependencies { depends_on_task_id: A }
   const addDep = useMutation({
     mutationFn: async ({ predecessor, successor }: { predecessor: string; successor: string }) => {
+      // 循環依存をフロント側でも事前に防ぐ（issue #39）
+      if (wouldCreateCycle(predecessor, successor, depMap)) {
+        throw new Error('循環依存になるため追加できません')
+      }
       await api.post(`/tasks/${successor}/dependencies`, { depends_on_task_id: predecessor })
+    },
+    onError: (e: unknown) => {
+      void message.error(e instanceof Error ? e.message : '依存関係の追加に失敗しました')
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['gantt-deps'] })
