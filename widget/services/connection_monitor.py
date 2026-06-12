@@ -67,12 +67,13 @@ class ConnectionMonitor:
             self._state = new_state
             self._on_state_change(new_state)
 
+    def _next_interval(self) -> float:
+        # DEGRADED も「接続中」扱いとし、接続時の長いポーリング間隔を使う（issue #34）
+        if self._state in (ConnectionState.CONNECTED, ConnectionState.DEGRADED):
+            return self._interval_connected
+        return self._interval_disconnected
+
     def _run(self) -> None:
         while not self._stop_event.is_set():
             self._check_and_notify()
-            interval = (
-                self._interval_connected
-                if self._state == ConnectionState.CONNECTED
-                else self._interval_disconnected
-            )
-            self._stop_event.wait(interval)
+            self._stop_event.wait(self._next_interval())

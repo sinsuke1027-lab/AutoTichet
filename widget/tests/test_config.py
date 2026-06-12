@@ -2,7 +2,25 @@ import json
 import pytest
 from pathlib import Path
 from unittest.mock import patch
-from widget.config import load_config, save_config, Config
+from widget.config import load_config, save_config, Config, normalize_backend_url
+
+
+def test_normalize_backend_url_adds_https_scheme():
+    # スキーム欠落時は https:// を補完する（issue #36）
+    assert normalize_backend_url("example.hf.space") == "https://example.hf.space"
+
+
+def test_normalize_backend_url_strips_trailing_slash():
+    assert normalize_backend_url("https://example.hf.space/") == "https://example.hf.space"
+
+
+def test_normalize_backend_url_preserves_http_localhost():
+    assert normalize_backend_url("http://localhost:8000") == "http://localhost:8000"
+
+
+def test_normalize_backend_url_empty_stays_empty():
+    assert normalize_backend_url("") == ""
+    assert normalize_backend_url("   ") == ""
 
 
 def test_load_config_creates_default_json_when_missing(tmp_path):

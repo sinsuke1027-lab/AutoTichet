@@ -8,6 +8,9 @@ from pathlib import Path
 
 _DEFAULT_DB = Path(__file__).parent.parent / "data" / "drafts.db"
 
+# 再送リトライ上限。これに達したドラフトは自動再送対象から除外する（issue #35）
+MAX_DRAFT_RETRIES = 3
+
 
 @dataclass
 class DraftEntry:
@@ -55,7 +58,8 @@ class DraftQueue:
         with sqlite3.connect(self._db_path) as conn:
             rows = conn.execute(
                 "SELECT id, payload, created_at, retry_count, last_error "
-                "FROM drafts ORDER BY id ASC"
+                "FROM drafts WHERE retry_count < ? ORDER BY id ASC",
+                (MAX_DRAFT_RETRIES,),
             ).fetchall()
         return [
             DraftEntry(

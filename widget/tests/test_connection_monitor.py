@@ -70,6 +70,22 @@ def test_callback_not_fired_when_state_unchanged():
     assert states == []  # 変化なし → コールバックなし
 
 
+def test_next_interval_degraded_uses_connected_interval():
+    # DEGRADED は「接続中」扱いなのでポーリング間隔も接続時の長い方を使う（issue #34）
+    monitor = ConnectionMonitor(
+        url="http://localhost:8000",
+        on_state_change=lambda s: None,
+        check_interval_connected=30.0,
+        check_interval_disconnected=10.0,
+    )
+    monitor._state = ConnectionState.CONNECTED
+    assert monitor._next_interval() == 30.0
+    monitor._state = ConnectionState.DEGRADED
+    assert monitor._next_interval() == 30.0
+    monitor._state = ConnectionState.DISCONNECTED
+    assert monitor._next_interval() == 10.0
+
+
 def test_is_connected_true_for_connected_and_degraded():
     monitor = _make_monitor()
     monitor._state = ConnectionState.CONNECTED
