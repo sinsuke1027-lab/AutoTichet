@@ -206,7 +206,9 @@ export default function Board() {
         })
       }
     } else {
-      // 別カラムへのドロップ → ステータス更新（楽観的更新）
+      // 別カラムへのドロップ → ステータス更新のみ（楽観的更新）。
+      // カラム間の挿入位置は保持しない（仕様）: reorder はセクション/プロジェクト一致を
+      // 要求する（issue #21）ため、ステータスのみ変更し並びはサーバ規則に委ねる（issue #38）。
       const queryKey = ['tasks-view', { project_id: projectId }]
       const previous = queryClient.getQueryData<Task[]>(queryKey)
       queryClient.setQueryData<Task[]>(queryKey, (old = []) =>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Card, Space, Tag, Typography } from 'antd'
 import {
   DndContext,
@@ -129,6 +130,8 @@ export default function Schedule() {
 
   const { data: tasks = [] } = useTasksForView({ limit: 200 })
   const updateTask = useUpdateTask()
+  const queryClient = useQueryClient()
+  const viewQueryKey = ['tasks-view', { limit: 200 }]
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -154,7 +157,18 @@ export default function Schedule() {
     const newDate = over.id === '__unassigned__' ? null : (over.id as string)
     const currentDate = task?.start_date ?? null
     if (newDate === currentDate) return
-    updateTask.mutate({ id: taskId, start_date: newDate })
+    // 楽観的更新でドロップを即時反映し、失敗時はロールバックする（issue #37）
+    const previous = queryClient.getQueryData<Task[]>(viewQueryKey)
+    queryClient.setQueryData<Task[]>(viewQueryKey, (old = []) =>
+      old.map((t) => (t.id === taskId ? { ...t, start_date: newDate } : t)),
+    )
+    updateTask.mutate(
+      { id: taskId, start_date: newDate },
+      {
+        onError: () => queryClient.setQueryData(viewQueryKey, previous),
+        onSettled: () => void queryClient.invalidateQueries({ queryKey: ['tasks-view'] }),
+      },
+    )
   }
 
   return (

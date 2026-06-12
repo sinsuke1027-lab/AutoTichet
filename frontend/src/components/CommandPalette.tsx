@@ -19,22 +19,22 @@ const MATCH_TYPE_COLOR: Record<SearchResultItem['match_type'], string> = {
 }
 
 export default function CommandPalette() {
-  const { open, setOpen } = useSearchStore()
+  const { open, setOpen, toggle } = useSearchStore()
   const navigate = useNavigate()
   const [input, setInput] = useState('')
   const { data, isFetching } = useSearch(input)
 
-  // Ctrl+K / Cmd+K でトグル
+  // Ctrl+K / Cmd+K でトグル（toggle 経由で open に依存せずリスナー再登録を避ける・issue #40）
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
-        setOpen(!open)
+        toggle()
       }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [open, setOpen])
+  }, [toggle])
 
   const handleClose = () => {
     setOpen(false)
