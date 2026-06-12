@@ -12,7 +12,7 @@ from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy import and_, distinct, func, or_, select
+from sqlalchemy import Select, and_, distinct, func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -247,9 +247,7 @@ async def list_tasks(
 
     # アーカイブ済みプロジェクトのタスクを除外（project_id=None の個人 ToDo は対象外）
     if not include_archived_projects:
-        query = query.outerjoin(Project, Task.project_id == Project.id).where(
-            or_(Task.project_id.is_(None), Project.status != "archived")
-        )
+        query = _exclude_archived_projects(query)
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
@@ -573,6 +571,16 @@ async def _spawn_next_recurrence(task: Task, db: AsyncSession) -> None:
     await db.flush()
 
 
+def _exclude_archived_projects(query: Select) -> Select:
+    """アーカイブ済みプロジェクトのタスクを除外する（issue #42）
+
+    一覧（list_tasks）と CSV エクスポートで除外ロジックを共通化する。
+    ``project_id=None`` の個人 ToDo は対象外（除外しない）。
+    """
+    archived_project_ids = select(Project.id).where(Project.status == "archived")
+    return query.where(or_(Task.project_id.is_(None), Task.project_id.not_in(archived_project_ids)))
+
+
 async def _renormalize_section(
     db: AsyncSession, section_id: uuid.UUID | None, project_id: uuid.UUID | None
 ) -> None:
@@ -637,6 +645,10 @@ async def reorder_task(
 
     if before_index is not None and after_index is not None:
         if abs(after_index - before_index) < 0.001:
+            # 前後の隙間が詰まりすぎているので全体を 1000 刻みで再採番し、
+            # 再採番後の before/after の中点に対象を配置する。
+            # （対象自身の再採番値はこの後上書きされるが、隙間を確保するための
+            #   before/after の再採番値は中点計算に使われるため renormalize は有効・issue #43）
             await _renormalize_section(db, task.section_id, task.project_id)
             r2 = await db.execute(select(Task).where(Task.id == body.before_id))
             b2 = r2.scalar_one_or_none()
@@ -734,13 +746,7 @@ async def export_tasks_csv(
                 )
             )
     if not include_archived_projects:
-        archived_project_ids = select(Project.id).where(Project.status == "archived")
-        query = query.where(
-            or_(
-                Task.project_id.is_(None),
-                Task.project_id.not_in(archived_project_ids),
-            )
-        )
+        query = _exclude_archived_projects(query)
 
     result = await db.execute(
         query.order_by(Task.due_date.asc().nulls_last()).limit(MAX_EXPORT_ROWS)

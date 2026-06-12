@@ -106,6 +106,28 @@ def test_search_deduplication(mock_db: AsyncMock) -> None:
     assert data["items"][0]["match_type"] == "title"
 
 
+def test_search_comment_not_buried_by_many_task_matches(mock_db: AsyncMock) -> None:
+    # タスク一致が limit 件あってもコメント一致が埋もれず表示される（issue #41）
+    tasks = [(_make_task(f"面接タスク{i}"), "採用P") for i in range(20)]
+    comment_task = _make_task("コメントのみ一致")
+    comment = _make_comment(comment_task.id)
+    comment.content = "面接の記録メモ"
+
+    task_result = MagicMock()
+    task_result.all.return_value = tasks
+    comment_result = MagicMock()
+    comment_result.all.return_value = [(comment, comment_task, "採用P")]
+    mock_db.execute = AsyncMock(side_effect=[task_result, comment_result])
+
+    client = _make_client(_user, mock_db)
+    resp = client.get("/api/v1/search?q=面接&limit=20")
+    assert resp.status_code == 200
+    data = resp.json()
+    match_types = [it["match_type"] for it in data["items"]]
+    assert "comment" in match_types
+    assert len(data["items"]) <= 20
+
+
 def test_search_short_query(mock_db: AsyncMock) -> None:
     client = _make_client(_user, mock_db)
     resp = client.get("/api/v1/search?q=a")
