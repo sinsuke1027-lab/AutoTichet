@@ -415,6 +415,25 @@ class ExtractResponse(BaseModel):
     skipped_reason: str | None = None
 
 
+def _is_sensitive(text: str) -> bool:
+    """機密データ（Pattern B）を含むか判定する（C-3）。"""
+    from src.services.classifier import classify_sensitivity
+
+    return classify_sensitivity(text).label == "pattern_b"
+
+
+def _ensure_not_sensitive(text: str) -> None:
+    """機密データを外部 LLM に送信しないためのゲート（C-3）。
+
+    Pattern B（機密）と判定された場合は 403 を返し、外部 LLM 呼び出しを行わせない。
+    """
+    if _is_sensitive(text):
+        raise HTTPException(
+            status_code=403,
+            detail="機密情報（Pattern B）を含むため、外部 LLM を利用する処理は実行できません",
+        )
+
+
 @router.post("/extract", response_model=ExtractResponse)
 async def extract_from_text(
     body: ExtractRequest,
@@ -484,6 +503,9 @@ async def generate_handover(
                 lines.append(f"  - {c.content}")
         lines.append("")
     tasks_text = "\n".join(lines)
+
+    # タスク説明・コメントを結合した本文に機密が含まれる場合は外部 LLM へ送らない（C-3）
+    _ensure_not_sensitive(tasks_text)
 
     provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
     try:
@@ -1092,6 +1114,9 @@ async def generate_subtasks(
     if task is None:
         raise HTTPException(status_code=404, detail="タスクが見つかりません")
 
+    # 機密データを外部 LLM に送らない（C-3）
+    _ensure_not_sensitive(f"{task.title}\n{task.description or ''}")
+
     settings = get_settings()
     if not settings.gemini_api_key:
         raise HTTPException(status_code=503, detail="Gemini API キーが設定されていません")
@@ -1142,7 +1167,9 @@ async def clarify_requirements_endpoint(
         )
 
     settings = get_settings()
-    if settings.gemini_api_key:
+    # 機密データを含む場合は外部 LLM 呼び出しをスキップし、ルールベースの結果のみ返す（C-3）
+    is_sensitive = _is_sensitive(f"{task.title}\n{task.description or ''}")
+    if settings.gemini_api_key and not is_sensitive:
         provider = GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model)
         try:
             suggestion = await provider.clarify_requirements(task.title, task.description)

@@ -20,18 +20,17 @@ from src.api.routers import (
     search,
     sections,
     task_details,
-    tasks,
     tasks_crud,
     templates,
     users,
 )
+from src.api.routers.tasks_crud import _spawn_next_recurrence
 from src.connectors.forms import FormsConnector
 from src.connectors.graph_api import GraphAPIClient
 from src.connectors.onenote import OneNoteConnector
 from src.connectors.planner import PlannerConnector
 from src.connectors.teams_chat import TeamsChatConnector
 from src.connectors.todo import TodoConnector
-from src.api.routers.tasks_crud import _spawn_next_recurrence
 from src.db.engine import AsyncSessionLocal
 from src.db.models import Task
 from src.models.config import get_settings
@@ -268,7 +267,8 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(dev.router)
-app.include_router(tasks.router)
+# 旧無認証 /tasks/extract（src/api/routers/tasks.py）は廃止。
+# 認証付きの /api/v1/tasks/extract（tasks_crud）に一本化（C-2）。
 app.include_router(projects.router)
 app.include_router(tasks_crud.router)
 app.include_router(task_details.router)
