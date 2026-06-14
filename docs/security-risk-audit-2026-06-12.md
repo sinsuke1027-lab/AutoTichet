@@ -77,7 +77,7 @@
 
 ---
 
-### [ ] C-2. 旧ルーター `/tasks/extract` が完全に認証不要
+### [x] C-2. 旧ルーター `/tasks/extract` が完全に認証不要 — ✅ 対応済み（PR #47 / 2026-06-12）: `src/api/routers/tasks.py` を削除し `main.py` の登録を除去。認証付き `/api/v1/tasks/extract` に一本化。
 
 **背景**: Phase 1 時代の旧エンドポイントが、認証付き `/api/v1/tasks/extract`（`tasks_crud.py:420`）の追加後も残存している。
 
@@ -89,7 +89,7 @@
 
 ---
 
-### [ ] C-3. 機密度分類をバイパスする外部 LLM 送信経路【最重要要件に違反】
+### [x] C-3. 機密度分類をバイパスする外部 LLM 送信経路【最重要要件に違反】 — ✅ 対応済み（PR #47 / 2026-06-12）: `_ensure_not_sensitive`/`_is_sensitive` ゲートを追加。generate-subtasks・generate-handover は Pattern B で 403、clarify-requirements は LLM 部分のみスキップ（ルールベースは返す）。
 
 **背景**: CLAUDE.md ルール 1「機密データを外部 LLM に送信しない」を担保するため `classify_sensitivity()`（`src/services/classifier.py`）が存在する。LangGraph ポーリング経路（`src/agents/nodes.py:16-17`）では Pattern B なら外部送信前に空リストを返し正しくブロックされている。
 
