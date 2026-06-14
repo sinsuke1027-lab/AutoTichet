@@ -1,11 +1,33 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: ウィジェット チーム配布対応 完成 → 次は PyInstaller .exe ビルド & チーム配布**
-ステータス: widget/ チーム配布対応（10 タスク）完了・テスト 70 passed（2026-06-12）。次は PyInstaller でビルドしてチームに配布。
+**Phase: 品質改善（バグ一掃＋セキュリティ）完了 → 残: C-1（本番 DEV_MODE）と #10、PyInstaller 配布**
+ステータス: バグ監査で起票した 27 件（#17〜#43）を全修正・クローズ。セキュリティ Critical C-2/C-3 を解消。既存 GitHub issue #1〜#16 を精査し 9 件クローズ。残 open は **#10 のみ**。次の大きな未対応は **C-1（本番 DEV_MODE 公開）** と **#10（プロジェクトのメンバー選択 UI＋全体フィルタ配線）**。
 
 ## 最終更新
-- **日付**: 2026-06-12
+- **日付**: 2026-06-15
+
+- **完了した作業（2026-06-15: GitHub Issue 棚卸し）**:
+  - 既存 open issue 10 件（#1〜#16・バグ監査より前の起票分）をコードと突き合わせて精査
+    - **実装済み確認でクローズ（8件）**: #1 部門タグ管理 / #2 タグ選択肢マスタ化 / #3 タグ編集保存 / #4 タグ削除 / #5 タスク一覧の担当者名・PJ名カラム / #8 作成モーダルのタグ欄 / #11 カンバン担当者名 / #12 カンバン楽観的更新
+    - **バグ修正してクローズ（1件）**: #16 CSV エクスポート — サブ担当者を表示名で出力（PR #48）。バグ2/3 は過去修正で解消済み。列名の Asana 英語統一は「現状維持（日本語列）で対応不要」とユーザー判断
+    - **残 open（1件）**: #10 プロジェクト（要件1=作成モーダルにメンバー選択 UI なし／要件2=`activeProjectIds` を読んでフィルタ適用する配線が未接続。バックエンドと選択 UI/ストアは実装済み）
+
+- **完了した作業（2026-06-14〜15: セキュリティ Critical C-2/C-3）**:
+  - **C-2**: 旧無認証 `/tasks/extract`（`src/api/routers/tasks.py`）を**削除**し `main.py` の登録を除去。認証付き `/api/v1/tasks/extract` に一本化（PR #47）
+  - **C-3**: `_ensure_not_sensitive`/`_is_sensitive` ゲートを追加。generate-subtasks・generate-handover は Pattern B で 403、clarify-requirements は LLM 部分のみスキップ（ルールベースは返す）。`tests/unit/test_sensitivity_gate.py`（4件）追加（PR #47）
+  - `docs/security-risk-audit-2026-06-12.md` の C-2/C-3 を対応済みに更新
+
+- **完了した作業（2026-06-12〜14: バグ監査キャンペーン 全 27 件）**:
+  - 全 5 領域のセキュリティ・リスク監査を実施 → `docs/security-risk-audit-2026-06-12.md` に記録（Critical 3・High 9・Medium 16・Low 18）
+  - correctness バグを調査し GitHub issue #17〜#43（27件）を起票 → 全て修正・クローズ
+    - **high-priority 7件**（#17,#19,#22,#23,#24,#29,#30）: PR #44
+    - **medium-priority 10件**（#18,#20,#21,#25-28,#31-33）: PR #45
+    - **low-priority 10件**（#34-#43）: PR #46。うち #38・#43 はコード調査の結果「現仕様が正しい」と判断し明確化コメントで対応
+  - TDD で多数の新規テスト追加。最終: backend 297 passed / widget 81 passed / frontend tsc+vitest green
+
+- **運用メモ（重要）**: `git push`/`gh` が GitHub Credential Manager の対話プロンプトでハングする事象が発生 → `gh auth setup-git` で gh トークンを git 認証ヘルパーに設定して解決済み。以後の push は `GIT_TERMINAL_PROMPT=0 timeout 90 git push ...` で安定。
+- **GitHub 既定ブランチの注意**: リポジトリの既定ブランチが `main`、実運用が `master`。PR は master へマージするが、`Closes #N` の自動クローズは既定ブランチ（main）マージ時のみ発火するため、**master マージ後は issue を手動クローズする運用**。
 
 - **完了した作業**:
   - **[ウィジェット チーム配布対応 — 全 10 タスク完了]**（2026-06-12）
@@ -21,18 +43,26 @@
     - **テスト**: `pytest widget/tests/ -v` → **70 passed**（+20 件増加）
     - コミット: `8f94451`〜`9974e42`（計 10 コミット）
 
-## 次のアクション候補
+## 次のアクション候補（2026-06-15 時点）
 
 | 優先度 | 内容 |
 |-------|------|
-| 🔴 最優先 | **セキュリティ対応**: `docs/security-risk-audit-2026-06-12.md` の Critical（C-1 本番 DEV_MODE 露出 / C-2 無認証 extract / C-3 機密度分類バイパス）。C-2・C-3・H-1・H-2 は Graph API 承認不要で即着手可 |
-| 高 | PyInstaller で .exe ビルド（`pyinstaller widget/__main__.py --onefile --windowed`）→ チーム共有フォルダに配置（配布前に監査 H-6/H-7 修正） |
-| 中 | チーム配布後のフィードバック収集 → 次の改善イテレーション |
+| 🔴 最優先 | **C-1: 本番 DEV_MODE 公開の解消**。`docs/security-risk-audit-2026-06-12.md` C-1 参照。①コードで今すぐ可能: `DEV_MODE=true && 本番` で起動拒否ガード追加・`frontend/.env.production` の `VITE_DEV_BYPASS_AUTH=false` 化＋`.gitignore` 追加。②要 IT/運用: Azure AD アプリ登録承認→MSAL 切替、それまで HF Space private 化 or 業務データ非投入。**注意: ①の bypass=false 化は Azure AD 承認とセットでないと本番ログイン不可になるため、承認とまとめて実施** |
+| 高 | 残 High/Medium 監査項目（`docs/security-risk-audit-2026-06-12.md`）: H-1（タスク個別 API の認可漏れ/IDOR）・H-2（AI 系のレート/入力長制限）・H-3〜H-9 など。Graph API 承認不要で着手可 |
+| 中 | **#10**（プロジェクト）: 作成モーダルにメンバー選択 UI 追加＋`activeProjectIds` を各ビュー（タスク一覧/ボード/ガント/カレンダー/ワークロード/検索）に連動させる配線。フロント中心・中規模 |
+| 中 | PyInstaller で .exe ビルド → チーム配布（配布前に監査 H-6 ログ・H-7 spec 混入を修正） |
 | 低 | Graph API 承認後 → Outlook/Teams 自動取込（Phase 1B） |
 
 ## ブロッカー
 
+- **C-1（本番 DEV_MODE）**: 根本解は Azure AD アプリ登録の承認（IT 部門）待ち。それまでは運用（Space private 化等）で露出を抑える。
 - F-21（Outlook/Teams 自動取込）: Graph API アプリ登録が IT 管理者承認待ち
+
+## 別チャットで再開する場合の参照順
+1. `docs/progress.md`（このファイル）冒頭
+2. `docs/security-risk-audit-2026-06-12.md`（残セキュリティ項目・C-1/H-*/M-*/L-* の状況）
+3. GitHub open issue（`gh issue list --state open`）= 現在 **#10 のみ**
+4. メモリ `project_security_audit.md` / `project_bug_campaign.md`
 
 ---
 

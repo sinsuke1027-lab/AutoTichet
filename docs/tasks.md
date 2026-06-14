@@ -1,8 +1,22 @@
 # AutoTicket タスク一覧
 
-最終更新: 2026-06-12
+最終更新: 2026-06-15
 
 凡例: `[x]` 完了 / `[ ]` 未着手 / `[-]` 承認待ちでブロック中
+
+---
+
+## 品質改善・セキュリティ（2026-06-12〜15）
+
+- [x] 全 5 領域のリスク監査 → `docs/security-risk-audit-2026-06-12.md`
+- [x] correctness バグ #17〜#43（27件）を全修正・クローズ（PR #44/#45/#46）
+- [x] セキュリティ Critical **C-2**（無認証 extract 削除）・**C-3**（外部 LLM 送信前の機密度ゲート）解消（PR #47）
+- [x] 既存 GitHub Issue #1〜#16 の棚卸し（#1-#5,#8,#11,#12 実装済みクローズ・#16 修正クローズ PR #48）
+- [ ] **C-1: 本番 DEV_MODE 公開の解消**（最優先。コード対応＋Azure AD 承認/運用。`security-risk-audit` C-1 参照）
+- [ ] 残セキュリティ H-1〜H-9 / Medium / Low（Graph API 承認不要・着手可）
+- [ ] **#10 プロジェクト**: 作成モーダルのメンバー選択 UI ＋ `activeProjectIds` の全ビュー連動配線（残 open issue。バックエンド・選択UI/ストアは実装済み）
+
+> 別チャット再開時の参照: `docs/progress.md` 冒頭 → `docs/security-risk-audit-2026-06-12.md` → `gh issue list --state open`（現在 #10 のみ）
 
 ---
 
