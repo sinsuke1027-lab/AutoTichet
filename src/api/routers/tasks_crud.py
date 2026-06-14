@@ -775,6 +775,17 @@ async def export_tasks_csv(
     )
     tasks = result.scalars().all()
 
+    # サブ担当者の user_id を表示名へ解決するマップを構築（N+1 回避・1 クエリ）（issue #16 バグ1）
+    sub_user_ids = {a.user_id for t in tasks for a in (t.sub_assignees or [])}
+    name_map: dict[str, str] = {}
+    if sub_user_ids:
+        prof_result = await db.execute(
+            select(UserProfile.user_id, UserProfile.display_name).where(
+                UserProfile.user_id.in_(sub_user_ids)
+            )
+        )
+        name_map = {uid: name for uid, name in prof_result.all()}
+
     output = io.StringIO()
     output.write("﻿")  # UTF-8 BOM（Excel 文字化け防止）
     writer = csv.writer(output)
@@ -790,7 +801,7 @@ async def export_tasks_csv(
                 task.status,
                 task.priority,
                 task.assignee.display_name if task.assignee else (task.assignee_id or ""),
-                ",".join(a.user_id for a in task.sub_assignees),
+                ",".join(name_map.get(a.user_id, a.user_id) for a in task.sub_assignees),
                 str(task.start_date) if task.start_date else "",
                 str(task.due_date) if task.due_date else "",
                 task.completed_at.isoformat() if task.completed_at else "",

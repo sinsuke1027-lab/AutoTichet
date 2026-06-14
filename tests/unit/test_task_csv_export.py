@@ -103,6 +103,30 @@ def test_export_csv_status_filter_row_value() -> None:
     assert rows[0]["ステータス"] == "completed"
 
 
+def test_export_csv_sub_assignees_show_display_names() -> None:
+    """サブ担当者が UUID でなく表示名で出力される（issue #16 バグ1）"""
+    task = _make_task()
+    sub1 = MagicMock()
+    sub1.user_id = "user-2"
+    sub2 = MagicMock()
+    sub2.user_id = "user-3"
+    task.sub_assignees = [sub1, sub2]
+
+    mock_db = AsyncMock()
+    tasks_result = MagicMock()
+    tasks_result.scalars.return_value.all.return_value = [task]
+    profiles_result = MagicMock()
+    profiles_result.all.return_value = [("user-2", "佐藤太郎"), ("user-3", "鈴木花子")]
+    mock_db.execute = AsyncMock(side_effect=[tasks_result, profiles_result])
+
+    client = _make_client(mock_db)
+    resp = client.get("/api/v1/tasks/export/csv")
+    assert resp.status_code == 200
+    reader = csv.DictReader(io.StringIO(resp.content.decode("utf-8-sig")))
+    rows = list(reader)
+    assert rows[0]["サブ担当者"] == "佐藤太郎,鈴木花子"
+
+
 def test_export_csv_has_22_headers() -> None:
     """CSV ヘッダーが 22 列あること（ID〜依存関係（ブロック元））"""
     client = _make_client(_make_db([]))
