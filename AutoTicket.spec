@@ -14,7 +14,10 @@ a = Analysis(
     pathex=[str(ROOT)],
     binaries=[],
     datas=ctk_datas + [
-        (str(ROOT / 'widget' / 'data'), 'widget/data'),
+        # templates.json のみ同梱。widget/data ディレクトリ丸ごとだと実行時生成の
+        # drafts.db / history.db（開発者の起票履歴・未送信ドラフト）が混入するため
+        # ファイル単位で指定する（監査 H-7）。
+        (str(ROOT / 'widget' / 'data' / 'templates.json'), 'widget/data'),
     ],
     hiddenimports=[
         'customtkinter',
