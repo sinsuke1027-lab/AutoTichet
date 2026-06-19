@@ -148,6 +148,12 @@ class InputWindow(ctk.CTkToplevel):
         self._status_lbl.pack(side="left")
         self._submit_btn = ctk.CTkButton(btn_row, text="AIで起票する →", command=self._on_ai_submit)
         self._submit_btn.pack(side="right")
+        # AI 解析を使わず手入力で起票する経路（Ollama 未導入環境向け）
+        ctk.CTkButton(
+            btn_row, text="✏️ 手動で起票", width=120,
+            fg_color="gray40", hover_color="gray30",
+            command=self._on_manual_submit,
+        ).pack(side="right", padx=(0, 8))
 
     def _show_clipboard_history(self) -> None:
         self._status_lbl.configure(text="履歴を取得中…", text_color=("gray30", "gray70"))
@@ -342,6 +348,21 @@ class InputWindow(ctk.CTkToplevel):
             self._safe_after(0, lambda: self._on_ai_done(parsed))
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _on_manual_submit(self) -> None:
+        """AI 解析をスキップし、入力テキストをタイトルに入れて確認画面を直接開く。
+
+        Ollama 未導入/未起動の環境でも待ち時間なく手入力で起票できる。
+        """
+        text = self._text.get("1.0", "end").strip()
+        self._last_input_text = text
+        parsed: dict = {
+            "title": text,
+            "due_date": None,
+            "assignee_name": None,
+            "priority": None,
+        }
+        self._build_confirm_panel(parsed)
 
     def _on_ai_done(self, parsed: dict) -> None:
         self._stop_elapsed_timer()
