@@ -177,6 +177,7 @@ async def list_tasks(
     offset: int = 0,
     due_date_gte: date | None = Query(default=None),
     due_date_lte: date | None = Query(default=None),
+    start_date_lte: date | None = Query(default=None),
     assignee_ids: list[str] | None = Query(default=None),
     my_tasks_only: bool = Query(default=False),
     include_archived_projects: bool = Query(default=False),
@@ -206,6 +207,8 @@ async def list_tasks(
         query = query.where(Task.due_date >= due_date_gte)
     if due_date_lte:
         query = query.where(Task.due_date <= due_date_lte)
+    if start_date_lte:
+        query = query.where(Task.start_date <= start_date_lte)
     if assignee_ids:
         query = query.where(Task.assignee_id.in_(assignee_ids))
 

@@ -68,6 +68,8 @@ class InputWindow(ctk.CTkToplevel):
         self._recording = False
         self._connection_monitor = connection_monitor
         self._draft_queue = draft_queue
+        # None=未確認 / True=起動中 / False=未起動
+        self._ollama_available: bool | None = None
 
         self.title("AutoTicket")
         self.geometry(f"{WIN_INPUT[0]}x{WIN_INPUT[1]}")
@@ -146,8 +148,25 @@ class InputWindow(ctk.CTkToplevel):
         btn_row.pack(fill="x", padx=16, pady=(2, 12))
         self._status_lbl = ctk.CTkLabel(btn_row, text="", text_color=("gray30", "gray70"))
         self._status_lbl.pack(side="left")
-        self._submit_btn = ctk.CTkButton(btn_row, text="AIで起票する →", command=self._on_ai_submit)
+
+        # Ollama 未起動が確定している場合は即座に無効化
+        ai_btn_state = "disabled" if self._ollama_available is False else "normal"
+        self._submit_btn = ctk.CTkButton(
+            btn_row, text="AIで起票する →",
+            state=ai_btn_state,
+            command=self._on_ai_submit,
+        )
         self._submit_btn.pack(side="right")
+
+        if self._ollama_available is False:
+            self._status_lbl.configure(
+                text="Ollama 未起動 — 手動で起票できます",
+                text_color=("gray40", "gray60"),
+            )
+        elif self._ollama_available is None:
+            # 初回のみバックグラウンドで確認（結果をキャッシュして再利用）
+            threading.Thread(target=self._check_ollama_once, daemon=True).start()
+
         # AI 解析を使わず手入力で起票する経路（Ollama 未導入環境向け）
         ctk.CTkButton(
             btn_row, text="✏️ 手動で起票", width=120,
@@ -307,6 +326,28 @@ class InputWindow(ctk.CTkToplevel):
         try:
             if self.winfo_exists():
                 super().after(delay_ms, callback)  # type: ignore[arg-type]
+        except Exception:
+            pass
+
+    # ──────────────────────────────
+    # Ollama 起動確認
+    # ──────────────────────────────
+    def _check_ollama_once(self) -> None:
+        """バックグラウンドで Ollama の起動状態を確認し、結果をキャッシュする。"""
+        available = self._ollama.is_available()
+        self._ollama_available = available
+        logging.debug("Ollama is_available=%s", available)
+        if not available:
+            self._safe_after(0, self._mark_ollama_unavailable)
+
+    def _mark_ollama_unavailable(self) -> None:
+        """Ollama 未起動と判明したら AI ボタンを無効化して案内文を表示する。"""
+        try:
+            self._submit_btn.configure(state="disabled")
+            self._status_lbl.configure(
+                text="Ollama 未起動 — 手動で起票できます",
+                text_color=("gray40", "gray60"),
+            )
         except Exception:
             pass
 
@@ -555,6 +596,17 @@ class InputWindow(ctk.CTkToplevel):
         if desc_val:
             self._desc_text.insert("1.0", desc_val)
 
+        # 予定工数（任意）
+        hours_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        self._estimated_hours_entry = ctk.CTkEntry(
+            hours_frame, placeholder_text="例: 2.0", width=100
+        )
+        self._estimated_hours_entry.pack(side="left")
+        ctk.CTkLabel(hours_frame, text="時間", text_color=("gray40", "gray60")).pack(
+            side="left", padx=(6, 0)
+        )
+        _row("予定工数（任意）", hours_frame)
+
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
         btn_row.pack(fill="x", padx=16, pady=(8, 4))
         ctk.CTkButton(
@@ -679,6 +731,14 @@ class InputWindow(ctk.CTkToplevel):
 
         due_date_str = "" if self._no_due_var.get() else self._due_entry.get()
 
+        estimated_hours: float | None = None
+        try:
+            val = self._estimated_hours_entry.get().strip()
+            if val:
+                estimated_hours = float(val)
+        except (ValueError, AttributeError):
+            pass
+
         payload = build_payload(
             title=title,
             due_date_str=due_date_str,
@@ -698,6 +758,12 @@ class InputWindow(ctk.CTkToplevel):
             try:
                 result = self._backend.create_task(payload)
                 logging.debug("create_task success")
+                task_id = str(result.get("id", ""))
+                if task_id and estimated_hours is not None:
+                    try:
+                        self._backend.record_work_hours(task_id, estimated_hours=estimated_hours)
+                    except Exception as exc:
+                        logging.warning("record_work_hours failed: %s", exc)
                 self._safe_after(0, lambda: self._on_success(result, title, proj_name))
             except Exception as exc:
                 logging.error("create_task failed:\n" + traceback.format_exc())

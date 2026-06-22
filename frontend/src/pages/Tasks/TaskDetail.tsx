@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert,
   Button,
+  DatePicker,
   Descriptions,
   message,
   Popconfirm,
@@ -14,6 +15,7 @@ import {
   Typography,
 } from 'antd'
 import { CopyOutlined, DeleteOutlined, RedoOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { useTask, useUpdateTask, useDeleteTask, useDeleteRecurrence } from '../../hooks/useTasks'
 import { useSections } from '../../hooks/useSections'
 import { useClarifyRequirements } from '../../hooks/useTaskDetails'
@@ -111,6 +113,14 @@ export default function TaskDetail() {
                 options={sections.map((s) => ({ label: s.name, value: s.id }))}
                 onChange={(v: string | undefined) => handleFieldChange('section_id', v ?? null)}
                 style={{ width: 200 }}
+              />
+            </Descriptions.Item>
+            <Descriptions.Item label="開始予定日">
+              <DatePicker
+                value={task.start_date ? dayjs(task.start_date) : null}
+                onChange={(d) => handleFieldChange('start_date', d ? d.format('YYYY-MM-DD') : null)}
+                style={{ width: 160 }}
+                placeholder="未設定"
               />
             </Descriptions.Item>
             <Descriptions.Item label="期限">{task.due_date ?? '—'}</Descriptions.Item>

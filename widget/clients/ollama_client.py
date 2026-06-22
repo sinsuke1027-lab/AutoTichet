@@ -58,6 +58,15 @@ class OllamaClient:
         self.model = model
         self.vision_model = vision_model
 
+    def is_available(self) -> bool:
+        """Ollama が localhost:11434 で起動しているか確認する（最大2秒待ち）。"""
+        try:
+            import httpx
+            resp = httpx.get("http://localhost:11434/", timeout=2.0)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
     def parse(self, text: str) -> dict:
         today = date.today().isoformat()
         logging.debug("OllamaClient.parse model=%s text=%r", self.model, text[:100])

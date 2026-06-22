@@ -231,9 +231,10 @@ export default function TaskList() {
   }
 
   const handleCreate = async (values: Record<string, unknown>) => {
-    const { estimated_hours, recurrence_end_date, ...taskValues } = values as {
+    const { estimated_hours, recurrence_end_date, start_date, ...taskValues } = values as {
       estimated_hours?: number
       recurrence_end_date?: import('dayjs').Dayjs
+      start_date?: import('dayjs').Dayjs
       [key: string]: unknown
     }
     const payload = {
@@ -241,6 +242,7 @@ export default function TaskList() {
       ...(recurrence_end_date
         ? { recurrence_end_date: recurrence_end_date.format('YYYY-MM-DD') }
         : {}),
+      ...(start_date ? { start_date: start_date.format('YYYY-MM-DD') } : {}),
     }
     const created = await createTask.mutateAsync(
       payload as Partial<import('../../lib/api').Task> & { title: string },
@@ -596,6 +598,9 @@ export default function TaskList() {
             </Form.Item>
           ) : null}
 
+          <Form.Item name="start_date" label="開始予定日">
+            <DatePicker style={{ width: 160 }} placeholder="未設定" />
+          </Form.Item>
           <Form.Item name="estimated_hours" label="予定工数（h）">
             <InputNumber
               min={0}
