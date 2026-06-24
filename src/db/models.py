@@ -104,15 +104,24 @@ class Task(Base):
     parent_task: Mapped["Task | None"] = relationship(
         "Task", back_populates="subtasks", remote_side="Task.id", foreign_keys="Task.parent_task_id"
     )
-    comments: Mapped[list["TaskComment"]] = relationship("TaskComment", back_populates="task")
-    work_hours: Mapped[list["TaskWorkHour"]] = relationship("TaskWorkHour", back_populates="task")
-    tags: Mapped[list["TaskTag"]] = relationship("TaskTag", back_populates="task")
+    comments: Mapped[list["TaskComment"]] = relationship(
+        "TaskComment", back_populates="task", passive_deletes=True
+    )
+    work_hours: Mapped[list["TaskWorkHour"]] = relationship(
+        "TaskWorkHour", back_populates="task", passive_deletes=True
+    )
+    tags: Mapped[list["TaskTag"]] = relationship(
+        "TaskTag", back_populates="task", passive_deletes=True
+    )
     dependencies: Mapped[list["TaskDependency"]] = relationship(
-        "TaskDependency", foreign_keys="TaskDependency.task_id", back_populates="task"
+        "TaskDependency",
+        foreign_keys="TaskDependency.task_id",
+        back_populates="task",
+        passive_deletes=True,
     )
     section: Mapped["Section | None"] = relationship("Section", back_populates="tasks")
     sub_assignees: Mapped[list["TaskAssignee"]] = relationship(
-        "TaskAssignee", back_populates="task"
+        "TaskAssignee", back_populates="task", passive_deletes=True
     )
     assignee: Mapped["UserProfile | None"] = relationship(
         "UserProfile",
