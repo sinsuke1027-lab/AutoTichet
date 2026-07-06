@@ -1,10 +1,44 @@
 # AutoTicket 進捗ログ
 
 ## 現在のフェーズ
-**Phase: 品質改善（バグ一掃＋セキュリティ）完了 → 残: C-1（本番 DEV_MODE）と #10、PyInstaller 配布**
-ステータス: バグ監査で起票した 27 件（#17〜#43）を全修正・クローズ。セキュリティ Critical C-2/C-3 を解消。既存 GitHub issue #1〜#16 を精査し 9 件クローズ。残 open は **#10 のみ**。次の大きな未対応は **C-1（本番 DEV_MODE 公開）** と **#10（プロジェクトのメンバー選択 UI＋全体フィルタ配線）**。
+**Phase: チーム配布準備完了**
+ステータス: 本番 DB のシードデータ全削除・インポート機能動作確認・非技術者向けドキュメント整備・配布セット（ZIP）を作成しチームへ配布準備完了。残 open issue は **#10 のみ**。
 
 ## 最終更新
+- **日付**: 2026-06-24
+
+- **完了した作業（2026-06-24: チーム配布準備）**:
+  - **インポート機能動作確認**: 本番環境（https://auto-tichet.vercel.app/import）で `インポート_IT部門.xlsx`（465件）をアップロードし、プレビュー（Step 2）まで正常動作を確認（Playwright による E2E テスト）
+  - **本番 DB 全タスク削除**: シードデータ 56件を全削除（`scripts/delete_all_tasks.py` 相当の手順で実施）。ダッシュボードの総タスク数が 0 になったことを確認
+  - **バグ修正: `passive_deletes=True`（commit: `60a0984`）**: `src/db/models.py` の Task relationships（comments / work_hours / tags / dependencies / sub_assignees）に `passive_deletes=True` を追加。DB 側 `ondelete="CASCADE"` を SQLAlchemy ORM が阻害してタスク削除が 500 エラーになっていた問題を根本修正。GitHub・HuggingFace Spaces にデプロイ済み
+  - **非技術者向けドキュメント整備（3本新規作成）**:
+    - `docs/member-guide.md` — メンバー向けセットアップ・日常使い方・Web アプリアクセス方法・トラブルシューティング
+    - `docs/ollama-setup-guide.md` — Ollama インストールガイド（コマンドプロンプトの開き方から丁寧に説明）
+    - `docs/import-guide.md` — タスク移管ガイド（テンプレート列説明・記入例・Asana/他ツールからの手順・アップロード操作）
+  - **配布セット作成（`AutoTicket配布セット/`）**:
+    - `dist/AutoTicket/`（exe フォルダ）をコピー
+    - 上記 3 ドキュメントを Chrome headless で PDF 化（①〜③ 各 280〜340 KB）
+    - `docs/backoffice_order/インポートテンプレート.xlsx` をコピー
+    - ZIP 圧縮してチームへ配布
+
+- **日付**: 2026-06-23
+
+- **完了した作業（2026-06-19〜23: ウィジェット機能拡充・デプロイ）**:
+  - **HTTP 405 修正**: `BackendClient.complete_task()` の `httpx.patch` → `httpx.put` に修正（バックエンドに `PATCH /{task_id}` が存在せず `PUT /{task_id}` のみ）
+  - **FirstRunWizard スレッドセーフ化**: `queue.Queue` パターンで `CTkToplevel.after()` のスレッド安全問題を根本解消。接続テストカウンター・ユーザー取得ローディングが正常動作
+  - **Ollama 起動確認**: `OllamaClient.is_available()` 追加。`InputWindow` 起動時にバックグラウンドチェック → 未起動時は「AIで起票する」ボタンを無効化してメッセージ表示
+  - **開始予定日（start_date）機能追加**:
+    - バックエンド: `GET /api/v1/tasks` に `start_date_lte` クエリパラメータ追加（`tasks_crud.py`）
+    - フロントエンド: タスク詳細画面（`TaskDetail.tsx`）と新規作成モーダル（`Tasks/index.tsx`）に「開始予定日」DatePicker 追加
+    - ウィジェット: `TaskItem` に `start_date` フィールド追加・`get_start_overdue_tasks()` メソッド追加
+    - ウィジェット: `TodoWindow` を2セクション構成に刷新 — **⚠️ 開始日超過（未着手・進行中）** + **📅 今日の期限**。起動時に両セクション並列取得・ステータスバーに超過件数表示
+  - **予定工数・実績工数（ウィジェット）**:
+    - `BackendClient.record_work_hours(task_id, estimated_hours, actual_hours)` 追加（`POST /work-hours`）
+    - `InputWindow` 確認パネルに「予定工数（任意）」入力欄追加 → 起票後に自動登録
+    - `TodoWindow` 完了ボタン押下時に「実績工数入力ダイアログ」を表示 → 「記録して完了」or「スキップ」
+  - **PyInstaller ビルド**: `dist/AutoTicket/AutoTicket.exe` 最新版に更新済み（チーム配布可能）
+  - **デプロイ**: `git push origin master`（Vercel 自動デプロイ）+ `git push hf master:main`（HF Spaces リビルド）完了
+
 - **日付**: 2026-06-15
 
 - **完了した作業（2026-06-15: GitHub Issue 棚卸し）**:

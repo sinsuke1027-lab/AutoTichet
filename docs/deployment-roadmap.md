@@ -197,4 +197,4 @@ Pattern B テキスト → Ollama（社内 GPU サーバー）→ 完全社内�
 |------------|------|
 | [docs/requirements.md](requirements.md) | 機能要件・フェーズ構成（開発フェーズ）|
 | [docs/graph-api-setup.md](graph-api-setup.md) | IT 管理者向け Graph API 申請手順 |
-| [docs/startup-guide.md](startup-guide.md) | 開発環境・本番起動手順 |
+| [docs/startup-guide.md](startup-guide.md) | 開発環境・本番起動手順・**社内メンバーへの共有手順（社内 LAN 共有 / Docker 本番デプロイ）**|

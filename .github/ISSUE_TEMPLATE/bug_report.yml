@@ -1,0 +1,80 @@
+name: "\U0001F41B バグ報告"
+description: 動作がおかしい・エラーが出る・画面が崩れる場合はこちら
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        バグの情報を教えてください。スクリーンショットがあると原因の特定が早まります。
+        「わからない」「確認できない」の記入でも構いません。
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: どこで起きましたか？
+      options:
+        - ウィジェット（デスクトップアプリ）
+        - Web アプリ — タスク一覧
+        - Web アプリ — ダッシュボード
+        - Web アプリ — ガント
+        - Web アプリ — ワークロード
+        - Web アプリ — インポート
+        - Web アプリ — その他
+        - わからない
+    validations:
+      required: true
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 何が起きましたか？（症状）
+      description: 見えたエラー文・画面の状態などをそのまま書いてください。
+      placeholder: |
+        例）タスクを起票しようとすると「接続失敗」と赤字で表示されてしまい、登録できない。
+        例）ガント画面を開いたら真っ白のまま何も表示されない。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順（どう操作したら起きましたか？）
+      description: 手順が分かると修正が速くなります。分からなければ「不明」でOKです。
+      placeholder: |
+        例）
+        1. Ctrl+Shift+Space でウィジェットを開く
+        2. タイトルを入力して「起票」ボタンをクリック
+        3. 「接続失敗」のエラーが表示される
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 本来どうなってほしかったですか？
+      placeholder: |
+        例）タスクが登録されて、ウィンドウが自動で閉じてほしかった。
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: 再現頻度
+      options:
+        - 毎回起きる
+        - 時々起きる（2〜3回に1回程度）
+        - まれに起きた（1回だけ）
+        - わからない
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: 使用環境
+      description: ブラウザ・OS など分かる範囲で記入してください。
+      placeholder: "例）Windows 11 / Chrome 125　または　ウィジェット / Windows 10"
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: スクリーンショット（任意・推奨）
+      description: 画像をここに直接貼り付けられます（Ctrl+V）。

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "\U0001F4AC 使い方・操作の質問"
+    url: https://github.com/sinsuke1027-lab/AutoTicket/discussions
+    about: バグや改善ではなく「使い方がわからない」場合はこちら（Discussions）へ

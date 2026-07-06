@@ -1,6 +1,6 @@
 # AutoTicket タスク一覧
 
-最終更新: 2026-06-15
+最終更新: 2026-06-24
 
 凡例: `[x]` 完了 / `[ ]` 未着手 / `[-]` 承認待ちでブロック中
 
@@ -131,9 +131,34 @@
 - [x] `docs/widget-distribution-guide.md` — 配布・運用ガイド
 - [x] pytest 70 passed
 
+### ウィジェット機能拡充 ✅ 完了（2026-06-23）
+
+- [x] **HTTP 405 修正**: `BackendClient.complete_task()` `httpx.patch` → `httpx.put`（バックエンドは `PUT /{task_id}` のみ）
+- [x] **FirstRunWizard スレッドセーフ化**: `queue.Queue` パターンで接続テスト・ユーザー取得のスレッド安全問題を解消
+- [x] **Ollama 起動確認**: `OllamaClient.is_available()` 追加。未起動時は「AIで起票する」ボタンを無効化
+- [x] **開始予定日アラート**: `BackendClient.get_start_overdue_tasks()`・`TaskItem.start_date` 追加
+  - `TodoWindow` を2セクション構成に刷新（⚠️ 開始日超過セクション + 📅 今日の期限セクション）
+  - バックエンド: `GET /api/v1/tasks?start_date_lte=` クエリパラメータ追加（`tasks_crud.py`）
+  - フロントエンド: タスク詳細・新規作成モーダルに「開始予定日」DatePicker 追加
+- [x] **予定工数入力**: `InputWindow` 確認パネルに「予定工数（任意）」欄 → 起票後に `POST /work-hours` 登録
+- [x] **実績工数ダイアログ**: `TodoWindow` 完了ボタン押下時に実績工数入力ダイアログ表示 → 「記録して完了」/「スキップ」
+- [x] **`BackendClient.record_work_hours()`** 追加（estimated_hours / actual_hours 両対応）
+- [x] **PyInstaller 再ビルド**: `dist/AutoTicket/AutoTicket.exe` 最新版に更新
+- [x] **デプロイ**: GitHub push（Vercel 自動デプロイ）+ HuggingFace Spaces push 完了（commit: `29bde41`）
+
+### チーム配布準備 ✅ 完了（2026-06-24）
+
+- [x] **インポート機能 本番動作確認**: `インポート_IT部門.xlsx`（465件）をアップロードしプレビュー（Step 2）まで正常動作を確認
+- [x] **本番 DB 全タスク削除**: シードデータ 56件を全削除（ダッシュボード総タスク数 0 を確認）
+- [x] **バグ修正: `passive_deletes=True`（commit: `60a0984`）**: `src/db/models.py` の Task 5 relationships に追加。DB 側 CASCADE を ORM が阻害して削除 500 エラーになっていた問題を根本修正。HF Spaces デプロイ済み
+- [x] **非技術者向けドキュメント整備（3本新規作成）**:
+  - `docs/member-guide.md` — メンバー向けセットアップ・使い方・トラブルシューティング
+  - `docs/ollama-setup-guide.md` — Ollama インストールガイド（コマンドプロンプト操作含む）
+  - `docs/import-guide.md` — タスク移管ガイド（テンプレート説明・Asana 手順・Web アップロード操作）
+- [x] **配布セット作成（`AutoTicket配布セット/`）**: exe フォルダ + 3本 PDF + インポートテンプレート.xlsx を同梱
+
 ### ウィジェット 次のアクション
 
-- [ ] チームへ配布（`dist\AutoTicket\` を共有フォルダに置く）
 - [ ] フィードバック収集 → 改善イテレーション
 - [ ] （任意）slim ビルド — 音声入力 OFF 版（サイズ縮小目的）
 
@@ -308,5 +333,6 @@ Graph API 承認待ち・Phase 3 前提の機能とは独立して着手でき�
 | Web App Phase 2B（Should 機能 残タスク） | 10 / 10 | 1 タスク（F-21 残） | Phase 2B-6 完了 ✅ → 着手可能 |
 | 追加改善バックログ | 8 / 14 | 6 項目 | なし（随時着手可能） |
 | デプロイ（Vercel + HF + Supabase） | ✅ 全完了（2026-06-04） | — | — |
+| チーム配布準備 | ✅ 全完了（2026-06-24） | — | フィードバック収集フェーズへ |
 | Phase 3（ローカル LLM + Bot） | 0 / 4 | 4 タスク | Phase 2 完了 + Ollama + Bot 登録 |
 | Phase 4（音声） | 0 / 3 | 3 タスク | Phase 3 完了 + Whisper 方式決定 |

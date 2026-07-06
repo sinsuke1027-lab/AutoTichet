@@ -1,0 +1,73 @@
+name: "\U0001F4A1 機能改善"
+description: 既存の機能が使いにくい・もっとこうしてほしい場合はこちら
+title: "[改善] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        既存の機能に対する改善案を教えてください。
+        「こうなれば使いやすい」という観点で書いていただければ大丈夫です。
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: どの機能・画面についてですか？
+      options:
+        - ウィジェット — 起票フォーム
+        - ウィジェット — 今日のタスク一覧
+        - ウィジェット — 設定
+        - Web アプリ — タスク一覧
+        - Web アプリ — タスク詳細
+        - Web アプリ — ダッシュボード
+        - Web アプリ — ガント
+        - Web アプリ — ワークロード
+        - Web アプリ — インポート
+        - ガイドドキュメント
+        - その他
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_problem
+    attributes:
+      label: 現在の使いにくい点・困っていること
+      description: 今どういう問題が起きているかを教えてください。
+      placeholder: |
+        例）タスク一覧でフィルタ（担当者・ステータス）を設定しても、別の画面に移動すると毎回リセットされる。
+        例）ガントチャートのバーが小さくてドラッグしにくく、日付の変更に手間がかかる。
+        例）タスクを完了にするとき「完了」ボタンをクリックしても確認なしに即完了してしまい、誤操作が多い。
+    validations:
+      required: true
+
+  - type: textarea
+    id: desired
+    attributes:
+      label: どうなってほしいですか？（改善案）
+      description: 理想の動きや画面のイメージを教えてください。ざっくりで構いません。
+      placeholder: |
+        例）画面を移動してもフィルタ設定が維持されてほしい。または「フィルタをリセット」ボタンを用意してほしい。
+        例）ガントのバーを太く/つかみやすくしてほしい。
+        例）完了ボタンを押したとき「本当に完了にしますか？」の確認ダイアログを出してほしい。
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 業務への影響・改善したい理由
+      description: なぜ困っているか・どれくらい頻繁に困るかを教えてください。優先度の判断に使います。
+      placeholder: |
+        例）毎朝フィルタを設定しなおすのに5分かかっており、毎日発生している。
+        例）ガント操作に慣れておらず、日程変更のたびに管理者に頼んでいる。
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: あなたにとっての重要度
+      options:
+        - 高（毎日困っている・業務が止まることがある）
+        - 中（週に数回困る）
+        - 低（あれば嬉しい程度）
+    validations:
+      required: true

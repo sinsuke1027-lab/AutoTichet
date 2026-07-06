@@ -1,0 +1,61 @@
+name: "✨ 機能追加リクエスト"
+description: 今はない機能を追加してほしい場合はこちら
+title: "[機能追加] "
+labels: ["feature request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        新しい機能のリクエストを教えてください。
+        「こんなことができたら便利」という気づきをそのまま書いていただければ大丈夫です。
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: どんな場面で使いたいですか？（使いたいシーン）
+      description: 「〇〇するとき、〇〇できると便利」という形で書いてください。
+      placeholder: |
+        例）会議が終わったあと、議事録のテキストを貼り付けるだけでタスクをまとめて起票できると便利。
+        例）スマートフォンからも自分のタスクを確認・完了できると、外出先で助かる。
+        例）タスクに添付ファイル（PDF・画像）をつけられると、関連資料をまとめて管理できる。
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_workaround
+    attributes:
+      label: 今はどう対処していますか？
+      description: 代替手段・回避策があれば教えてください。
+      placeholder: |
+        例）議事録を見ながら1件ずつ手動で起票している（10分以上かかる）。
+        例）帰社後にPCで確認している。
+        例）メールにファイルを添付してタスクのコメントに件名を書いている。
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: 機能のイメージ（動きの期待値）
+      description: どう動いてほしいか、ざっくりで構いません。参考になる他のツールがあれば書いてください。
+      placeholder: |
+        例）テキストエリアに議事録を貼り付けて「解析」ボタンを押すと、タスク候補が一覧表示される。確認してから一括起票できる。
+        例）Asanaのモバイルアプリのようなイメージ。
+        例）タスク詳細の「添付」タブからファイルをドラッグ&ドロップで追加できる。
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: あなたにとっての重要度
+      options:
+        - 高（これがあれば業務が大きく改善する）
+        - 中（あるとかなり便利）
+        - 低（あれば嬉しい程度）
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: その他・補足（任意）
+      placeholder: |
+        例）同じ要望を持っているメンバーが他にもいます（〇〇さん・〇〇さん）。
+        例）Asana ではこの機能が使えていたので、同じ感覚で使えると嬉しいです。

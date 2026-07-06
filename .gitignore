@@ -46,3 +46,11 @@ docker/volumes/
 frontend/test-results/
 
 widget/config.json
+
+# 配布用ビルド成果物（PyInstaller 一式・巨大バイナリのため git 管理外）
+AutoTicket配布セット/
+AutoTicket配布セット.zip
+
+# 実データを含む可能性がある一時的なインポート検証ファイル
+docs/backoffice_order/インポート_IT部門.xlsx
+docs/backoffice_order/情シスタスク.xlsx

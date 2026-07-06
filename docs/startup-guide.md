@@ -213,3 +213,149 @@ npm run dev
 ### ログイン後に画面が真っ白になる
 
 ブラウザの開発者ツール（F12）でコンソールエラーを確認してください。多くの場合は API 接続エラー（バックエンドが起動していない）です。
+
+---
+
+## 社内メンバーへ共有する
+
+ローカル PC で動いているアプリを社内の他のメンバーに使ってもらうには、2 つのステップがあります。
+
+### ステップ 1 — 社内 LAN で即時共有（Entra ID 不要）
+
+**所要時間: 1〜2 時間。Graph API 承認が取れる前でもフィードバック収集に使えます。**
+
+> **注意:** DEV_MODE=true のため認証が無効です。業務データを入れず、あくまで評価・フィードバック用にとどめてください。
+
+#### 1. フロントの接続先 IP を変更
+
+`frontend/.env.local` を以下のように設定します（PC の IP アドレスは `ipconfig` で確認）。
+
+```
+VITE_API_BASE_URL=http://192.168.x.x:8000
+VITE_DEV_BYPASS_AUTH=true
+```
+
+#### 2. バックエンドを全インターフェースでバインドして起動
+
+```powershell
+uvicorn src.api.main:app --reload --port 8000 --host 0.0.0.0
+```
+
+#### 3. フロントを全インターフェースで起動
+
+```powershell
+cd frontend
+npm run dev -- --host 0.0.0.0
+```
+
+#### 4. Windows ファイアウォールでポートを開放
+
+「Windows Defender ファイアウォール」→「受信の規則」→「新しい規則」で  
+ポート **5173**（フロント）と **8000**（バックエンド）を社内 LAN に対して許可します。
+
+#### 5. 同僚に URL を伝える
+
+```
+http://あなたのIPアドレス:5173
+```
+
+---
+
+### ステップ 2 — 社内サーバーへ本番デプロイ（Entra ID 必要）
+
+**Graph API 承認取得後に実施します。詳細は `docs/deployment-roadmap.md` の D-Ph0 を参照。**
+
+#### 2-1. Entra ID アプリ登録（IT 管理者に依頼）
+
+`docs/graph-api-setup.md` を IT 管理者に渡して以下の情報をもらいます：
+
+| 変数 | 説明 |
+|-----|------|
+| `AZURE_TENANT_ID` | テナント ID |
+| `AZURE_CLIENT_ID` | バックエンド用アプリ登録のクライアント ID |
+| `VITE_AZURE_TENANT_ID` | フロントエンド用（SPA 登録、同じ値で可） |
+| `VITE_AZURE_CLIENT_ID` | フロントエンド用 SPA のクライアント ID |
+
+IT 管理者には Entra ID のアプリ登録で「リダイレクト URI」に  
+`http://サーバーのアドレス` を追加してもらってください。
+
+#### 2-2. フロントエンドを本番ビルド
+
+```powershell
+cd frontend
+
+# frontend/.env.local を本番用に設定
+# VITE_AZURE_TENANT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# VITE_AZURE_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# VITE_API_BASE_URL=http://サーバーアドレス:8000
+# VITE_DEV_BYPASS_AUTH=false   ← 必ず false
+
+npm run build   # frontend/dist/ に静的ファイルが生成される
+```
+
+#### 2-3. FastAPI からフロントエンドを配信する（1 ポート完結）
+
+`src/api/main.py` の末尾に以下を追加すると、バックエンドとフロントを同じ URL で提供できます：
+
+```python
+import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+if os.path.exists("frontend/dist"):
+    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str) -> FileResponse:
+        return FileResponse("frontend/dist/index.html")
+```
+
+これで `http://サーバー:8000` にアクセスするだけでフロントもバックエンドも使えます。
+
+#### 2-4. 本番用 .env を設定
+
+```env
+DEV_MODE=false                    # 必ず false
+AZURE_TENANT_ID=本番テナントID
+AZURE_CLIENT_ID=本番クライアントID
+AZURE_CLIENT_SECRET=本番シークレット
+DATABASE_URL=postgresql+asyncpg://user:pass@サーバーアドレス:5432/autoticket
+GEMINI_API_KEY=本番APIキー
+POSTGRES_PASSWORD=強力なパスワードに変更
+# Langfuse も本番用シークレットに変更:
+# NEXTAUTH_SECRET, SALT を docker-compose.yml で設定
+```
+
+#### 2-5. Docker Compose で起動
+
+```powershell
+# 本番サーバー上で実行
+docker compose -f docker/docker-compose.yml up -d
+
+# 初回のみ: DB マイグレーション
+alembic upgrade head
+```
+
+起動確認:
+
+```
+http://サーバーアドレス:8000/api/v1/health → {"status":"ok"}
+http://サーバーアドレス:8000               → ログイン画面
+```
+
+---
+
+### ステップ別の判断フロー
+
+```
+今すぐ試してもらいたい（評価・フィードバック）
+    └── ステップ 1: 社内 LAN + DEV_MODE（1〜2 時間）
+
+Graph API 承認が取れた
+    └── ステップ 2: Docker デプロイ + Entra ID（D-Ph0）
+
+Azure サブスクリプションが使える
+    └── Azure App Service（コンテナイメージを ACR に push）
+```
+
+> **関連ドキュメント:** `docs/deployment-roadmap.md` — 誰に・いつ・どのフェーズで展開するかの戦略ロードマップ
