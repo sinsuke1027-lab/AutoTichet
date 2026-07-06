@@ -56,10 +56,15 @@ class BackendClient:
             "departmentTags": [],
         })
         self._headers = {"X-Dev-User": dev_header, "Content-Type": "application/json"}
+        # 呼び出しごとにTCP+TLSハンドシェイクをやり直さないよう、Clientを使い回す
+        self._client = httpx.Client()
+
+    def close(self) -> None:
+        self._client.close()
 
     def get_users_dev(self) -> list[UserInfo]:
         """DEV_MODE 専用: 認証なしで /api/v1/dev/users からユーザー一覧を取得する。"""
-        resp = httpx.get(
+        resp = self._client.get(
             f"{self._base}/api/v1/dev/users",
             timeout=90,  # HuggingFace Spaces のスリープ復帰に最大60秒かかる
         )
@@ -75,7 +80,7 @@ class BackendClient:
         ]
 
     def get_users(self) -> list[UserInfo]:
-        resp = httpx.get(
+        resp = self._client.get(
             f"{self._base}/api/v1/users",
             headers=self._headers,
             timeout=10,
@@ -92,7 +97,7 @@ class BackendClient:
         ]
 
     def get_projects(self) -> list[ProjectInfo]:
-        resp = httpx.get(
+        resp = self._client.get(
             f"{self._base}/api/v1/projects",
             params={"scope": "all"},
             headers=self._headers,
@@ -105,7 +110,7 @@ class BackendClient:
 
     def get_today_tasks(self) -> list[TaskItem]:
         today = date.today().isoformat()
-        resp = httpx.get(
+        resp = self._client.get(
             f"{self._base}/api/v1/tasks",
             params={"due_date_gte": today, "due_date_lte": today, "limit": 100},
             headers=self._headers,
@@ -118,7 +123,7 @@ class BackendClient:
 
     def get_overdue_tasks(self) -> list[TaskItem]:
         yesterday = (date.today() - timedelta(days=1)).isoformat()
-        resp = httpx.get(
+        resp = self._client.get(
             f"{self._base}/api/v1/tasks",
             params={"due_date_lte": yesterday, "limit": 100},
             headers=self._headers,
@@ -137,7 +142,7 @@ class BackendClient:
     def get_start_overdue_tasks(self) -> list[TaskItem]:
         """開始予定日が昨日以前で未完了のタスクを取得する。ステータス絞り込みはクライアント側で行う。"""
         yesterday = (date.today() - timedelta(days=1)).isoformat()
-        resp = httpx.get(
+        resp = self._client.get(
             f"{self._base}/api/v1/tasks",
             params={"start_date_lte": yesterday, "limit": 100},
             headers=self._headers,
@@ -152,7 +157,7 @@ class BackendClient:
         ]
 
     def complete_task(self, task_id: str) -> None:
-        resp = httpx.put(
+        resp = self._client.put(
             f"{self._base}/api/v1/tasks/{task_id}",
             json={"status": "completed"},
             headers=self._headers,
@@ -178,7 +183,7 @@ class BackendClient:
             payload["actual_hours"] = actual_hours
         if not payload:
             return
-        resp = httpx.post(
+        resp = self._client.post(
             f"{self._base}/api/v1/tasks/{task_id}/work-hours",
             json=payload,
             headers=self._headers,
@@ -193,7 +198,7 @@ class BackendClient:
 
     def create_task(self, payload: dict) -> dict:
         logging.debug("create_task payload: %s", payload)
-        resp = httpx.post(
+        resp = self._client.post(
             f"{self._base}/api/v1/tasks",
             json=payload,
             headers=self._headers,

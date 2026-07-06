@@ -146,6 +146,8 @@ class AppController:
                     )
                 else:
                     self._root.after(0, lambda e=str(exc): self._on_connect_failed(e))
+            finally:
+                dev_client.close()
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -456,6 +458,11 @@ class AppController:
                 self._tray_icon.stop()
             except Exception as exc:
                 logging.warning("tray_icon stop error: %s", exc)
+        if self.backend is not None:
+            try:
+                self.backend.close()
+            except Exception as exc:
+                logging.warning("backend client close error: %s", exc)
         if self._root:
             self._root.destroy()
         sys.exit(0)

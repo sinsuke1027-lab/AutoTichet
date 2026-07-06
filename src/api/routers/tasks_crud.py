@@ -921,21 +921,15 @@ async def update_task(
     if body.status in (TaskStatus.COMPLETED, TaskStatus.CANCELLED):
         await _spawn_next_recurrence(task, db)
     await db.commit()
-    # flush(タグ削除)でUPDATEが発行されupdated_atがexpireするため、
-    # commit後に再クエリして全属性を確実にロードする
-    refreshed = await db.execute(
-        select(Task)
-        .where(Task.id == task_id)
-        .options(
-            selectinload(Task.tags),
-            selectinload(Task.sub_assignees),
-            selectinload(Task.subtasks),
-            selectinload(Task.work_hours),
-            selectinload(Task.assignee),
-            selectinload(Task.project),
-        )
-    )
-    return _task_to_response(refreshed.scalar_one())
+    # flushでUPDATEが発行されupdated_atがexpireするため再取得が必要。
+    # tags/sub_assignees/subtasks/assignee/project は初回SELECTで取得済みで
+    # この関数内では変更されない（tags変更時のみ例外）ため、全件の再SELECTはせず
+    # 不足分（updated_at・work_hours、タグ変更時のみtags）だけをrefreshする。
+    refresh_attrs = ["updated_at", "work_hours"]
+    if body.tags is not None:
+        refresh_attrs.append("tags")
+    await db.refresh(task, refresh_attrs)
+    return _task_to_response(task)
 
 
 @router.post(

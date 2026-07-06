@@ -26,7 +26,7 @@ def test_get_users_dev_returns_user_info_list_without_auth():
     raw = [
         {"user_id": "u1", "display_name": "山田 太郎", "role": "member", "email": "u1@example.com"},
     ]
-    with patch("httpx.get", return_value=_make_response(raw)) as mock_get:
+    with patch("httpx.Client.get", return_value=_make_response(raw)) as mock_get:
         client = BackendClient("https://example.hf.space", UserInfo(user_id="", display_name=""))
         users = client.get_users_dev()
     call_kwargs = mock_get.call_args
@@ -42,7 +42,7 @@ def test_get_users_returns_user_info_list():
         {"user_id": "u1", "display_name": "山田 太郎", "role": "member", "email": ""},
         {"user_id": "u2", "display_name": "田中 花子", "role": "admin", "email": ""},
     ]
-    with patch("httpx.get", return_value=_make_response(raw)):
+    with patch("httpx.Client.get", return_value=_make_response(raw)):
         client = _make_client()
         users = client.get_users()
     assert len(users) == 2
@@ -56,7 +56,7 @@ def test_get_projects_returns_project_info_list():
         {"id": "p1", "name": "総務業務管理"},
         {"id": "p2", "name": "人事業務管理"},
     ]
-    with patch("httpx.get", return_value=_make_response(raw)):
+    with patch("httpx.Client.get", return_value=_make_response(raw)):
         client = _make_client()
         projects = client.get_projects()
     assert len(projects) == 2
@@ -65,7 +65,7 @@ def test_get_projects_returns_project_info_list():
 
 def test_create_task_sends_correct_payload():
     mock_resp = _make_response({"id": "task-uuid", "title": "テスト"})
-    with patch("httpx.post", return_value=mock_resp) as mock_post:
+    with patch("httpx.Client.post", return_value=mock_resp) as mock_post:
         client = _make_client(user_id="u1")
         payload = {"title": "テスト", "priority": "medium", "source_type": "manual"}
         result = client.create_task(payload)
@@ -78,7 +78,25 @@ def test_create_task_sends_correct_payload():
 
 def test_get_projects_handles_paginated_response():
     raw = {"items": [{"id": "p1", "name": "プロジェクトA"}], "total": 1}
-    with patch("httpx.get", return_value=_make_response(raw)):
+    with patch("httpx.Client.get", return_value=_make_response(raw)):
         client = _make_client()
         projects = client.get_projects()
     assert projects[0].name == "プロジェクトA"
+
+
+def test_client_reused_across_calls():
+    """複数回呼んでも同じhttpx.Clientインスタンスが使われる（接続の使い回し）こと"""
+    raw = [{"id": "p1", "name": "プロジェクトA"}]
+    with patch("httpx.Client.get", return_value=_make_response(raw)):
+        client = _make_client()
+        first_client = client._client
+        client.get_projects()
+        client.get_projects()
+        assert client._client is first_client
+
+
+def test_close_closes_underlying_client():
+    client = _make_client()
+    with patch.object(client._client, "close") as mock_close:
+        client.close()
+    mock_close.assert_called_once()
