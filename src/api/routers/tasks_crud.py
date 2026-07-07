@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from sqlalchemy import Select, and_, distinct, func, or_, select
 from sqlalchemy.dialects.postgresql import array as pg_array
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.api.auth import ROLE_HIERARCHY, CurrentUser
 from src.api.routers._scope import visible_user_ids as _visible_user_ids
@@ -188,7 +188,9 @@ async def list_tasks(
         selectinload(Task.subtasks),
         selectinload(Task.work_hours),
         selectinload(Task.assignee),
-        selectinload(Task.project),
+        # project は *-to-one なので selectinload の別クエリではなく
+        # 同一クエリ内の LEFT JOIN（joinedload）でまとめて取得する（ラウンドトリップ削減）
+        joinedload(Task.project),
     )
     if status_filter:
         query = query.where(Task.status == status_filter.value)

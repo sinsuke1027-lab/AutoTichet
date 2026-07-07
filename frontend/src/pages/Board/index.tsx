@@ -199,11 +199,27 @@ export default function Board() {
         const newOrder = arrayMove(colTasks, activeIndex, overIndex)
         const beforeTask = overIndex > 0 ? newOrder[overIndex - 1] : null
         const afterTask = overIndex < newOrder.length - 1 ? newOrder[overIndex + 1] : null
-        reorderTask.mutate({
-          taskId: activeId,
-          beforeId: beforeTask?.id ?? null,
-          afterId: afterTask?.id ?? null,
-        })
+
+        // 楽観的更新: サーバー応答を待たずに並び替えを即時反映する
+        const queryKey = ['tasks-view', { project_id: projectId }]
+        const previous = queryClient.getQueryData<Task[]>(queryKey)
+        let colCursor = 0
+        queryClient.setQueryData<Task[]>(queryKey, (old = []) =>
+          old.map((t) => (t.status === activeColKey ? newOrder[colCursor++] : t))
+        )
+
+        reorderTask.mutate(
+          {
+            taskId: activeId,
+            beforeId: beforeTask?.id ?? null,
+            afterId: afterTask?.id ?? null,
+          },
+          {
+            onError: () => {
+              queryClient.setQueryData(queryKey, previous)
+            },
+          }
+        )
       }
     } else {
       // 別カラムへのドロップ → ステータス更新のみ（楽観的更新）。
